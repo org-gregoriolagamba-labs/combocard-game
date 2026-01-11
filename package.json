@@ -1,0 +1,15 @@
+{
+  "name": "template-fullstack-node-react",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm:start --prefix backend\" \"npm:start --prefix frontend\"",
+    "install-deps": "npm install --prefix backend && npm install --prefix frontend",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend start",
+    "deploy": "npm run build && npm run start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
