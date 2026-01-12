@@ -9,14 +9,22 @@
     "react-scripts": "5.0.1",
     "socket.io-client": "^4.8.3"
   },
+  "devDependencies": {
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "stylelint": "^16.26.1",
+    "stylelint-config-standard": "^39.0.1",
+    "tailwindcss": "^4.1.18"
+  },
   "overrides": {
-    "nth-check": "2.0.1",
-    "postcss": "8.4.31"
+    "nth-check": "2.0.1"
   },
   "proxy": "http://localhost:3001",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:css": "node ./node_modules/tailwindcss/dist/lib.js -i ./src/index.css -o ./src/tailwind-output.css --minify",
+    "tailwind:init": "node ./node_modules/tailwindcss/dist/lib.js init -p",
     "test": "react-scripts test"
   },
   "browserslist": {

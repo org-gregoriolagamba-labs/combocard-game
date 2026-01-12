@@ -387,12 +387,37 @@ app.post('/api/game/:gameId/draw', (req, res) => {
   if (game.mazzo.length === 0) {
     return res.status(400).json({ error: 'Mazzo esaurito' });
   }
-  
+  // enforce only game owner (first player) can draw, if playerId provided
+  const { playerId } = req.body || {};
+  if (playerId) {
+    const ownerId = game.players[0]?.id;
+    if (!ownerId || playerId !== ownerId) {
+      return res.status(403).json({ error: 'Only the game creator can draw cards' });
+    }
+  }
+
   const cartaEstratta = game.mazzo.pop();
   game.carteEstratte.push(cartaEstratta);
-  
+
+  // Auto-cover matching cards for all players
+  for (const player of game.players) {
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        if (!player.coperte[r][c]) {
+          const cartaCartella = player.cartella[r][c];
+          if (cartaCartella.valore === cartaEstratta.valore && cartaCartella.seme === cartaEstratta.seme) {
+            player.coperte[r][c] = true;
+            // notify room about the covered card
+            io.to(req.params.gameId).emit('cardCovered', { playerId: player.id, row: r, col: c });
+          }
+        }
+      }
+    }
+  }
+
+  // notify about drawn card
   io.to(req.params.gameId).emit('cardDrawn', { carta: cartaEstratta });
-  
+
   res.json({ carta: cartaEstratta });
 });
 

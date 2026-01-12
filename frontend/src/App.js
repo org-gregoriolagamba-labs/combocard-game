@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { io } from 'socket.io-client';
 import { Users, Trophy, Coins, PlayCircle } from 'lucide-react';
-import { io } from "socket.io-client";
 import './index.css';
+import './App.css';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -29,6 +30,13 @@ function App() {
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [puntataIniziale, setPuntataIniziale] = useState(100);
   const [ultimaCartaEstratta, setUltimaCartaEstratta] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (text, type = 'info') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(t => [...t, { id, text, type }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+  };
 
   const creaPartita = async () => {
     try {
@@ -41,6 +49,8 @@ function App() {
       setGameId(data.gameId);
       setGame(data.game);
       setScreen('lobby');
+      // Join socket room for this game so we receive realtime events
+      if (socketRef.current) socketRef.current.emit('joinGame', data.gameId);
     } catch (error) {
       console.error('Errore creazione partita:', error);
       alert('Errore nella creazione della partita');
@@ -69,6 +79,8 @@ function App() {
       const data = await response.json();
       setPlayerId(data.playerId);
       setCurrentPlayer(data.player);
+      // join socket room to receive realtime events
+      if (socketRef.current) socketRef.current.emit('joinGame', gameId);
       
       const gameResponse = await fetch(`${API_URL}/game/${gameId}`);
       const gameData = await gameResponse.json();
@@ -78,6 +90,119 @@ function App() {
       alert('Errore nell\'unirsi alla partita');
     }
   };
+
+  // Socket setup: single instance + refs for latest ids
+  const socketRef = useRef(null);
+  const gameIdRef = useRef(gameId);
+  const playerIdRef = useRef(playerId);
+
+  useEffect(() => {
+    gameIdRef.current = gameId;
+    playerIdRef.current = playerId;
+  }, [gameId, playerId]);
+
+  useEffect(() => {
+    const socket = io('http://localhost:3001');
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Socket connected', socket.id);
+      if (gameIdRef.current) socket.emit('joinGame', gameIdRef.current);
+    });
+
+    socket.on('playerJoined', ({ player }) => {
+      // append player locally to avoid fetching full game
+      setGame(prev => {
+        if (!prev || prev.id !== gameIdRef.current) return prev;
+        if (prev.players.some(p => p.id === player.id)) return prev;
+        addToast(`${player.name} si è unito alla partita`);
+        return { ...prev, players: [...prev.players, player] };
+      });
+    });
+
+    socket.on('gameStarted', ({ game: srvGame }) => {
+      if (srvGame) {
+        setGame(srvGame);
+        const cp = srvGame.players.find(p => p.id === playerIdRef.current);
+        if (cp) setCurrentPlayer(cp);
+        if (playerIdRef.current) setScreen('game');
+        addToast('Partita iniziata');
+      }
+    });
+
+    socket.on('cardDrawn', ({ carta }) => {
+      if (!carta) return;
+      setUltimaCartaEstratta(carta);
+      setGame(prev => {
+        if (!prev || prev.id !== gameIdRef.current) return prev;
+        const newMazzo = Array.isArray(prev.mazzo) ? prev.mazzo.slice() : [];
+        if (newMazzo.length > 0) newMazzo.pop();
+        const newCarteEstratte = [...(prev.carteEstratte || []), carta];
+        const updated = { ...prev, mazzo: newMazzo, carteEstratte: newCarteEstratte };
+        const cp = updated.players.find(p => p.id === playerIdRef.current);
+        if (cp) setCurrentPlayer(cp);
+        return updated;
+      });
+      addToast('Carta estratta: ' + carta.valore + ' di ' + carta.seme);
+    });
+
+    socket.on('cardCovered', ({ playerId, row, col }) => {
+      setGame(prev => {
+        if (!prev || prev.id !== gameIdRef.current) return prev;
+        const players = prev.players.map(p => {
+          if (p.id !== playerId) return p;
+          const newCoperte = p.coperte.map(r => [...r]);
+          newCoperte[row][col] = true;
+          return { ...p, coperte: newCoperte };
+        });
+        const updated = { ...prev, players };
+        const cp = players.find(p => p.id === playerIdRef.current);
+        if (cp) setCurrentPlayer(cp);
+        // notify
+        const player = players.find(p => p.id === playerId);
+        addToast(`${player?.name || 'Giocatore'} ha coperto una carta`);
+        return updated;
+      });
+    });
+
+    socket.on('collezioneVinta', ({ tipo, vincitore, ammontare }) => {
+      setGame(prev => {
+        if (!prev || prev.id !== gameIdRef.current) return prev;
+        const collezioni = { ...prev.collezioni, [tipo]: { vinto: true, vincitore: vincitore.id } };
+        const players = prev.players.map(p => {
+          if (p.id === vincitore.id) {
+            return { ...p, gettoni: (p.gettoni || 0) + (ammontare || 0), collezioni: [...(p.collezioni || []), tipo] };
+          }
+          return p;
+        });
+        const updated = { ...prev, collezioni, players };
+        const cp = players.find(p => p.id === playerIdRef.current);
+        if (cp) setCurrentPlayer(cp);
+        return updated;
+      });
+    });
+
+    socket.on('jollyUsato', ({ playerId, row, col }) => {
+      setGame(prev => {
+        if (!prev || prev.id !== gameIdRef.current) return prev;
+        const players = prev.players.map(p => p.id === playerId ? { ...p, jollyUsato: true, jollyPos: { row, col } } : p );
+        const updated = { ...prev, players };
+        const cp = players.find(p => p.id === playerIdRef.current);
+        if (cp) setCurrentPlayer(cp);
+        return updated;
+      });
+    });
+
+    socket.on('gameFinished', ({ vincitore }) => {
+      console.log('Game finished', vincitore);
+      setGame(prev => prev && prev.id === gameIdRef.current ? { ...prev, status: 'finished' } : prev);
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
+  }, []);
 
   const iniziaPartita = async () => {
     try {
@@ -104,7 +229,8 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/draw`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId })
       });
       
       if (!response.ok) {
@@ -116,9 +242,11 @@ function App() {
       const data = await response.json();
       setUltimaCartaEstratta(data.carta);
       
+      // local auto-cover (owner will also trigger server-side auto-cover events)
       if (currentPlayer) {
         autoCopriCarta(data.carta);
       }
+      addToast('Carta estratta: ' + data.carta.valore + ' di ' + data.carta.seme);
     } catch (error) {
       console.error('Errore estrazione carta:', error);
     }
@@ -303,6 +431,13 @@ function App() {
             </button>
           </div>
         </div>
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map(t => (
+            <div key={t.id} className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm">
+              {t.text}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -374,6 +509,13 @@ function App() {
               </p>
             )}
           </div>
+        </div>
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map(t => (
+            <div key={t.id} className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm">
+              {t.text}
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -486,7 +628,7 @@ function App() {
                 
                 <button
                   onClick={estraiCarta}
-                  disabled={game?.status !== 'playing'}
+                  disabled={game?.status !== 'playing' || game?.players?.[0]?.id !== currentPlayer?.id}
                   className="w-full mt-4 bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50"
                 >
                   🎲 Estrai Carta
@@ -495,6 +637,13 @@ function App() {
                 <p className="text-xs text-green-700 mt-2 text-center">
                   Carte rimaste: {game?.mazzo.length || 0}/40
                 </p>
+                <div className="fixed bottom-4 right-4 z-50 space-y-2">
+                  {toasts.map(t => (
+                    <div key={t.id} className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm">
+                      {t.text}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
