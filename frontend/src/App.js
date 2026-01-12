@@ -431,7 +431,50 @@ function App() {
       const max = Object.values(suits).length ? Math.max(...Object.values(suits)) : 0;
       count = Math.min(max, total);
     } else if (tipo === 'napola') {
-      count = Math.min(covered.length, total);
+      // NAPOLA richiede un tris (3) + una coppia (2) = 5 carte totali
+      const counts = {};
+      covered.forEach(c => counts[c.valore] = (counts[c.valore] || 0) + 1);
+      
+      const valori = Object.values(counts).sort((a, b) => b - a);
+      
+      // Cerchiamo il miglior tris e la miglior coppia
+      let hasTris = false;
+      let hasCoppia = false;
+      let countTris = 0;
+      let countCoppia = 0;
+      
+      // Primo valore: cerchiamo un tris (almeno 3)
+      if (valori[0] >= 3) {
+        hasTris = true;
+        countTris = 3;
+        
+        // Secondo valore: cerchiamo una coppia (almeno 2)
+        if (valori[1] >= 2) {
+          hasCoppia = true;
+          countCoppia = 2;
+        } else if (valori[1] === 1) {
+          countCoppia = 1; // progresso parziale verso la coppia
+        }
+      } else if (valori[0] === 2) {
+        // Abbiamo una coppia ma non ancora un tris
+        countTris = 2;
+        if (valori[1] >= 2) {
+          countCoppia = 2;
+        } else if (valori[1] === 1) {
+          countCoppia = 1;
+        }
+      } else if (valori[0] === 1) {
+        countTris = 1;
+      }
+      
+      // Il count rappresenta il progresso totale verso 5
+      if (hasTris && hasCoppia) {
+        count = 5; // Napola completata!
+      } else {
+        count = countTris + countCoppia;
+      }
+      
+      count = Math.min(count, total);
     } else if (tipo === 'combocard_reale') {
       const perSeme = {};
       covered.forEach(c => {
