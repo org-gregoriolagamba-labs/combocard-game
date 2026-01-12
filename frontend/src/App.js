@@ -210,11 +210,15 @@ function App() {
       });
     });
 
-    socket.on('collezioneVinta', ({ tipo, vincitore, ammontare }) => {
+    socket.on('collezioneVinta', ({ tipo, vincitore, ammontare, player: playerPayload }) => {
       setGame(prev => {
         if (!prev || prev.id !== gameIdRef.current) return prev;
         const collezioni = { ...prev.collezioni, [tipo]: { vinto: true, vincitore: vincitore.id } };
         const players = prev.players.map(p => {
+          if (playerPayload && p.id === playerPayload.id) {
+            // replace with authoritative player payload from server
+            return { ...p, ...playerPayload };
+          }
           if (p.id === vincitore.id) {
             return { ...p, gettoni: (p.gettoni || 0) + (ammontare || 0), collezioni: [...(p.collezioni || []), tipo] };
           }
@@ -403,19 +407,41 @@ function App() {
 
     // raccogli tutte le carte coperte
     const covered = [];
+    let jollyCovered = false;
+    let jollyCard = null;
+    const jollyPos = currentPlayer?.jollyPos;
+
     for (let r = 0; r < 5; r++) {
       for (let c = 0; c < 5; c++) {
-        if (currentPlayer.coperte[r][c]) covered.push(currentPlayer.cartella[r][c]);
+        if (currentPlayer.coperte[r][c]) {
+          if (jollyPos && jollyPos.row === r && jollyPos.col === c) {
+            jollyCovered = true;
+            jollyCard = currentPlayer.cartella[r][c];
+            // still include the card in covered for suit-based counts, but mark jolly separately
+            covered.push(currentPlayer.cartella[r][c]);
+          } else {
+            covered.push(currentPlayer.cartella[r][c]);
+          }
+        }
       }
     }
 
     let count = 0;
-
+    // per-tipo progress calcs
     if (tipo === 'tris') {
       const counts = {};
       covered.forEach(c => counts[c.valore] = (counts[c.valore] || 0) + 1);
       const max = Object.values(counts).length ? Math.max(...Object.values(counts)) : 0;
       count = Math.min(max, total);
+      if (jollyCovered) {
+        // jolly can assume any valore
+        let bestWithJolly = max;
+        for (let v of Object.keys(counts)) {
+          bestWithJolly = Math.max(bestWithJolly, counts[v] + 1);
+        }
+        bestWithJolly = Math.max(bestWithJolly, 1);
+        count = Math.min(bestWithJolly, total);
+      }
     } else if (tipo === 'sequenza') {
       const nums = [...new Set(covered.map(c => c.valoreNum))].sort((a, b) => a - b);
       let best = 0, cur = 0, prev = null;
@@ -425,53 +451,97 @@ function App() {
         if (cur > best) best = cur;
       });
       count = Math.min(best, total);
+      if (jollyCovered) {
+        const needed = total;
+        for (let start = 1; start <= 10 - needed + 1; start++) {
+          let present = 0;
+          for (let v = start; v < start + needed; v++) if (nums.includes(v)) present++;
+          if (present + 1 > count) count = Math.min(present + 1, total);
+        }
+      }
     } else if (tipo === 'scopa') {
       const suits = {};
       covered.forEach(c => suits[c.seme] = (suits[c.seme] || 0) + 1);
       const max = Object.values(suits).length ? Math.max(...Object.values(suits)) : 0;
       count = Math.min(max, total);
     } else if (tipo === 'napola') {
-      // NAPOLA richiede un tris (3) + una coppia (2) = 5 carte totali
-      const counts = {};
-      covered.forEach(c => counts[c.valore] = (counts[c.valore] || 0) + 1);
+      // NAPOLA: tris (3 carte stesso valore) + coppia (2 carte altro valore) = 5 carte
+      const values = {};
+      covered.forEach(c => values[c.valore] = (values[c.valore] || 0) + 1);
       
-      const valori = Object.values(counts).sort((a, b) => b - a);
+      // Ordina i conteggi per trovare il miglior tris e la miglior coppia
+      const counts = Object.values(values).sort((a, b) => b - a);
       
-      // Cerchiamo il miglior tris e la miglior coppia
-      let hasTris = false;
-      let hasCoppia = false;
       let countTris = 0;
       let countCoppia = 0;
       
-      // Primo valore: cerchiamo un tris (almeno 3)
-      if (valori[0] >= 3) {
-        hasTris = true;
-        countTris = 3;
+      if (jollyCovered) {
+        // Con jolly, prova ad aggiungerlo al gruppo più grande
+        let bestCombination = 0;
+        const valoriArray = Object.keys(values);
         
-        // Secondo valore: cerchiamo una coppia (almeno 2)
-        if (valori[1] >= 2) {
-          hasCoppia = true;
-          countCoppia = 2;
-        } else if (valori[1] === 1) {
-          countCoppia = 1; // progresso parziale verso la coppia
+        if (valoriArray.length === 0) {
+          // Solo il jolly coperto
+          count = 1;
+        } else if (valoriArray.length === 1) {
+          // Jolly + un solo valore (es: 3 Assi + Jolly = 4 Assi, ma serve anche coppia)
+          const cnt = values[valoriArray[0]] + 1;
+          if (cnt >= 3) {
+            countTris = 3;
+            // Manca ancora la coppia
+          } else {
+            countTris = cnt;
+          }
+          count = countTris;
+        } else {
+          // Jolly + almeno 2 valori diversi
+          // Prova ad aggiungere jolly al primo gruppo (per fare/completare tris)
+          const firstWithJolly = counts[0] + 1;
+          const second = counts[1];
+          
+          if (firstWithJolly >= 3 && second >= 2) {
+            count = 5; // Napola completa!
+          } else if (firstWithJolly >= 3) {
+            countTris = 3;
+            countCoppia = Math.min(second, 2);
+            count = countTris + countCoppia;
+          } else {
+            // Oppure prova ad aggiungere jolly al secondo gruppo
+            const first = counts[0];
+            const secondWithJolly = counts[1] + 1;
+            
+            if (first >= 3 && secondWithJolly >= 2) {
+              count = 5;
+            } else if (first >= 3) {
+              countTris = 3;
+              countCoppia = Math.min(secondWithJolly, 2);
+              count = countTris + countCoppia;
+            } else {
+              // Prendi la combinazione migliore
+              countTris = Math.min(Math.max(firstWithJolly, first), 3);
+              countCoppia = Math.min(Math.max(second, secondWithJolly), 2);
+              count = countTris + countCoppia;
+            }
+          }
         }
-      } else if (valori[0] === 2) {
-        // Abbiamo una coppia ma non ancora un tris
-        countTris = 2;
-        if (valori[1] >= 2) {
-          countCoppia = 2;
-        } else if (valori[1] === 1) {
-          countCoppia = 1;
-        }
-      } else if (valori[0] === 1) {
-        countTris = 1;
-      }
-      
-      // Il count rappresenta il progresso totale verso 5
-      if (hasTris && hasCoppia) {
-        count = 5; // Napola completata!
       } else {
-        count = countTris + countCoppia;
+        // Senza jolly
+        if (counts.length >= 2) {
+          // Abbiamo almeno 2 valori diversi
+          if (counts[0] >= 3 && counts[1] >= 2) {
+            count = 5; // Napola completa!
+          } else {
+            countTris = Math.min(counts[0], 3);
+            countCoppia = counts.length >= 2 ? Math.min(counts[1], 2) : 0;
+            count = countTris + countCoppia;
+          }
+        } else if (counts.length === 1) {
+          // Un solo valore, progresso solo verso il tris
+          countTris = Math.min(counts[0], 3);
+          count = countTris;
+        } else {
+          count = 0;
+        }
       }
       
       count = Math.min(count, total);
@@ -484,12 +554,20 @@ function App() {
       let best = 0;
       for (const s in perSeme) {
         const nums = [...new Set(perSeme[s])].sort((a, b) => a - b);
-        let cur = 0, prev = null;
+        let curBest = 0, cur = 0, prev = null;
         nums.forEach(n => {
           if (prev === null || n !== prev + 1) cur = 1; else cur++;
           prev = n;
-          if (cur > best) best = cur;
+          if (cur > curBest) curBest = cur;
         });
+        if (jollyCovered && jollyCard && jollyCard.seme === s) {
+          for (let start = 1; start <= 10 - total + 1; start++) {
+            let present = 0;
+            for (let v = start; v < start + total; v++) if (nums.includes(v)) present++;
+            curBest = Math.max(curBest, Math.min(total, present + 1));
+          }
+        }
+        if (curBest > best) best = curBest;
       }
       count = Math.min(best, total);
     } else {

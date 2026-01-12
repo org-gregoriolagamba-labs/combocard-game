@@ -129,55 +129,85 @@ function generaCartella() {
 }
 
 // Verifica TRIS (3 carte stesso valore)
-function verificaTris(cartella, coperte) {
+function verificaTris(cartella, coperte, jollyPos) {
   const valoriCoperti = {};
-  
+
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       if (coperte[r][c]) {
         const valore = cartella[r][c].valore;
+        // skip counting jolly as fixed value here; we'll handle jolly flexibly
+        if (jollyPos && jollyPos.row === r && jollyPos.col === c) continue;
         valoriCoperti[valore] = (valoriCoperti[valore] || 0) + 1;
       }
     }
   }
-  
-  // Verifica se c'è un valore con almeno 3 carte
+
+  // If there's already a tris without jolly, return true
   for (let valore in valoriCoperti) {
-    if (valoriCoperti[valore] >= 3) {
-      return true;
+    if (valoriCoperti[valore] >= 3) return true;
+  }
+
+  // If jolly is present and covered, see if it can complete any tris
+  if (jollyPos && coperte[jollyPos.row] && coperte[jollyPos.row][jollyPos.col]) {
+    // try assigning jolly to any valore
+    for (let valore of VALORI) {
+      const cnt = (valoriCoperti[valore] || 0) + 1; // jolly counts as this valore
+      if (cnt >= 3) return true;
     }
   }
+
   return false;
 }
 
 // Verifica SEQUENZA (4 carte in fila, semi misti OK)
-function verificaSequenza(cartella, coperte) {
+function verificaSequenza(cartella, coperte, jollyPos) {
   const valoriCoperti = [];
-  
+  let jollyCovered = false;
+
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       if (coperte[r][c]) {
+        if (jollyPos && jollyPos.row === r && jollyPos.col === c) {
+          jollyCovered = true;
+          continue; // treat jolly separately
+        }
         valoriCoperti.push(cartella[r][c].valoreNum);
       }
     }
   }
-  
+
   // Ordina e rimuovi duplicati
   const valoriUnici = [...new Set(valoriCoperti)].sort((a, b) => a - b);
-  
-  // Cerca sequenza di 4 consecutivi
-  for (let i = 0; i <= valoriUnici.length - 4; i++) {
-    if (valoriUnici[i+1] === valoriUnici[i] + 1 &&
-        valoriUnici[i+2] === valoriUnici[i] + 2 &&
-        valoriUnici[i+3] === valoriUnici[i] + 3) {
-      return true;
+
+  const needed = 4;
+
+  // If we already have a full sequence
+  for (let i = 0; i <= valoriUnici.length - needed; i++) {
+    let ok = true;
+    for (let k = 1; k < needed; k++) {
+      if (valoriUnici[i + k] !== valoriUnici[i] + k) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+
+  // If jolly present, check whether there's a sequence of length needed where at most 1 number is missing
+  if (jollyCovered) {
+    // scan all possible sequences in range 1..10
+    for (let start = 1; start <= 10 - needed + 1; start++) {
+      let presentCount = 0;
+      for (let v = start; v < start + needed; v++) {
+        if (valoriUnici.includes(v)) presentCount++;
+      }
+      if (presentCount + 1 >= needed) return true;
     }
   }
+
   return false;
 }
 
 // Verifica SCOPA (5 carte stesso seme)
-function verificaScopa(cartella, coperte) {
+function verificaScopa(cartella, coperte, jollyPos) {
   const semiCoperti = {};
   
   for (let r = 0; r < 5; r++) {
@@ -199,13 +229,14 @@ function verificaScopa(cartella, coperte) {
 }
 
 // Verifica NAPOLA (Tris + Coppia)
-function verificaNapola(cartella, coperte) {
+function verificaNapola(cartella, coperte, jollyPos) {
   const valoriCoperti = {};
   
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       if (coperte[r][c]) {
         const valore = cartella[r][c].valore;
+        if (jollyPos && jollyPos.row === r && jollyPos.col === c) continue; // handle jolly later
         valoriCoperti[valore] = (valoriCoperti[valore] || 0) + 1;
       }
     }
@@ -218,12 +249,21 @@ function verificaNapola(cartella, coperte) {
     if (valoriCoperti[valore] >= 3) hasTris = true;
     if (valoriCoperti[valore] >= 2 && valoriCoperti[valore] < 3) hasCoppia = true;
   }
+
+  // If jolly covered, it can act as needed to complete tris or coppia
+  if (jollyPos && coperte[jollyPos.row] && coperte[jollyPos.row][jollyPos.col]) {
+    for (let valore of VALORI) {
+      const cnt = (valoriCoperti[valore] || 0) + 1;
+      if (cnt >= 3) hasTris = true;
+      if (cnt === 2) hasCoppia = true;
+    }
+  }
   
   return hasTris && hasCoppia;
 }
 
 // Verifica COMBOCARD REALE (4 carte in sequenza stesso seme)
-function verificaCombocardReale(cartella, coperte) {
+function verificaCombocardReale(cartella, coperte, jollyPos) {
   const carteCoperte = [];
   
   for (let r = 0; r < 5; r++) {
@@ -244,7 +284,7 @@ function verificaCombocardReale(cartella, coperte) {
   // Per ogni seme, verifica se c'è sequenza di 4
   for (let seme in perSeme) {
     const valori = perSeme[seme].sort((a, b) => a - b);
-    
+
     for (let i = 0; i <= valori.length - 4; i++) {
       if (valori[i+1] === valori[i] + 1 &&
           valori[i+2] === valori[i] + 2 &&
@@ -252,18 +292,31 @@ function verificaCombocardReale(cartella, coperte) {
         return true;
       }
     }
+
+    // If jolly used and belongs to this seme, allow one wildcard
+    if (jollyPos && coperte[jollyPos.row] && coperte[jollyPos.row][jollyPos.col]) {
+      const jollySeme = cartella[jollyPos.row][jollyPos.col].seme;
+      if (jollySeme === seme) {
+        // scan possible sequences and allow one missing
+        for (let start = 1; start <= 10 - 4 + 1; start++) {
+          let present = 0;
+          for (let v = start; v < start + 4; v++) if (valori.includes(v)) present++;
+          if (present + 1 >= 4) return true;
+        }
+      }
+    }
   }
   return false;
 }
 
 // Verifica collezione
-function verificaCollezione(cartella, coperte, tipo) {
+function verificaCollezione(cartella, coperte, tipo, jollyPos) {
   switch(tipo) {
-    case 'tris': return verificaTris(cartella, coperte);
-    case 'sequenza': return verificaSequenza(cartella, coperte);
-    case 'scopa': return verificaScopa(cartella, coperte);
-    case 'napola': return verificaNapola(cartella, coperte);
-    case 'combocard_reale': return verificaCombocardReale(cartella, coperte);
+    case 'tris': return verificaTris(cartella, coperte, jollyPos);
+    case 'sequenza': return verificaSequenza(cartella, coperte, jollyPos);
+    case 'scopa': return verificaScopa(cartella, coperte, jollyPos);
+    case 'napola': return verificaNapola(cartella, coperte, jollyPos);
+    case 'combocard_reale': return verificaCombocardReale(cartella, coperte, jollyPos);
     default: return false;
   }
 }
@@ -446,7 +499,7 @@ app.post('/api/game/:gameId/claim', (req, res) => {
     return res.status(400).json({ error: 'Collezione già vinta' });
   }
   
-  const completata = verificaCollezione(player.cartella, player.coperte, tipo);
+  const completata = verificaCollezione(player.cartella, player.coperte, tipo, player.jollyPos);
   
   if (!completata) {
     return res.status(400).json({ error: 'Collezione non completata' });
@@ -456,11 +509,20 @@ app.post('/api/game/:gameId/claim', (req, res) => {
   game.collezioni[tipo].vincitore = playerId;
   player.collezioni.push(tipo);
   player.gettoni += game.collezioniDistribuzione[tipo];
-  
+  // If the claim used the jolly (i.e. without jolly the collection would be incomplete), consume it
+  const completataWithoutJolly = verificaCollezione(player.cartella, player.coperte, tipo, null);
+  const completataWithJolly = verificaCollezione(player.cartella, player.coperte, tipo, player.jollyPos);
+  if (player.jollyPos && completataWithJolly && !completataWithoutJolly) {
+    // consume jolly so it cannot be used for further collections
+    player.jollyPos = null;
+  }
+
+  // emit updated player in payload so clients can sync jolly state
   io.to(gameId).emit('collezioneVinta', { 
     tipo, 
     vincitore: { id: playerId, name: player.name },
-    ammontare: game.collezioniDistribuzione[tipo]
+    ammontare: game.collezioniDistribuzione[tipo],
+    player
   });
   
   if (tipo === 'combocard_reale') {
@@ -489,11 +551,16 @@ app.post('/api/game/:gameId/jolly', (req, res) => {
     return res.status(400).json({ error: 'Jolly già usato' });
   }
   
+  // mark jolly as used, record position and mark the card as covered
   player.jollyUsato = true;
   player.jollyPos = { row, col };
-  
+  if (!player.coperte[row]) player.coperte[row] = [];
+  player.coperte[row][col] = true;
+
+  // notify room that jolly used and that the card is covered
   io.to(gameId).emit('jollyUsato', { playerId, row, col });
-  
+  io.to(gameId).emit('cardCovered', { playerId, row, col });
+
   res.json({ success: true });
 });
 
