@@ -352,7 +352,14 @@ app.post('/api/game/:gameId/start', (req, res) => {
   if (!game) {
     return res.status(404).json({ error: 'Game not found' });
   }
-  
+  const { playerId } = req.body || {};
+
+  // Only game owner (first player) can start
+  const ownerId = game.players[0]?.id;
+  if (playerId && ownerId && playerId !== ownerId) {
+    return res.status(403).json({ error: 'Only the game creator can start the game' });
+  }
+
   if (game.players.length < 2) {
     return res.status(400).json({ error: 'Servono almeno 2 giocatori' });
   }

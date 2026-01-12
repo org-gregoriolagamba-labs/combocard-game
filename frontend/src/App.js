@@ -4,7 +4,13 @@ import { Users, Trophy, Coins, PlayCircle } from 'lucide-react';
 import './index.css';
 import './App.css';
 
-const API_URL = 'http://localhost:3001/api';
+// Resolve backend URL dynamically so remote clients can connect using server IP.
+const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const DEFAULT_BACKEND_PORT = 3001;
+const detectedHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const backendHost = REACT_APP_BACKEND_URL || `${window.location.protocol}//${detectedHost}:${DEFAULT_BACKEND_PORT}`;
+const BACKEND_URL = backendHost.replace(/:\/\/localhost:/, `://${detectedHost}:`);
+const API_URL = `${BACKEND_URL}/api`;
 
 const SEMI_EMOJI = {
   'Spade': '⚔️',
@@ -51,6 +57,25 @@ function App() {
       setScreen('lobby');
       // Join socket room for this game so we receive realtime events
       if (socketRef.current) socketRef.current.emit('joinGame', data.gameId);
+      // if creator provided a name, auto-join as player so they become owner
+      if (playerName) {
+        try {
+          const resp = await fetch(`${API_URL}/game/${data.gameId}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playerName })
+          });
+          if (resp.ok) {
+            const joinData = await resp.json();
+            setPlayerId(joinData.playerId);
+            setCurrentPlayer(joinData.player);
+            // ensure socket room join
+            if (socketRef.current) socketRef.current.emit('joinGame', data.gameId);
+          }
+        } catch (e) {
+          console.error('Auto-join failed', e);
+        }
+      }
     } catch (error) {
       console.error('Errore creazione partita:', error);
       alert('Errore nella creazione della partita');
@@ -85,10 +110,28 @@ function App() {
       const gameResponse = await fetch(`${API_URL}/game/${gameId}`);
       const gameData = await gameResponse.json();
       setGame(gameData);
+      // ensure we joined the socket room for lobby visibility
+      if (socketRef.current) socketRef.current.emit('joinGame', gameId);
     } catch (error) {
       console.error('Errore unione partita:', error);
       alert('Errore nell\'unirsi alla partita');
     }
+  };
+
+  const openLobby = async (targetGameId) => {
+    const gid = targetGameId || gameId;
+    setGameId(gid);
+    setScreen('lobby');
+    try {
+      const res = await fetch(`${API_URL}/game/${gid}`);
+      if (res.ok) {
+        const g = await res.json();
+        setGame(g);
+      }
+    } catch (e) {
+      console.error('Error fetching game for lobby', e);
+    }
+    if (socketRef.current) socketRef.current.emit('joinGame', gid);
   };
 
   // Socket setup: single instance + refs for latest ids
@@ -102,7 +145,9 @@ function App() {
   }, [gameId, playerId]);
 
   useEffect(() => {
-    const socket = io('http://localhost:3001');
+    // connect to backend socket using configured BACKEND_URL (no /api)
+    const socketBackend = BACKEND_URL.replace(/\/api\/?$/, '');
+    const socket = io(socketBackend);
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -208,7 +253,8 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId })
       });
       
       if (!response.ok) {
@@ -343,8 +389,8 @@ function App() {
   };
 
   const calcolaProgresso = (tipo) => {
-    if (!currentPlayer) return { count: 0, total: 0 };
-    
+    if (!currentPlayer) return { count: 0, total: 0, status: 'far' };
+
     const totali = {
       tris: 3,
       sequenza: 4,
@@ -352,19 +398,70 @@ function App() {
       napola: 5,
       combocard_reale: 4
     };
-    
-    // Calcolo semplificato - conta le carte coperte
-    let coperte = 0;
+
+    const total = totali[tipo] || 0;
+
+    // raccogli tutte le carte coperte
+    const covered = [];
     for (let r = 0; r < 5; r++) {
       for (let c = 0; c < 5; c++) {
-        if (currentPlayer.coperte[r][c]) coperte++;
+        if (currentPlayer.coperte[r][c]) covered.push(currentPlayer.cartella[r][c]);
       }
     }
-    
-    return { 
-      count: Math.min(coperte, totali[tipo]), 
-      total: totali[tipo] 
-    };
+
+    let count = 0;
+
+    if (tipo === 'tris') {
+      const counts = {};
+      covered.forEach(c => counts[c.valore] = (counts[c.valore] || 0) + 1);
+      const max = Object.values(counts).length ? Math.max(...Object.values(counts)) : 0;
+      count = Math.min(max, total);
+    } else if (tipo === 'sequenza') {
+      const nums = [...new Set(covered.map(c => c.valoreNum))].sort((a, b) => a - b);
+      let best = 0, cur = 0, prev = null;
+      nums.forEach(n => {
+        if (prev === null || n !== prev + 1) cur = 1; else cur++;
+        prev = n;
+        if (cur > best) best = cur;
+      });
+      count = Math.min(best, total);
+    } else if (tipo === 'scopa') {
+      const suits = {};
+      covered.forEach(c => suits[c.seme] = (suits[c.seme] || 0) + 1);
+      const max = Object.values(suits).length ? Math.max(...Object.values(suits)) : 0;
+      count = Math.min(max, total);
+    } else if (tipo === 'napola') {
+      count = Math.min(covered.length, total);
+    } else if (tipo === 'combocard_reale') {
+      const perSeme = {};
+      covered.forEach(c => {
+        perSeme[c.seme] = perSeme[c.seme] || [];
+        perSeme[c.seme].push(c.valoreNum);
+      });
+      let best = 0;
+      for (const s in perSeme) {
+        const nums = [...new Set(perSeme[s])].sort((a, b) => a - b);
+        let cur = 0, prev = null;
+        nums.forEach(n => {
+          if (prev === null || n !== prev + 1) cur = 1; else cur++;
+          prev = n;
+          if (cur > best) best = cur;
+        });
+      }
+      count = Math.min(best, total);
+    } else {
+      count = Math.min(covered.length, total);
+    }
+
+    const missing = total - count;
+
+    // status: 'near' (green) = 1-2 mancanti, 'mid' (yellow) = >= half, 'far' (white) = otherwise
+    let status = 'far';
+    if (missing <= 2 && missing > 0) status = 'near';
+    else if (count >= Math.ceil(total / 2)) status = 'mid';
+    else if (count === total) status = 'near';
+
+    return { count, total, status, missing };
   };
 
   // Home Screen
@@ -423,7 +520,7 @@ function App() {
             />
             
             <button
-              onClick={() => setScreen('lobby')}
+              onClick={() => openLobby()}
               disabled={!gameId}
               className="w-full bg-gradient-to-r from-amber-600 to-amber-800 text-white py-3 rounded-xl font-bold hover:from-amber-700 hover:to-amber-900 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -494,10 +591,11 @@ function App() {
             </div>
             
             {playerId && game?.players.length >= 2 && (
-              <button
-                onClick={iniziaPartita}
-                className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition flex items-center justify-center gap-2 shadow-lg"
-              >
+                      <button
+                        onClick={iniziaPartita}
+                        disabled={game?.players?.[0]?.id !== currentPlayer?.id}
+                        className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
                 <PlayCircle size={28} />
                 <span className="text-lg">Inizia Partita</span>
               </button>
@@ -565,37 +663,28 @@ function App() {
                 {currentPlayer.cartella.map((row, r) =>
                   row.map((carta, c) => {
                     const coperta = currentPlayer.coperte[r][c];
-                    const isJolly = currentPlayer.jollyPos && 
-                                   currentPlayer.jollyPos.row === r && 
+                    const isJolly = currentPlayer.jollyPos &&
+                                   currentPlayer.jollyPos.row === r &&
                                    currentPlayer.jollyPos.col === c;
                     const gradientClass = SEMI_COLORS[carta.seme];
-                    
+
                     return (
                       <div
                         key={`${r}-${c}`}
                         onClick={() => !coperta && !currentPlayer.jollyUsato && usaJolly(r, c)}
-                        className={`aspect-square rounded-xl flex flex-col items-center justify-center text-center p-2 transition-all duration-300 cursor-pointer ${
-                          coperta
-                            ? 'bg-gradient-to-br from-red-700 to-red-900 text-white shadow-lg'
-                            : isJolly
-                            ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 border-4 border-yellow-300 shadow-xl'
-                            : `bg-gradient-to-br ${gradientClass} border-2 border-amber-200 shadow-md hover:scale-105`
-                        }`}
+                        className={`aspect-square rounded-xl relative flex flex-col items-center justify-center text-center p-2 transition-all duration-300 cursor-pointer bg-gradient-to-br ${gradientClass} border-2 border-amber-200 shadow-md hover:scale-105`}
                       >
-                        {!coperta && !isJolly && (
-                          <>
-                            <div className="text-3xl mb-1">{carta.emoji}</div>
-                            <div className="text-xs font-bold text-white">{carta.valore}</div>
-                          </>
-                        )}
+                        <div className="text-3xl mb-1 select-none" aria-hidden="true">{carta.emoji}</div>
+                        <div className={`text-xs font-bold text-white`}>{carta.valore}</div>
+
                         {isJolly && (
-                          <>
-                            <div className="text-3xl">✨</div>
-                            <div className="text-xs font-bold text-white">JOLLY</div>
-                          </>
+                          <div className="absolute top-2 right-2 bg-yellow-300 text-yellow-900 text-xs px-2 py-1 rounded-full font-bold">JOLLY</div>
                         )}
-                        {coperta && !isJolly && (
-                          <div className="text-4xl">✓</div>
+
+                        {coperta && (
+                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-xl pointer-events-none">
+                            <div className="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full font-bold">Estratta ✓</div>
+                          </div>
                         )}
                       </div>
                     );
@@ -664,23 +753,39 @@ function App() {
                     const ammontare = game?.collezioniDistribuzione[tipo];
                     const isReale = tipo === 'combocard_reale';
                     const progresso = calcolaProgresso(tipo);
-                    
+                    const colorDot = progresso.status === 'near' ? 'bg-green-500' : progresso.status === 'mid' ? 'bg-yellow-400' : 'bg-gray-300';
                     return (
-                      <div key={tipo} className="flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => rivendicaCollezione(tipo)}
-                          disabled={collezione?.vinto || game?.status !== 'playing'}
-                          className={`flex-1 py-2 px-3 rounded-xl font-bold transition text-sm ${
-                            collezione?.vinto
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                              : isReale
-                              ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 shadow-lg'
-                              : 'bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900'
-                          }`}
-                        >
-                          {icon} {label}
-                        </button>
-                        <div className="text-right">
+                      <div key={tipo} className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <button
+                            onClick={() => rivendicaCollezione(tipo)}
+                            disabled={collezione?.vinto || game?.status !== 'playing'}
+                            className={`w-full text-left py-2 px-3 rounded-xl font-bold transition text-sm ${
+                              collezione?.vinto
+                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                : isReale
+                                ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 shadow-lg'
+                                : 'bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900'
+                            }`}
+                          >
+                            {icon} {label}
+                          </button>
+
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center space-x-1">
+                                {Array.from({ length: progresso.total }).map((_, i) => (
+                                  <div key={i} className={`w-8 h-2 rounded ${i < progresso.count ? (progresso.status === 'near' ? 'bg-green-500' : progresso.status === 'mid' ? 'bg-yellow-400' : 'bg-gray-400') : 'bg-gray-200'}`} />
+                                ))}
+                              </div>
+                              <div className="text-xs text-green-700 font-bold">{progresso.count}/{progresso.total}</div>
+                            </div>
+
+                            <div className={`w-3 h-3 rounded-full ${colorDot}`} title={progresso.status === 'near' ? 'Quasi completo' : progresso.status === 'mid' ? 'A metà strada' : 'Lontano'} />
+                          </div>
+                        </div>
+
+                        <div className="text-right w-28">
                           <p className="text-xs text-green-700">Premio</p>
                           <p className="font-bold text-green-600 text-sm">{ammontare}{isReale && ' 🏆'}</p>
                         </div>
