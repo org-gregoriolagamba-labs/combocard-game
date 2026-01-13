@@ -17,10 +17,3 @@ Full-stack project template with backend and frontend separated.
 
 See [Deployment Guide](docs/DEPLOYMENT.md)
 
-## Usage
-1. Click **Use this template**
-2. Select Owner (destination organization)
-3. Select Repository Name
-
-## Notes
-Template-only repository. No production code.
