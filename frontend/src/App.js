@@ -1,127 +1,128 @@
 import { useState, useEffect, useRef } from "react";
-import { io } from 'socket.io-client';
-import { Users, Trophy, Coins, PlayCircle } from 'lucide-react';
-import './index.css';
-import './App.css';
+import { io } from "socket.io-client";
+import { Users, Trophy, Coins, PlayCircle } from "lucide-react";
+import "./index.css";
+import "./App.css";
 
-// Resolve backend URL dynamically so remote clients can connect using server IP.
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const DEFAULT_BACKEND_PORT = 3001;
-const detectedHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const backendHost = REACT_APP_BACKEND_URL || `${window.location.protocol}//${detectedHost}:${DEFAULT_BACKEND_PORT}`;
-const BACKEND_URL = backendHost.replace(/:\/\/localhost:/, `://${detectedHost}:`);
+const detectedHost =
+  typeof window !== "undefined" ? window.location.hostname : "localhost";
+const backendHost =
+  REACT_APP_BACKEND_URL ||
+  `${window.location.protocol}//${detectedHost}:${DEFAULT_BACKEND_PORT}`;
+const BACKEND_URL = backendHost.replace(
+  /:\/\/localhost:/,
+  `://${detectedHost}:`
+);
 const API_URL = `${BACKEND_URL}/api`;
 
 const SEMI_EMOJI = {
-  'Spade': '⚔️',
-  'Coppe': '🏆',
-  'Denari': '💰',
-  'Bastoni': '🪵'
+  Spade: "⚔️",
+  Coppe: "🏆",
+  Denari: "💰",
+  Bastoni: "🪵",
 };
 
 const SEMI_COLORS = {
-  'Spade': 'from-gray-700 to-gray-900',
-  'Coppe': 'from-red-600 to-red-800',
-  'Denari': 'from-yellow-500 to-yellow-700',
-  'Bastoni': 'from-amber-700 to-amber-900'
+  Spade: "from-gray-700 to-gray-900",
+  Coppe: "from-red-600 to-red-800",
+  Denari: "from-yellow-500 to-yellow-700",
+  Bastoni: "from-amber-700 to-amber-900",
 };
 
-// App component
 function App() {
-  const [screen, setScreen] = useState('home');
-  const [gameId, setGameId] = useState('');
-  const [playerId, setPlayerId] = useState('');
-  const [playerName, setPlayerName] = useState('');
+  const [screen, setScreen] = useState("home");
+  const [gameId, setGameId] = useState("");
+  const [playerId, setPlayerId] = useState("");
+  const [playerName, setPlayerName] = useState("");
   const [game, setGame] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [puntataIniziale, setPuntataIniziale] = useState(100);
   const [ultimaCartaEstratta, setUltimaCartaEstratta] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const [jollyMode, setJollyMode] = useState(null); // tipo di collezione per cui usare il jolly
 
-  const addToast = (text, type = 'info') => {
+  const addToast = (text, type = "info") => {
     const id = Math.random().toString(36).substr(2, 9);
-    setToasts(t => [...t, { id, text, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+    setToasts((t) => [...t, { id, text, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
   };
 
   const creaPartita = async () => {
     try {
       const response = await fetch(`${API_URL}/game/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ puntataIniziale })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puntataIniziale }),
       });
       const data = await response.json();
       setGameId(data.gameId);
       setGame(data.game);
-      setScreen('lobby');
-      // Join socket room for this game so we receive realtime events
-      if (socketRef.current) socketRef.current.emit('joinGame', data.gameId);
-      // if creator provided a name, auto-join as player so they become owner
+      setScreen("lobby");
+      if (socketRef.current) socketRef.current.emit("joinGame", data.gameId);
       if (playerName) {
         try {
           const resp = await fetch(`${API_URL}/game/${data.gameId}/join`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ playerName })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ playerName }),
           });
           if (resp.ok) {
             const joinData = await resp.json();
             setPlayerId(joinData.playerId);
             setCurrentPlayer(joinData.player);
-            // ensure socket room join
-            if (socketRef.current) socketRef.current.emit('joinGame', data.gameId);
+            if (socketRef.current)
+              socketRef.current.emit("joinGame", data.gameId);
           }
         } catch (e) {
-          console.error('Auto-join failed', e);
+          console.error("Auto-join failed", e);
         }
       }
     } catch (error) {
-      console.error('Errore creazione partita:', error);
-      alert('Errore nella creazione della partita');
+      console.error("Errore creazione partita:", error);
+      alert("Errore nella creazione della partita");
     }
   };
 
   const uniscitiPartita = async () => {
     if (!playerName) {
-      alert('Inserisci il tuo nome');
+      alert("Inserisci il tuo nome");
       return;
     }
-    
+
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerName }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         alert(error.error);
         return;
       }
-      
+
       const data = await response.json();
       setPlayerId(data.playerId);
       setCurrentPlayer(data.player);
-      // join socket room to receive realtime events
-      if (socketRef.current) socketRef.current.emit('joinGame', gameId);
-      
+      if (socketRef.current) socketRef.current.emit("joinGame", gameId);
+
       const gameResponse = await fetch(`${API_URL}/game/${gameId}`);
       const gameData = await gameResponse.json();
       setGame(gameData);
-      // ensure we joined the socket room for lobby visibility
-      if (socketRef.current) socketRef.current.emit('joinGame', gameId);
+      if (socketRef.current) socketRef.current.emit("joinGame", gameId);
     } catch (error) {
-      console.error('Errore unione partita:', error);
-      alert('Errore nell\'unirsi alla partita');
+      console.error("Errore unione partita:", error);
+      alert("Errore nell'unirsi alla partita");
     }
   };
 
   const openLobby = async (targetGameId) => {
     const gid = targetGameId || gameId;
     setGameId(gid);
-    setScreen('lobby');
+    setScreen("lobby");
     try {
       const res = await fetch(`${API_URL}/game/${gid}`);
       if (res.ok) {
@@ -129,12 +130,11 @@ function App() {
         setGame(g);
       }
     } catch (e) {
-      console.error('Error fetching game for lobby', e);
+      console.error("Error fetching game for lobby", e);
     }
-    if (socketRef.current) socketRef.current.emit('joinGame', gid);
+    if (socketRef.current) socketRef.current.emit("joinGame", gid);
   };
 
-  // Socket setup: single instance + refs for latest ids
   const socketRef = useRef(null);
   const gameIdRef = useRef(gameId);
   const playerIdRef = useRef(playerId);
@@ -145,106 +145,184 @@ function App() {
   }, [gameId, playerId]);
 
   useEffect(() => {
-    // connect to backend socket using configured BACKEND_URL (no /api)
-    const socketBackend = BACKEND_URL.replace(/\/api\/?$/, '');
+    const socketBackend = BACKEND_URL.replace(/\/api\/?$/, "");
     const socket = io(socketBackend);
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      console.log('Socket connected', socket.id);
-      if (gameIdRef.current) socket.emit('joinGame', gameIdRef.current);
+    socket.on("connect", () => {
+      console.log("Socket connected", socket.id);
+      if (gameIdRef.current) socket.emit("joinGame", gameIdRef.current);
     });
 
-    socket.on('playerJoined', ({ player }) => {
-      // append player locally to avoid fetching full game
-      setGame(prev => {
+    socket.on("playerJoined", ({ player }) => {
+      setGame((prev) => {
         if (!prev || prev.id !== gameIdRef.current) return prev;
-        if (prev.players.some(p => p.id === player.id)) return prev;
+        if (prev.players.some((p) => p.id === player.id)) return prev;
         addToast(`${player.name} si è unito alla partita`);
         return { ...prev, players: [...prev.players, player] };
       });
     });
 
-    socket.on('gameStarted', ({ game: srvGame }) => {
+    socket.on("gameStarted", ({ game: srvGame }) => {
       if (srvGame) {
         setGame(srvGame);
-        const cp = srvGame.players.find(p => p.id === playerIdRef.current);
+        const cp = srvGame.players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
-        if (playerIdRef.current) setScreen('game');
-        addToast('Partita iniziata');
+        if (playerIdRef.current) setScreen("game");
+        addToast("Partita iniziata");
       }
     });
 
-    socket.on('cardDrawn', ({ carta }) => {
+    socket.on("cardDrawn", ({ carta }) => {
       if (!carta) return;
       setUltimaCartaEstratta(carta);
-      setGame(prev => {
+      setGame((prev) => {
         if (!prev || prev.id !== gameIdRef.current) return prev;
         const newMazzo = Array.isArray(prev.mazzo) ? prev.mazzo.slice() : [];
         if (newMazzo.length > 0) newMazzo.pop();
         const newCarteEstratte = [...(prev.carteEstratte || []), carta];
-        const updated = { ...prev, mazzo: newMazzo, carteEstratte: newCarteEstratte };
-        const cp = updated.players.find(p => p.id === playerIdRef.current);
+        const updated = {
+          ...prev,
+          mazzo: newMazzo,
+          carteEstratte: newCarteEstratte,
+        };
+        const cp = updated.players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
         return updated;
       });
-      addToast('Carta estratta: ' + carta.valore + ' di ' + carta.seme);
+      addToast("Carta estratta: " + carta.valore + " di " + carta.seme);
     });
 
-    socket.on('cardCovered', ({ playerId, row, col }) => {
-      setGame(prev => {
+    socket.on("cardCovered", ({ playerId, row, col }) => {
+      setGame((prev) => {
         if (!prev || prev.id !== gameIdRef.current) return prev;
-        const players = prev.players.map(p => {
+        const players = prev.players.map((p) => {
           if (p.id !== playerId) return p;
-          const newCoperte = p.coperte.map(r => [...r]);
+          const newCoperte = p.coperte.map((r) => [...r]);
           newCoperte[row][col] = true;
           return { ...p, coperte: newCoperte };
         });
         const updated = { ...prev, players };
-        const cp = players.find(p => p.id === playerIdRef.current);
+        const cp = players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
-        // notify
-        const player = players.find(p => p.id === playerId);
-        addToast(`${player?.name || 'Giocatore'} ha coperto una carta`);
+        const player = players.find((p) => p.id === playerId);
+        if (player && playerId !== playerIdRef.current) {
+          addToast(`${player?.name || "Giocatore"} ha coperto una carta`);
+        }
         return updated;
       });
     });
 
-    socket.on('collezioneVinta', ({ tipo, vincitore, ammontare, player: playerPayload }) => {
-      setGame(prev => {
-        if (!prev || prev.id !== gameIdRef.current) return prev;
-        const collezioni = { ...prev.collezioni, [tipo]: { vinto: true, vincitore: vincitore.id } };
-        const players = prev.players.map(p => {
-          if (playerPayload && p.id === playerPayload.id) {
-            // replace with authoritative player payload from server
-            return { ...p, ...playerPayload };
+    socket.on(
+      "collezioneVinta",
+      ({
+        tipo,
+        vincitore,
+        vincitori,
+        ammontare,
+        divided,
+        players: playersPayload,
+      }) => {
+        setGame((prev) => {
+          if (!prev || prev.id !== gameIdRef.current) return prev;
+
+          const collezioni = { ...prev.collezioni };
+          collezioni[tipo] = {
+            vinto: true,
+            vincitore: Array.isArray(vincitori)
+              ? vincitori.map((v) => v.id)
+              : [vincitore.id],
+          };
+
+          const players = prev.players.map((p) => {
+            const updatedPlayer = playersPayload?.find((pp) => pp.id === p.id);
+            if (updatedPlayer) {
+              return { ...p, ...updatedPlayer };
+            }
+            return p;
+          });
+
+          const updated = { ...prev, collezioni, players };
+          const cp = players.find((p) => p.id === playerIdRef.current);
+          if (cp) setCurrentPlayer(cp);
+
+          if (divided && vincitori) {
+            addToast(
+              `🎉 ${vincitori.map((v) => v.name).join(", ")} hanno vinto ${tipo
+                .toUpperCase()
+                .replace(
+                  "_",
+                  " "
+                )}! Premio diviso: ${ammontare} gettoni ciascuno`
+            );
+          } else if (vincitore) {
+            addToast(
+              `🎉 ${vincitore.name} ha vinto ${tipo
+                .toUpperCase()
+                .replace("_", " ")}! Premio: ${ammontare} gettoni`
+            );
           }
-          if (p.id === vincitore.id) {
-            return { ...p, gettoni: (p.gettoni || 0) + (ammontare || 0), collezioni: [...(p.collezioni || []), tipo] };
+
+          return updated;
+        });
+      }
+    );
+
+    socket.on("jollyUsato", ({ playerId, row, col, newCard, tipo }) => {
+      setGame((prev) => {
+        if (!prev || prev.id !== gameIdRef.current) return prev;
+        const players = prev.players.map((p) => {
+          if (p.id === playerId) {
+            const newCartella = p.cartella.map((r) => r.map((c) => ({ ...c })));
+            if (newCard) {
+              newCartella[row][col] = { ...newCard };
+            }
+            return {
+              ...p,
+              jollyUsato: true,
+              jollyPos: { row, col },
+              cartella: newCartella,
+            };
           }
           return p;
         });
-        const updated = { ...prev, collezioni, players };
-        const cp = players.find(p => p.id === playerIdRef.current);
-        if (cp) setCurrentPlayer(cp);
-        return updated;
-      });
-    });
-
-    socket.on('jollyUsato', ({ playerId, row, col }) => {
-      setGame(prev => {
-        if (!prev || prev.id !== gameIdRef.current) return prev;
-        const players = prev.players.map(p => p.id === playerId ? { ...p, jollyUsato: true, jollyPos: { row, col } } : p );
         const updated = { ...prev, players };
-        const cp = players.find(p => p.id === playerIdRef.current);
+        const cp = players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
+
+        const player = players.find((p) => p.id === playerId);
+        if (player) {
+          addToast(
+            `✨ ${player.name} ha usato il Jolly per ${tipo
+              .toUpperCase()
+              .replace("_", " ")}!`
+          );
+        }
+
         return updated;
       });
+
+      // Reset jolly mode
+      setJollyMode(null);
     });
 
-    socket.on('gameFinished', ({ vincitore }) => {
-      console.log('Game finished', vincitore);
-      setGame(prev => prev && prev.id === gameIdRef.current ? { ...prev, status: 'finished' } : prev);
+    socket.on("gameFinished", ({ vincitore, vincitori }) => {
+      console.log("Game finished", vincitore, vincitori);
+      setGame((prev) =>
+        prev && prev.id === gameIdRef.current
+          ? { ...prev, status: "finished" }
+          : prev
+      );
+
+      if (vincitori && vincitori.length > 1) {
+        addToast(
+          `🏆 PARTITA TERMINATA! Vincitori: ${vincitori
+            .map((v) => v.name)
+            .join(", ")}`
+        );
+      } else if (vincitore) {
+        addToast(`🏆 PARTITA TERMINATA! Vincitore: ${vincitore.name}`);
+      }
     });
 
     return () => {
@@ -256,62 +334,62 @@ function App() {
   const iniziaPartita = async () => {
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         alert(error.error);
         return;
       }
-      
+
       const data = await response.json();
       setGame(data.game);
-      setScreen('game');
+      setScreen("game");
     } catch (error) {
-      console.error('Errore avvio partita:', error);
+      console.error("Errore avvio partita:", error);
     }
   };
 
   const estraiCarta = async () => {
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/draw`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         alert(error.error);
         return;
       }
-      
+
       const data = await response.json();
       setUltimaCartaEstratta(data.carta);
-      
-      // local auto-cover (owner will also trigger server-side auto-cover events)
+
       if (currentPlayer) {
         autoCopriCarta(data.carta);
       }
-      addToast('Carta estratta: ' + data.carta.valore + ' di ' + data.carta.seme);
     } catch (error) {
-      console.error('Errore estrazione carta:', error);
+      console.error("Errore estrazione carta:", error);
     }
   };
 
   const autoCopriCarta = (carta) => {
-    const newCoperte = [...currentPlayer.coperte.map(row => [...row])];
+    const newCoperte = [...currentPlayer.coperte.map((row) => [...row])];
     let trovata = false;
-    
+
     for (let r = 0; r < 5; r++) {
       for (let c = 0; c < 5; c++) {
         const cartaCartella = currentPlayer.cartella[r][c];
-        if (cartaCartella.valore === carta.valore && 
-            cartaCartella.seme === carta.seme && 
-            !newCoperte[r][c]) {
+        if (
+          cartaCartella.valore === carta.valore &&
+          cartaCartella.seme === carta.seme &&
+          !newCoperte[r][c]
+        ) {
           newCoperte[r][c] = true;
           trovata = true;
           break;
@@ -319,7 +397,7 @@ function App() {
       }
       if (trovata) break;
     }
-    
+
     if (trovata) {
       setCurrentPlayer({ ...currentPlayer, coperte: newCoperte });
     }
@@ -328,84 +406,136 @@ function App() {
   const rivendicaCollezione = async (tipo) => {
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/claim`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, tipo })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, tipo }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         alert(error.error);
         return;
       }
-      
+
       const data = await response.json();
-      alert(`🎉 Hai vinto ${tipo.toUpperCase().replace('_', ' ')}!\nPremio: ${data.premio} gettoni!`);
-      
+      alert(
+        `🎉 Hai vinto ${tipo.toUpperCase().replace("_", " ")}!\nPremio: ${
+          data.premio
+        } gettoni!`
+      );
+
       const gameResponse = await fetch(`${API_URL}/game/${gameId}`);
       const gameData = await gameResponse.json();
       setGame(gameData);
-      
-      const updatedPlayer = gameData.players.find(p => p.id === playerId);
+
+      const updatedPlayer = gameData.players.find((p) => p.id === playerId);
       setCurrentPlayer(updatedPlayer);
-      
-      if (tipo === 'combocard_reale') {
-        alert('🏆 HAI VINTO CON COMBOCARD REALE! Partita terminata!');
+
+      if (tipo === "combocard_reale") {
+        alert("🏆 HAI VINTO CON COMBOCARD REALE! Partita terminata!");
       }
     } catch (error) {
-      console.error('Errore rivendicazione collezione:', error);
+      console.error("Errore rivendicazione collezione:", error);
     }
+  };
+
+  const attivaModalitaJolly = (tipo) => {
+    if (currentPlayer.jollyUsato) {
+      alert("Jolly già usato!");
+      return;
+    }
+
+    if (game?.collezioni[tipo]?.vinto) {
+      alert("Questa collezione è già stata vinta!");
+      return;
+    }
+
+    setJollyMode(tipo);
+    addToast(
+      `🎯 Modalità Jolly attivata per ${tipo
+        .toUpperCase()
+        .replace("_", " ")}. Clicca su una carta non coperta.`,
+      "info"
+    );
   };
 
   const usaJolly = async (row, col) => {
     if (currentPlayer.jollyUsato) {
-      alert('Jolly già usato!');
+      alert("Jolly già usato!");
       return;
     }
-    
-    if (!window.confirm(`Usare Jolly sulla carta in posizione [${row+1},${col+1}]?`)) {
+
+    if (!jollyMode) {
+      alert("Seleziona prima per quale collezione vuoi usare il Jolly!");
       return;
     }
-    
+
+    if (
+      !window.confirm(
+        `Usare Jolly per ${jollyMode
+          .toUpperCase()
+          .replace("_", " ")} sulla carta in posizione [${row + 1},${col + 1}]?`
+      )
+    ) {
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/jolly`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, row, col })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, row, col, tipo: jollyMode }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         alert(error.error);
+        setJollyMode(null);
         return;
       }
-      
-      alert('✨ Jolly attivato! Questa carta è ora universale.');
-      
+
+      const data = await response.json();
+      alert(
+        `✨ Jolly attivato! Carta convertita in ${data.convertedTo.valore} di ${data.convertedTo.seme}`
+      );
+
+      // Aggiorna locale
+      const newCartella = currentPlayer.cartella.map((r) =>
+        r.map((c) => ({ ...c }))
+      );
+      newCartella[row][col] = { ...data.newCard };
+
       setCurrentPlayer({
         ...currentPlayer,
         jollyUsato: true,
-        jollyPos: { row, col }
+        jollyPos: { row, col },
+        cartella: newCartella,
       });
+
+      setJollyMode(null);
     } catch (error) {
-      console.error('Errore uso jolly:', error);
+      console.error("Errore uso jolly:", error);
+      setJollyMode(null);
     }
   };
 
   const calcolaProgresso = (tipo) => {
-    if (!currentPlayer) return { count: 0, total: 0, status: 'far' };
+    if (!currentPlayer) return { count: 0, total: 0, status: "far" };
 
     const totali = {
       tris: 3,
       sequenza: 4,
       scopa: 5,
       napola: 5,
-      combocard_reale: 4
+      combocard_reale: 4,
     };
 
     const total = totali[tipo] || 0;
 
-    // raccogli tutte le carte coperte
+    const canUseJolly =
+      currentPlayer.jollyUsato &&
+      (!currentPlayer.jollyUsedFor || currentPlayer.jollyUsedFor === tipo);
+
     const covered = [];
     let jollyCovered = false;
     let jollyCard = null;
@@ -414,159 +544,96 @@ function App() {
     for (let r = 0; r < 5; r++) {
       for (let c = 0; c < 5; c++) {
         if (currentPlayer.coperte[r][c]) {
-          if (jollyPos && jollyPos.row === r && jollyPos.col === c) {
+          if (
+            jollyPos &&
+            jollyPos.row === r &&
+            jollyPos.col === c &&
+            canUseJolly
+          ) {
             jollyCovered = true;
             jollyCard = currentPlayer.cartella[r][c];
-            // still include the card in covered for suit-based counts, but mark jolly separately
-            covered.push(currentPlayer.cartella[r][c]);
-          } else {
-            covered.push(currentPlayer.cartella[r][c]);
           }
+          covered.push(currentPlayer.cartella[r][c]);
         }
       }
     }
 
     let count = 0;
-    // per-tipo progress calcs
-    if (tipo === 'tris') {
+
+    if (tipo === "tris") {
       const counts = {};
-      covered.forEach(c => counts[c.valore] = (counts[c.valore] || 0) + 1);
-      const max = Object.values(counts).length ? Math.max(...Object.values(counts)) : 0;
+      covered.forEach((c) => {
+        counts[c.valore] = (counts[c.valore] || 0) + 1;
+      });
+
+      const max = Object.values(counts).length
+        ? Math.max(...Object.values(counts))
+        : 0;
       count = Math.min(max, total);
-      if (jollyCovered) {
-        // jolly can assume any valore
-        let bestWithJolly = max;
-        for (let v of Object.keys(counts)) {
-          bestWithJolly = Math.max(bestWithJolly, counts[v] + 1);
-        }
-        bestWithJolly = Math.max(bestWithJolly, 1);
-        count = Math.min(bestWithJolly, total);
-      }
-    } else if (tipo === 'sequenza') {
-      const nums = [...new Set(covered.map(c => c.valoreNum))].sort((a, b) => a - b);
-      let best = 0, cur = 0, prev = null;
-      nums.forEach(n => {
-        if (prev === null || n !== prev + 1) cur = 1; else cur++;
+    } else if (tipo === "sequenza") {
+      const nums = [...new Set(covered.map((c) => c.valoreNum))].sort(
+        (a, b) => a - b
+      );
+      let best = 0,
+        cur = 0,
+        prev = null;
+      nums.forEach((n) => {
+        if (prev === null || n !== prev + 1) cur = 1;
+        else cur++;
         prev = n;
         if (cur > best) best = cur;
       });
       count = Math.min(best, total);
-      if (jollyCovered) {
-        const needed = total;
-        for (let start = 1; start <= 10 - needed + 1; start++) {
-          let present = 0;
-          for (let v = start; v < start + needed; v++) if (nums.includes(v)) present++;
-          if (present + 1 > count) count = Math.min(present + 1, total);
-        }
-      }
-    } else if (tipo === 'scopa') {
+    } else if (tipo === "scopa") {
       const suits = {};
-      covered.forEach(c => suits[c.seme] = (suits[c.seme] || 0) + 1);
-      const max = Object.values(suits).length ? Math.max(...Object.values(suits)) : 0;
+      covered.forEach((c) => (suits[c.seme] = (suits[c.seme] || 0) + 1));
+      const max = Object.values(suits).length
+        ? Math.max(...Object.values(suits))
+        : 0;
       count = Math.min(max, total);
-    } else if (tipo === 'napola') {
-      // NAPOLA: tris (3 carte stesso valore) + coppia (2 carte altro valore) = 5 carte
+    } else if (tipo === "napola") {
       const values = {};
-      covered.forEach(c => values[c.valore] = (values[c.valore] || 0) + 1);
-      
-      // Ordina i conteggi per trovare il miglior tris e la miglior coppia
+      covered.forEach((c) => {
+        values[c.valore] = (values[c.valore] || 0) + 1;
+      });
+
       const counts = Object.values(values).sort((a, b) => b - a);
-      
-      let countTris = 0;
-      let countCoppia = 0;
-      
-      if (jollyCovered) {
-        // Con jolly, prova ad aggiungerlo al gruppo più grande
-        let bestCombination = 0;
-        const valoriArray = Object.keys(values);
-        
-        if (valoriArray.length === 0) {
-          // Solo il jolly coperto
-          count = 1;
-        } else if (valoriArray.length === 1) {
-          // Jolly + un solo valore (es: 3 Assi + Jolly = 4 Assi, ma serve anche coppia)
-          const cnt = values[valoriArray[0]] + 1;
-          if (cnt >= 3) {
-            countTris = 3;
-            // Manca ancora la coppia
-          } else {
-            countTris = cnt;
-          }
-          count = countTris;
+
+      if (counts.length >= 2) {
+        if (counts[0] >= 3 && counts[1] >= 2) {
+          count = 5;
         } else {
-          // Jolly + almeno 2 valori diversi
-          // Prova ad aggiungere jolly al primo gruppo (per fare/completare tris)
-          const firstWithJolly = counts[0] + 1;
-          const second = counts[1];
-          
-          if (firstWithJolly >= 3 && second >= 2) {
-            count = 5; // Napola completa!
-          } else if (firstWithJolly >= 3) {
-            countTris = 3;
-            countCoppia = Math.min(second, 2);
-            count = countTris + countCoppia;
-          } else {
-            // Oppure prova ad aggiungere jolly al secondo gruppo
-            const first = counts[0];
-            const secondWithJolly = counts[1] + 1;
-            
-            if (first >= 3 && secondWithJolly >= 2) {
-              count = 5;
-            } else if (first >= 3) {
-              countTris = 3;
-              countCoppia = Math.min(secondWithJolly, 2);
-              count = countTris + countCoppia;
-            } else {
-              // Prendi la combinazione migliore
-              countTris = Math.min(Math.max(firstWithJolly, first), 3);
-              countCoppia = Math.min(Math.max(second, secondWithJolly), 2);
-              count = countTris + countCoppia;
-            }
-          }
+          const countTris = Math.min(counts[0], 3);
+          const countCoppia = Math.min(counts[1], 2);
+          count = countTris + countCoppia;
         }
+      } else if (counts.length === 1) {
+        count = Math.min(counts[0], 3);
       } else {
-        // Senza jolly
-        if (counts.length >= 2) {
-          // Abbiamo almeno 2 valori diversi
-          if (counts[0] >= 3 && counts[1] >= 2) {
-            count = 5; // Napola completa!
-          } else {
-            countTris = Math.min(counts[0], 3);
-            countCoppia = counts.length >= 2 ? Math.min(counts[1], 2) : 0;
-            count = countTris + countCoppia;
-          }
-        } else if (counts.length === 1) {
-          // Un solo valore, progresso solo verso il tris
-          countTris = Math.min(counts[0], 3);
-          count = countTris;
-        } else {
-          count = 0;
-        }
+        count = 0;
       }
-      
+
       count = Math.min(count, total);
-    } else if (tipo === 'combocard_reale') {
+    } else if (tipo === "combocard_reale") {
       const perSeme = {};
-      covered.forEach(c => {
+      covered.forEach((c) => {
         perSeme[c.seme] = perSeme[c.seme] || [];
         perSeme[c.seme].push(c.valoreNum);
       });
+
       let best = 0;
       for (const s in perSeme) {
         const nums = [...new Set(perSeme[s])].sort((a, b) => a - b);
-        let curBest = 0, cur = 0, prev = null;
-        nums.forEach(n => {
-          if (prev === null || n !== prev + 1) cur = 1; else cur++;
+        let curBest = 0,
+          cur = 0,
+          prev = null;
+        nums.forEach((n) => {
+          if (prev === null || n !== prev + 1) cur = 1;
+          else cur++;
           prev = n;
           if (cur > curBest) curBest = cur;
         });
-        if (jollyCovered && jollyCard && jollyCard.seme === s) {
-          for (let start = 1; start <= 10 - total + 1; start++) {
-            let present = 0;
-            for (let v = start; v < start + total; v++) if (nums.includes(v)) present++;
-            curBest = Math.max(curBest, Math.min(total, present + 1));
-          }
-        }
+
         if (curBest > best) best = curBest;
       }
       count = Math.min(best, total);
@@ -576,17 +643,16 @@ function App() {
 
     const missing = total - count;
 
-    // status: 'near' (green) = 1-2 mancanti, 'mid' (yellow) = >= half, 'far' (white) = otherwise
-    let status = 'far';
-    if (missing <= 2 && missing > 0) status = 'near';
-    else if (count >= Math.ceil(total / 2)) status = 'mid';
-    else if (count === total) status = 'near';
+    let status = "far";
+    if (missing <= 2 && missing > 0) status = "near";
+    else if (count >= Math.ceil(total / 2)) status = "mid";
+    else if (count === total) status = "near";
 
     return { count, total, status, missing };
   };
 
   // Home Screen
-  if (screen === 'home') {
+  if (screen === "home") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center p-4">
         <div className="bg-amber-50 rounded-3xl shadow-2xl p-8 max-w-md w-full border-4 border-amber-600">
@@ -597,10 +663,14 @@ function App() {
               <span className="text-5xl">💰</span>
               <span className="text-5xl">🪵</span>
             </div>
-            <h1 className="text-5xl font-bold text-green-900 mb-2">COMBOCARD</h1>
-            <p className="text-green-700 font-medium">Colleziona, combina, conquista!</p>
+            <h1 className="text-5xl font-bold text-green-900 mb-2">
+              COMBOCARD
+            </h1>
+            <p className="text-green-700 font-medium">
+              Colleziona, combina, conquista!
+            </p>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-green-900 mb-2">
@@ -615,14 +685,14 @@ function App() {
                 step="10"
               />
             </div>
-            
+
             <button
               onClick={creaPartita}
               className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg"
             >
               ✨ Crea Nuova Partita
             </button>
-            
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-green-600"></div>
@@ -631,7 +701,7 @@ function App() {
                 <span className="px-2 bg-amber-50 text-green-700">oppure</span>
               </div>
             </div>
-            
+
             <input
               type="text"
               placeholder="Inserisci codice partita"
@@ -639,7 +709,7 @@ function App() {
               onChange={(e) => setGameId(e.target.value)}
               className="w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none"
             />
-            
+
             <button
               onClick={() => openLobby()}
               disabled={!gameId}
@@ -650,8 +720,11 @@ function App() {
           </div>
         </div>
         <div className="fixed bottom-4 right-4 z-50 space-y-2">
-          {toasts.map(t => (
-            <div key={t.id} className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm"
+            >
               {t.text}
             </div>
           ))}
@@ -661,17 +734,26 @@ function App() {
   }
 
   // Lobby Screen
-  if (screen === 'lobby') {
+  if (screen === "lobby") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-orange-800 p-4">
         <div className="max-w-4xl mx-auto">
           <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 mb-6 border-4 border-amber-700">
-            <h2 className="text-3xl font-bold text-green-900 mb-4">🎴 Lobby COMBOCARD</h2>
+            <h2 className="text-3xl font-bold text-green-900 mb-4">
+              🎴 Lobby COMBOCARD
+            </h2>
             <div className="bg-green-100 p-4 rounded-xl mb-4 border-2 border-green-600">
-              <p className="font-bold text-green-900">Codice Partita: <span className="text-2xl font-mono text-green-700">{gameId}</span></p>
-              <p className="text-sm text-green-700 mt-2">Condividi questo codice con altri giocatori</p>
+              <p className="font-bold text-green-900">
+                Codice Partita:{" "}
+                <span className="text-2xl font-mono text-green-700">
+                  {gameId}
+                </span>
+              </p>
+              <p className="text-sm text-green-700 mt-2">
+                Condividi questo codice con altri giocatori
+              </p>
             </div>
-            
+
             {!playerId ? (
               <div className="space-y-4">
                 <input
@@ -681,7 +763,7 @@ function App() {
                   onChange={(e) => setPlayerName(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none"
                 />
-                
+
                 <button
                   onClick={uniscitiPartita}
                   className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg"
@@ -691,37 +773,44 @@ function App() {
               </div>
             ) : (
               <div className="bg-green-100 p-4 rounded-xl border-2 border-green-600">
-                <p className="text-green-900 font-bold text-lg">✓ Ti sei unito come: {playerName}</p>
+                <p className="text-green-900 font-bold text-lg">
+                  ✓ Ti sei unito come: {playerName}
+                </p>
               </div>
             )}
           </div>
-          
+
           <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 border-4 border-amber-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-900">
               <Users size={24} />
               Giocatori ({game?.players.length || 0}/10)
             </h3>
-            
+
             <div className="space-y-2 mb-6">
               {game?.players.map((player, idx) => (
-                <div key={idx} className="bg-green-50 p-3 rounded-xl flex justify-between items-center border-2 border-green-200">
-                  <span className="font-bold text-green-900">{player.name}</span>
+                <div
+                  key={idx}
+                  className="bg-green-50 p-3 rounded-xl flex justify-between items-center border-2 border-green-200"
+                >
+                  <span className="font-bold text-green-900">
+                    {player.name}
+                  </span>
                   <span className="text-sm text-green-700">Pronto!</span>
                 </div>
               ))}
             </div>
-            
+
             {playerId && game?.players.length >= 2 && (
-                      <button
-                        onClick={iniziaPartita}
-                        disabled={game?.players?.[0]?.id !== currentPlayer?.id}
-                        className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
+              <button
+                onClick={iniziaPartita}
+                disabled={game?.players?.[0]?.id !== currentPlayer?.id}
+                className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <PlayCircle size={28} />
                 <span className="text-lg">Inizia Partita</span>
               </button>
             )}
-            
+
             {game?.players.length < 2 && (
               <p className="text-center text-green-700 text-sm">
                 Servono almeno 2 giocatori per iniziare
@@ -730,8 +819,11 @@ function App() {
           </div>
         </div>
         <div className="fixed bottom-4 right-4 z-50 space-y-2">
-          {toasts.map(t => (
-            <div key={t.id} className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm"
+            >
               {t.text}
             </div>
           ))}
@@ -741,12 +833,28 @@ function App() {
   }
 
   // Game Screen
-  if (screen === 'game' && currentPlayer) {
+  if (screen === "game" && currentPlayer) {
     const montepremi = game.players.length * game.puntataIniziale;
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-4">
         <div className="max-w-7xl mx-auto">
+          {jollyMode && (
+            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-xl shadow-2xl z-50 font-bold text-center">
+              <p>
+                🎯 Modalità Jolly attivata per{" "}
+                {jollyMode.toUpperCase().replace("_", " ")}
+              </p>
+              <p className="text-sm">Clicca su una carta non coperta</p>
+              <button
+                onClick={() => setJollyMode(null)}
+                className="mt-2 bg-red-500 text-white px-4 py-1 rounded-lg text-xs hover:bg-red-600"
+              >
+                Annulla
+              </button>
+            </div>
+          )}
+
           <div className="bg-amber-50 rounded-2xl shadow-2xl p-4 mb-4 border-4 border-amber-600">
             <div className="flex justify-between items-center flex-wrap gap-4">
               <div>
@@ -755,7 +863,7 @@ function App() {
                 </h2>
                 <p className="text-sm text-green-700">Codice: {gameId}</p>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-sm text-green-700">Montepremi</p>
@@ -764,7 +872,7 @@ function App() {
                     {montepremi}
                   </p>
                 </div>
-                
+
                 <div className="text-right">
                   <p className="text-sm text-green-700">Tuoi Gettoni</p>
                   <p className="text-2xl font-bold text-green-600 flex items-center gap-1">
@@ -778,33 +886,59 @@ function App() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
-              <h3 className="text-xl font-bold mb-4 text-green-900">🎴 La Tua Cartella</h3>
-              
+              <h3 className="text-xl font-bold mb-4 text-green-900">
+                🎴 La Tua Cartella
+              </h3>
+
               <div className="grid grid-cols-5 gap-2">
                 {currentPlayer.cartella.map((row, r) =>
                   row.map((carta, c) => {
                     const coperta = currentPlayer.coperte[r][c];
-                    const isJolly = currentPlayer.jollyPos &&
-                                   currentPlayer.jollyPos.row === r &&
-                                   currentPlayer.jollyPos.col === c;
+                    const isJolly =
+                      currentPlayer.jollyPos &&
+                      currentPlayer.jollyPos.row === r &&
+                      currentPlayer.jollyPos.col === c;
+                    const wasJolly = carta.wasJolly;
                     const gradientClass = SEMI_COLORS[carta.seme];
+                    const isClickable =
+                      jollyMode && !coperta && !currentPlayer.jollyUsato;
 
                     return (
                       <div
                         key={`${r}-${c}`}
-                        onClick={() => !coperta && !currentPlayer.jollyUsato && usaJolly(r, c)}
-                        className={`aspect-square rounded-xl relative flex flex-col items-center justify-center text-center p-2 transition-all duration-300 cursor-pointer bg-gradient-to-br ${gradientClass} border-2 border-amber-200 shadow-md hover:scale-105`}
+                        onClick={() =>
+                          jollyMode &&
+                          !coperta &&
+                          !currentPlayer.jollyUsato &&
+                          usaJolly(r, c)
+                        }
+                        className={`aspect-square rounded-xl relative flex flex-col items-center justify-center text-center p-2 transition-all duration-300 bg-gradient-to-br ${gradientClass} border-2 border-amber-200 shadow-md ${
+                          isClickable
+                            ? "cursor-pointer hover:scale-105 ring-4 ring-yellow-400"
+                            : ""
+                        }`}
                       >
-                        <div className="text-3xl mb-1 select-none" aria-hidden="true">{carta.emoji}</div>
-                        <div className={`text-xs font-bold text-white`}>{carta.valore}</div>
+                        <div
+                          className="text-3xl mb-1 select-none"
+                          aria-hidden="true"
+                        >
+                          {carta.emoji}
+                        </div>
+                        <div className={`text-xs font-bold text-white`}>
+                          {carta.valore}
+                        </div>
 
                         {isJolly && (
-                          <div className="absolute top-2 right-2 bg-yellow-300 text-yellow-900 text-xs px-2 py-1 rounded-full font-bold">JOLLY</div>
+                          <div className="absolute top-2 right-2 bg-yellow-300 text-yellow-900 text-xs px-2 py-1 rounded-full font-bold">
+                            {wasJolly ? "USATO" : "JOLLY"}
+                          </div>
                         )}
 
                         {coperta && (
                           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-xl pointer-events-none">
-                            <div className="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full font-bold">Estratta ✓</div>
+                            <div className="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full font-bold">
+                              Estratta ✓
+                            </div>
                           </div>
                         )}
                       </div>
@@ -812,48 +946,57 @@ function App() {
                   })
                 )}
               </div>
-              
-              {!currentPlayer.jollyUsato && (
+
+              {!currentPlayer.jollyUsato && !jollyMode && (
                 <p className="text-xs text-green-700 mt-3 text-center">
-                  💡 Clicca su una carta non coperta per usare il Jolly
+                  💡 Seleziona una collezione e poi clicca "Usa Jolly" per
+                  attivare la modalità Jolly
                 </p>
               )}
             </div>
 
             <div className="space-y-4">
               <div className="bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
-                <h3 className="text-lg font-bold mb-4 text-green-900">🎴 Ultima Carta</h3>
-                
+                <h3 className="text-lg font-bold mb-4 text-green-900">
+                  🎴 Ultima Carta
+                </h3>
+
                 {ultimaCartaEstratta ? (
-                  <div className={`bg-gradient-to-br ${SEMI_COLORS[ultimaCartaEstratta.seme]} border-4 border-white rounded-2xl p-8 text-center shadow-2xl`}>
-                    <div className="text-7xl mb-3">{ultimaCartaEstratta.emoji}</div>
-                    <div className="text-3xl font-bold text-white mb-1">{ultimaCartaEstratta.valore}</div>
-                    <div className="text-sm text-white opacity-90">di {ultimaCartaEstratta.seme}</div>
+                  <div
+                    className={`bg-gradient-to-br ${
+                      SEMI_COLORS[ultimaCartaEstratta.seme]
+                    } border-4 border-white rounded-2xl p-8 text-center shadow-2xl`}
+                  >
+                    <div className="text-7xl mb-3">
+                      {ultimaCartaEstratta.emoji}
+                    </div>
+                    <div className="text-3xl font-bold text-white mb-1">
+                      {ultimaCartaEstratta.valore}
+                    </div>
+                    <div className="text-sm text-white opacity-90">
+                      di {ultimaCartaEstratta.seme}
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-green-100 rounded-2xl p-8 text-center text-green-700 border-2 border-green-300">
                     Nessuna carta estratta
                   </div>
                 )}
-                
+
                 <button
                   onClick={estraiCarta}
-                  disabled={game?.status !== 'playing' || game?.players?.[0]?.id !== currentPlayer?.id}
+                  disabled={
+                    game?.status !== "playing" ||
+                    game?.players?.[0]?.id !== currentPlayer?.id
+                  }
                   className="w-full mt-4 bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50"
                 >
                   🎲 Estrai Carta
                 </button>
-                
+
                 <p className="text-xs text-green-700 mt-2 text-center">
                   Carte rimaste: {game?.mazzo.length || 0}/40
                 </p>
-                <div className="fixed bottom-4 right-4 z-50 space-y-2">
-                  {toasts.map(t => (
-                    <div key={t.id} className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm">
-                      {t.text}
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div className="bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
@@ -861,54 +1004,103 @@ function App() {
                   <Trophy size={24} />
                   Collezioni
                 </h3>
-                
-                <div className="space-y-2">
+
+                <div className="space-y-3">
                   {[
-                    { tipo: 'tris', label: 'TRIS', icon: '🎯' },
-                    { tipo: 'sequenza', label: 'SEQUENZA', icon: '📊' },
-                    { tipo: 'scopa', label: 'SCOPA', icon: '🎴' },
-                    { tipo: 'napola', label: 'NAPOLA', icon: '💎' },
-                    { tipo: 'combocard_reale', label: 'COMBOCARD REALE', icon: '👑' }
+                    { tipo: "tris", label: "TRIS", icon: "🎯" },
+                    { tipo: "sequenza", label: "SEQUENZA", icon: "📊" },
+                    { tipo: "scopa", label: "SCOPA", icon: "🎴" },
+                    { tipo: "napola", label: "NAPOLA", icon: "💎" },
+                    {
+                      tipo: "combocard_reale",
+                      label: "COMBOCARD REALE",
+                      icon: "👑",
+                    },
                   ].map(({ tipo, label, icon }) => {
                     const collezione = game?.collezioni[tipo];
                     const ammontare = game?.collezioniDistribuzione[tipo];
-                    const isReale = tipo === 'combocard_reale';
+                    const isReale = tipo === "combocard_reale";
                     const progresso = calcolaProgresso(tipo);
-                    const colorDot = progresso.status === 'near' ? 'bg-green-500' : progresso.status === 'mid' ? 'bg-yellow-400' : 'bg-gray-300';
+                    const colorDot =
+                      progresso.status === "near"
+                        ? "bg-green-500"
+                        : progresso.status === "mid"
+                        ? "bg-yellow-400"
+                        : "bg-gray-300";
                     return (
-                      <div key={tipo} className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
+                      <div
+                        key={tipo}
+                        className="border-2 border-green-200 rounded-xl p-3 bg-white"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
                           <button
                             onClick={() => rivendicaCollezione(tipo)}
-                            disabled={collezione?.vinto || game?.status !== 'playing'}
-                            className={`w-full text-left py-2 px-3 rounded-xl font-bold transition text-sm ${
+                            disabled={
+                              collezione?.vinto || game?.status !== "playing"
+                            }
+                            className={`flex-1 text-left py-2 px-3 rounded-lg font-bold transition text-sm ${
                               collezione?.vinto
-                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
                                 : isReale
-                                ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 shadow-lg'
-                                : 'bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900'
+                                ? "bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 shadow-lg"
+                                : "bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900"
                             }`}
                           >
                             {icon} {label}
                           </button>
 
-                          <div className="mt-2 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center space-x-1">
-                                {Array.from({ length: progresso.total }).map((_, i) => (
-                                  <div key={i} className={`w-8 h-2 rounded ${i < progresso.count ? (progresso.status === 'near' ? 'bg-green-500' : progresso.status === 'mid' ? 'bg-yellow-400' : 'bg-gray-400') : 'bg-gray-200'}`} />
-                                ))}
-                              </div>
-                              <div className="text-xs text-green-700 font-bold">{progresso.count}/{progresso.total}</div>
-                            </div>
-
-                            <div className={`w-3 h-3 rounded-full ${colorDot}`} title={progresso.status === 'near' ? 'Quasi completo' : progresso.status === 'mid' ? 'A metà strada' : 'Lontano'} />
-                          </div>
+                          {!currentPlayer.jollyUsato && !collezione?.vinto && (
+                            <button
+                              onClick={() => attivaModalitaJolly(tipo)}
+                              className="bg-yellow-400 text-yellow-900 px-3 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 transition"
+                            >
+                              Usa Jolly
+                            </button>
+                          )}
                         </div>
 
-                        <div className="text-right w-28">
-                          <p className="text-xs text-green-700">Premio</p>
-                          <p className="font-bold text-green-600 text-sm">{ammontare}{isReale && ' 🏆'}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center space-x-1">
+                              {Array.from({ length: progresso.total }).map(
+                                (_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-6 h-2 rounded ${
+                                      i < progresso.count
+                                        ? progresso.status === "near"
+                                          ? "bg-green-500"
+                                          : progresso.status === "mid"
+                                          ? "bg-yellow-400"
+                                          : "bg-gray-400"
+                                        : "bg-gray-200"
+                                    }`}
+                                  />
+                                )
+                              )}
+                            </div>
+                            <div className="text-xs text-green-700 font-bold">
+                              {progresso.count}/{progresso.total}
+                            </div>
+                            <div
+                              className={`w-3 h-3 rounded-full ${colorDot}`}
+                              title={
+                                progresso.status === "near"
+                                  ? "Quasi completo"
+                                  : progresso.status === "mid"
+                                  ? "A metà strada"
+                                  : "Lontano"
+                              }
+                            />
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-xs text-green-700">Premio</p>
+                            <p className="font-bold text-green-600 text-sm">
+                              {ammontare}
+                              {isReale && " 🏆"}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -917,7 +1109,9 @@ function App() {
               </div>
 
               <div className="bg-green-100 rounded-2xl shadow-lg p-4 text-xs border-2 border-green-600">
-                <h4 className="font-bold mb-2 text-green-900">📖 Collezioni:</h4>
+                <h4 className="font-bold mb-2 text-green-900">
+                  📖 Collezioni:
+                </h4>
                 <ul className="space-y-1 text-green-800">
                   <li>• TRIS: 3 stesso valore</li>
                   <li>• SEQUENZA: 4 in fila</li>
@@ -928,6 +1122,16 @@ function App() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-black bg-opacity-80 text-white px-4 py-2 rounded shadow-lg text-sm"
+            >
+              {t.text}
+            </div>
+          ))}
         </div>
       </div>
     );
