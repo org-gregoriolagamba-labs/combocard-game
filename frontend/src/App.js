@@ -271,21 +271,30 @@ function App() {
     socket.on("jollyUsato", ({ playerId, row, col, newCard, tipo }) => {
       setGame((prev) => {
         if (!prev || prev.id !== gameIdRef.current) return prev;
+        
         const players = prev.players.map((p) => {
           if (p.id === playerId) {
+            // 1. Aggiorna la cartella con la nuova carta convertita
             const newCartella = p.cartella.map((r) => r.map((c) => ({ ...c })));
             if (newCard) {
               newCartella[row][col] = { ...newCard };
             }
+            
+            // 2. FIX: Aggiorna IMMEDIATAMENTE anche 'coperte' per evitare il lag visivo
+            const newCoperte = p.coperte.map(r => [...r]);
+            newCoperte[row][col] = true;
+
             return {
               ...p,
               jollyUsato: true,
               jollyPos: { row, col },
               cartella: newCartella,
+              coperte: newCoperte // Applichiamo subito la modifica
             };
           }
           return p;
         });
+        
         const updated = { ...prev, players };
         const cp = players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
@@ -302,7 +311,6 @@ function App() {
         return updated;
       });
 
-      // Reset jolly mode
       setJollyMode(null);
     });
 

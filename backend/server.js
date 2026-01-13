@@ -144,104 +144,116 @@ function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo) {
     }
   }
   
+  // LOGICA: Non richiedono stesso seme -> Cambia VALORE, Mantieni SEME
   if (tipo === 'tris') {
-    // Trova il valore con più occorrenze
     const counts = {};
     covered.forEach(c => counts[c.valore] = (counts[c.valore] || 0) + 1);
     
-    let bestValore = null;
-    let maxCount = 0;
+    // Cerchiamo un valore che ha già 2 copie (per fare tris)
     for (let valore in counts) {
-      if (counts[valore] > maxCount && counts[valore] >= 2) {
-        // Verifica che questa carta non esista già
+      if (counts[valore] >= 2) {
+        // Regola: Mantieni Seme Jolly, Cambia Valore
         if (!cartaEsisteInCartella(cartella, jollyPos, valore, jollyCard.seme)) {
-          maxCount = counts[valore];
-          bestValore = valore;
+          return { valore: valore, seme: jollyCard.seme };
         }
       }
     }
-    
-    if (bestValore && maxCount >= 2) {
-      return { valore: bestValore, seme: jollyCard.seme };
-    }
-    
-  } else if (tipo === 'sequenza') {
+  } 
+  else if (tipo === 'sequenza') {
     const nums = [...new Set(covered.map(c => c.valoreNum))].sort((a, b) => a - b);
     
-    // Cerca sequenze con un gap
+    // Cerca sequenze con un buco
     for (let start = 1; start <= 10 - 4 + 1; start++) {
       let missing = [];
       let present = [];
       for (let v = start; v < start + 4; v++) {
-        if (nums.includes(v)) {
-          present.push(v);
-        } else {
-          missing.push(v);
-        }
+        if (nums.includes(v)) present.push(v);
+        else missing.push(v);
       }
       
       if (missing.length === 1 && present.length === 3) {
         const missingNum = missing[0];
         const missingValore = Object.keys(VALORI_NUM).find(k => VALORI_NUM[k] === missingNum);
         
-        // Verifica che questa carta non esista già
+        // Regola: Mantieni Seme Jolly, Cambia Valore
         if (!cartaEsisteInCartella(cartella, jollyPos, missingValore, jollyCard.seme)) {
           return { valore: missingValore, seme: jollyCard.seme };
         }
       }
     }
-    
-  } else if (tipo === 'napola') {
+  } 
+  else if (tipo === 'napola') {
     const values = {};
     covered.forEach(c => values[c.valore] = (values[c.valore] || 0) + 1);
-    
     const counts = Object.entries(values).sort((a, b) => b[1] - a[1]);
     
-    // Caso 1: abbiamo 2 carte dello stesso valore, jolly completa il tris
+    // Regola: Mantieni Seme Jolly, Cambia Valore
+    
+    // Caso 1: Completa Tris (abbiamo 2 uguali e un'altra coppia altrove)
     if (counts.length >= 2 && counts[0][1] === 2 && counts[1][1] >= 2) {
-      const valorePerTris = counts[0][0];
-      if (!cartaEsisteInCartella(cartella, jollyPos, valorePerTris, jollyCard.seme)) {
-        return { valore: valorePerTris, seme: jollyCard.seme };
+      const valoreTarget = counts[0][0];
+      if (!cartaEsisteInCartella(cartella, jollyPos, valoreTarget, jollyCard.seme)) {
+        return { valore: valoreTarget, seme: jollyCard.seme };
       }
     }
-    
-    // Caso 2: abbiamo un tris, jolly completa la coppia
+    // Caso 2: Completa Coppia (abbiamo già un Tris)
     if (counts.length >= 2 && counts[0][1] >= 3 && counts[1][1] === 1) {
-      const valorePerCoppia = counts[1][0];
-      if (!cartaEsisteInCartella(cartella, jollyPos, valorePerCoppia, jollyCard.seme)) {
-        return { valore: valorePerCoppia, seme: jollyCard.seme };
+      const valoreTarget = counts[1][0];
+      if (!cartaEsisteInCartella(cartella, jollyPos, valoreTarget, jollyCard.seme)) {
+        return { valore: valoreTarget, seme: jollyCard.seme };
       }
     }
+  }
+  
+  // LOGICA: Richiedono stesso seme -> Cambia SEME, Mantieni VALORE
+  else if (tipo === 'scopa') {
+    const semiCounts = {};
+    covered.forEach(c => semiCounts[c.seme] = (semiCounts[c.seme] || 0) + 1);
     
-  } else if (tipo === 'combocard_reale') {
-    // Raggruppa per seme
+    // Trova il seme con più carte (es. 4 carte di Coppe)
+    let bestSeme = null;
+    let maxCount = 0;
+    for (let s in semiCounts) {
+      if (semiCounts[s] > maxCount) {
+        maxCount = semiCounts[s];
+        bestSeme = s;
+      }
+    }
+
+    if (bestSeme && maxCount >= 4) {
+      // Regola: Mantieni Valore Jolly, Cambia Seme
+      if (!cartaEsisteInCartella(cartella, jollyPos, jollyCard.valore, bestSeme)) {
+        return { valore: jollyCard.valore, seme: bestSeme };
+      }
+    }
+  }
+  
+  // LOGICA SPECIALE: Combocard Reale (Richiede sia Sequenza che Seme specifico)
+  // Qui dobbiamo trovare esattamente la carta mancante (Valore + Seme)
+  else if (tipo === 'combocard_reale') {
     const perSeme = {};
     covered.forEach(c => {
       perSeme[c.seme] = perSeme[c.seme] || [];
       perSeme[c.seme].push(c.valoreNum);
     });
-    
-    // Il jolly deve mantenere il suo seme per combocard reale
-    const seme = jollyCard.seme;
-    if (perSeme[seme]) {
+
+    for (let seme in perSeme) {
       const nums = [...new Set(perSeme[seme])].sort((a, b) => a - b);
       
-      // Cerca sequenze con un gap
+      // Cerca il buco nella sequenza reale
       for (let start = 1; start <= 10 - 4 + 1; start++) {
         let missing = [];
         let present = [];
         for (let v = start; v < start + 4; v++) {
-          if (nums.includes(v)) {
-            present.push(v);
-          } else {
-            missing.push(v);
-          }
+          if (nums.includes(v)) present.push(v);
+          else missing.push(v);
         }
         
         if (missing.length === 1 && present.length === 3) {
           const missingNum = missing[0];
           const missingValore = Object.keys(VALORI_NUM).find(k => VALORI_NUM[k] === missingNum);
           
+          // Qui forziamo sia valore che seme perché è l'unico modo per fare Combocard Reale
           if (!cartaEsisteInCartella(cartella, jollyPos, missingValore, seme)) {
             return { valore: missingValore, seme: seme };
           }
