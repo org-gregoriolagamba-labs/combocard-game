@@ -222,6 +222,9 @@ export function setupGameRoutesP2(app, gameState, io) {
     });
     io.to(gameId).emit('cardCovered', { playerId, row, col });
 
+    // IMPORTANTE: Esegui auto-claim dopo aver usato il jolly
+    autoClaimCollezioni(game, gameId, io, gameState);
+
     res.json({ 
       success: true, 
       convertedTo: conversione,

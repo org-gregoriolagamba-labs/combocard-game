@@ -100,13 +100,22 @@ export default function LobbyScreen({
             <p className="text-sm text-green-700">
               I tuoi crediti: {playerCredits}
             </p>
+            {game?.isPrivate && (
+              <p className="text-sm text-purple-700 font-bold mt-1">
+                🔒 Partita Privata
+              </p>
+            )}
+            <p className="text-sm text-green-700 mt-1">
+              Giocatori necessari: {game?.maxPlayers || 10}
+              {game?.players?.length === game?.maxPlayers && " - Partita in avvio automatico!"}
+            </p>
           </div>
         </div>
 
         <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 border-4 border-amber-700">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-900">
             <Users size={24} />
-            Giocatori ({game?.players.length || 0}/10)
+            Giocatori ({game?.players.length || 0}/{game?.maxPlayers || 10})
           </h3>
 
           <div className="space-y-2 mb-6">
