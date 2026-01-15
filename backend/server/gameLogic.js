@@ -203,10 +203,13 @@ export function autoClaimCollezioni(game, gameId, io, gameState) {
 function finishGameFromAuto(game, gameId, io, gameState) {
   game.status = 'finished';
   
+  // Accredita SOLO i gettoni vinti (non il totale) ai giocatori
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
     if (player) {
-      player.credits += gamePlayer.gettoni;
+      // I gettoni del giocatore sono già i suoi crediti rimanenti + vincite
+      // Non sommiamo, sostituiamo
+      player.credits = gamePlayer.gettoni;
       player.currentGameId = null;
     }
   }

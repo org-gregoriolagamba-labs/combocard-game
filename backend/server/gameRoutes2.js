@@ -238,6 +238,14 @@ export function setupGameRoutesP2(app, gameState, io) {
     const player = gameState.players[playerId];
     
     if (game && player) {
+      // Trova il gamePlayer per prendere i gettoni attuali
+      const gamePlayer = game.players.find(p => p.id === playerId);
+      
+      if (gamePlayer && game.status === 'playing') {
+        // Se la partita è in corso, accredita i gettoni attuali
+        player.credits = gamePlayer.gettoni;
+      }
+      
       game.players = game.players.filter(p => p.id !== playerId);
       player.currentGameId = null;
       
@@ -256,11 +264,13 @@ export function setupGameRoutesP2(app, gameState, io) {
 function finishGame(game, gameId, io, gameState) {
   game.status = 'finished';
   
-  // Accredita i gettoni vinti ai giocatori
+  // Accredita SOLO i gettoni vinti (non il totale) ai giocatori
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
     if (player) {
-      player.credits += gamePlayer.gettoni;
+      // I gettoni del giocatore sono già i suoi crediti rimanenti + vincite
+      // Non sommiamo, sostituiamo
+      player.credits = gamePlayer.gettoni;
       player.currentGameId = null;
     }
   }
