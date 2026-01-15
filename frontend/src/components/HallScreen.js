@@ -14,7 +14,7 @@ export default function HallScreen({
 }) {
   const [lobbies, setLobbies] = useState([]);
   const [showCassa, setShowCassa] = useState(false);
-  const [creditiDaAcquistare, setCreditiDaAcquistare] = useState(100);
+  const [creditiDaAcquistare, setCreditiDaAcquistare] = useState(0);
   const [showCreaPartita, setShowCreaPartita] = useState(false);
   const [creditiRichiesti, setCreditiRichiesti] = useState(100);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -27,6 +27,13 @@ export default function HallScreen({
     const interval = setInterval(caricaLobbies, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Reset importo quando si apre la cassa
+  useEffect(() => {
+    if (showCassa) {
+      setCreditiDaAcquistare(0);
+    }
+  }, [showCassa]);
 
   const caricaLobbies = async () => {
     try {
@@ -43,6 +50,11 @@ export default function HallScreen({
   const acquistaCrediti = async () => {
     if (creditiDaAcquistare <= 0) {
       alert("Inserisci un importo valido");
+      return;
+    }
+
+    if (creditiDaAcquistare > 10000) {
+      alert("L'importo massimo acquistabile è 10000 crediti");
       return;
     }
 
@@ -63,7 +75,6 @@ export default function HallScreen({
       setPlayerCredits(data.credits);
       addToast(`✅ Acquistati ${creditiDaAcquistare} crediti!`);
       setShowCassa(false);
-      setCreditiDaAcquistare(100);
     } catch (error) {
       console.error("Errore acquisto crediti:", error);
       alert("Errore nell'acquisto dei crediti");
@@ -262,28 +273,38 @@ export default function HallScreen({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-green-900 mb-2">
-                  Importo Crediti
+                  Importo Crediti (max 10000)
                 </label>
                 <input
                   type="number"
                   value={creditiDaAcquistare}
-                  onChange={(e) => setCreditiDaAcquistare(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setCreditiDaAcquistare(Math.min(10000, Math.max(0, val)));
+                  }}
                   className="w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none bg-white"
-                  min="10"
-                  step="10"
+                  min="0"
+                  max="10000"
+                  step="5"
                 />
               </div>
               <div className="flex gap-2 flex-wrap">
                 {[5, 10, 25, 50, 100, 500, 1000].map((amount) => (
                   <button
                     key={amount}
-                    onClick={() => setCreditiDaAcquistare(prev => prev + amount)}
+                    onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
                     className="flex-1 min-w-[60px] bg-green-100 text-green-800 px-3 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
                   >
                     +{amount}
                   </button>
                 ))}
               </div>
+              <button
+                onClick={() => setCreditiDaAcquistare(0)}
+                className="w-full bg-red-100 text-red-800 px-4 py-2 rounded-lg font-bold hover:bg-red-200 transition text-sm"
+              >
+                🔄 Reset Importo
+              </button>
               <div className="flex gap-3">
                 <button
                   onClick={acquistaCrediti}
