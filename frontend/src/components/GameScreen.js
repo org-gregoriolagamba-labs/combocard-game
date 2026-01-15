@@ -1,7 +1,9 @@
 import { Coins, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
 import { API_URL, SEMI_COLORS } from "../config";
 import Cartella from "./Cartella";
 import CollezioniPanel from "./CollezioniPanel";
+import PlayersList from "./PlayersList";
 
 export default function GameScreen({
   gameId,
@@ -18,8 +20,21 @@ export default function GameScreen({
 }) {
   const montepremi = game?.montepremi || 0;
   const isCreator = game?.players?.[0]?.id === playerId;
+  const [drawCooldown, setDrawCooldown] = useState(0);
+
+  useEffect(() => {
+    if (drawCooldown > 0) {
+      const timer = setTimeout(() => setDrawCooldown(drawCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [drawCooldown]);
 
   const estraiCarta = async () => {
+    if (drawCooldown > 0) {
+      addToast(`Attendi ${drawCooldown} secondi prima di estrarre un'altra carta`);
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/game/${gameId}/draw`, {
         method: "POST",
@@ -30,7 +45,11 @@ export default function GameScreen({
       if (!response.ok) {
         const error = await response.json();
         alert(error.error);
+        return;
       }
+
+      // Attiva cooldown di 8 secondi
+      setDrawCooldown(8);
     } catch (error) {
       console.error("Errore estrazione carta:", error);
     }
@@ -257,16 +276,32 @@ export default function GameScreen({
 
               <button
                 onClick={estraiCarta}
-                disabled={game?.status !== "playing" || !isCreator}
-                className="w-full mt-4 bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50"
+                disabled={game?.status !== "playing" || !isCreator || drawCooldown > 0}
+                className="w-full mt-4 bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                🎲 Estrai Carta
+                {drawCooldown > 0 ? `⏱️ Attendi ${drawCooldown}s` : "🎲 Estrai Carta"}
               </button>
 
               <p className="text-xs text-green-700 mt-2 text-center">
                 Carte rimaste: {game?.mazzo.length || 0}/40
               </p>
+              
+              {drawCooldown > 0 && (
+                <div className="mt-2 bg-yellow-100 rounded-lg p-2 text-center">
+                  <div className="text-xs text-yellow-800 font-bold">
+                    💡 Usa questo tempo per valutare il Jolly
+                  </div>
+                  <div className="w-full bg-yellow-200 rounded-full h-2 mt-2 overflow-hidden">
+                    <div 
+                      className="bg-yellow-600 h-full transition-all duration-1000"
+                      style={{ width: `${(drawCooldown / 8) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+
+            <PlayersList game={game} currentPlayerId={playerId} />
 
             <CollezioniPanel
               game={game}
