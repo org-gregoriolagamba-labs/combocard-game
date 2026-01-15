@@ -80,7 +80,8 @@ export function setupGameRoutes(app, gameState, io) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    if (game.status !== 'waiting') {
+    // Permetti di unirsi anche se status è 'playing' se è appena stato auto-avviato
+    if (game.status !== 'waiting' && game.status !== 'playing') {
       return res.status(400).json({ error: 'Game already started' });
     }
     
@@ -94,6 +95,11 @@ export function setupGameRoutes(app, gameState, io) {
 
     // Verifica se il giocatore è già nella partita
     if (game.players.some(p => p.id === playerId)) {
+      // Se è già nella partita e questa è playing, rispondi ok (auto-start)
+      if (game.status === 'playing') {
+        const existingPlayer = game.players.find(p => p.id === playerId);
+        return res.json({ success: true, player: existingPlayer, autoStarted: true });
+      }
       return res.status(400).json({ error: 'Già nella partita' });
     }
     
@@ -117,12 +123,14 @@ export function setupGameRoutes(app, gameState, io) {
     
     io.to(gameId).emit('playerJoined', { player: { id: playerId, name: player.name } });
     
-    // Auto-start se raggiunto maxPlayers
-    if (game.players.length === game.maxPlayers) {
-      autoStartGame(game, gameId, io, gameState);
-    }
+    // Rispondi PRIMA di auto-start per evitare race condition
+    const willAutoStart = game.players.length === game.maxPlayers;
+    res.json({ success: true, player: gamePlayer, willAutoStart });
     
-    res.json({ success: true, player: gamePlayer });
+    // Auto-start DOPO aver risposto
+    if (willAutoStart) {
+      setTimeout(() => autoStartGame(game, gameId, io, gameState), 100);
+    }
   });
 }
 

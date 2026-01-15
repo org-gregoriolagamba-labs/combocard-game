@@ -113,7 +113,7 @@ export function useSocket(
       });
     });
 
-    socket.on("collezioneVinta", ({ tipo, vincitore, vincitori, ammontare, divided }) => {
+    socket.on("collezioneVinta", ({ tipo, vincitore, vincitori, ammontare, divided, players: playersPayload }) => {
       setGame((prev) => {
         if (!prev || prev.id !== gameIdRef.current) return prev;
 
@@ -125,8 +125,17 @@ export function useSocket(
             : [vincitore.id],
         };
 
-        const updated = { ...prev, collezioni };
-        const cp = updated.players.find((p) => p.id === playerIdRef.current);
+        // Aggiorna i giocatori con i dati completi dal payload
+        const players = prev.players.map((p) => {
+          const updatedPlayer = playersPayload?.find((pp) => pp.id === p.id);
+          if (updatedPlayer) {
+            return { ...p, ...updatedPlayer };
+          }
+          return p;
+        });
+
+        const updated = { ...prev, collezioni, players };
+        const cp = players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
 
         if (divided && vincitori) {
@@ -194,6 +203,8 @@ export function useSocket(
         });
 
         const updated = { ...prev, players };
+        
+        // Aggiorna currentPlayer immediatamente
         const cp = players.find((p) => p.id === playerIdRef.current);
         if (cp) setCurrentPlayer(cp);
 
