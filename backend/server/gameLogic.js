@@ -203,12 +203,45 @@ export function autoClaimCollezioni(game, gameId, io, gameState) {
 function finishGameFromAuto(game, gameId, io, gameState) {
   game.status = 'finished';
   
-  // Accredita SOLO i gettoni vinti (non il totale) ai giocatori
+  // Calcola premi rimanenti non assegnati
+  let premiRimanenti = 0;
+  const collezioniNonVinte = [];
+  
+  for (const tipo in game.collezioniDistribuzione) {
+    if (!game.collezioni[tipo].vinto) {
+      premiRimanenti += game.collezioniDistribuzione[tipo];
+      collezioniNonVinte.push(tipo);
+    }
+  }
+  
+  // Se ci sono premi rimanenti, dividili tra tutti i giocatori
+  if (premiRimanenti > 0 && game.players.length > 0) {
+    const premioPerGiocatore = Math.floor(premiRimanenti / game.players.length);
+    
+    if (premioPerGiocatore > 0) {
+      for (const gamePlayer of game.players) {
+        gamePlayer.gettoni += premioPerGiocatore;
+        
+        // Aggiorna anche il wallet del giocatore
+        const player = gameState.players[gamePlayer.id];
+        if (player) {
+          player.credits = gamePlayer.gettoni;
+        }
+      }
+      
+      // Notifica i giocatori
+      io.to(gameId).emit('premiRimanentiDivisi', {
+        ammontare: premioPerGiocatore,
+        collezioniNonVinte,
+        totaleRimanente: premiRimanenti
+      });
+    }
+  }
+  
+  // Accredita i gettoni finali ai giocatori
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
     if (player) {
-      // I gettoni del giocatore sono già i suoi crediti rimanenti + vincite
-      // Non sommiamo, sostituiamo
       player.credits = gamePlayer.gettoni;
       player.currentGameId = null;
     }

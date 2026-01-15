@@ -105,10 +105,11 @@ export default function LobbyScreen({
                 🔒 Partita Privata
               </p>
             )}
-            <p className="text-sm text-green-700 mt-1">
-              Giocatori necessari: {game?.maxPlayers || 10}
-              {game?.players?.length === game?.maxPlayers && " - Partita in avvio automatico!"}
-            </p>
+            {game?.players?.length === game?.maxPlayers && (
+              <p className="text-sm text-yellow-700 font-bold mt-2 bg-yellow-100 p-2 rounded animate-pulse">
+                ⚡ Partita in avvio automatico!
+              </p>
+            )}
           </div>
         </div>
 

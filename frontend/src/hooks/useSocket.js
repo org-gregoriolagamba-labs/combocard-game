@@ -235,6 +235,24 @@ export function useSocket(
       }
     });
 
+    socket.on("premiRimanentiDivisi", ({ ammontare, collezioniNonVinte, totaleRimanente }) => {
+      addToast(
+        `💰 Premi rimanenti divisi! Ogni giocatore riceve ${ammontare} gettoni (totale: ${totaleRimanente})`
+      );
+      
+      // Fetch completo dello stato aggiornato dal server
+      if (gameIdRef.current) {
+        fetch(`${BACKEND_URL}/api/game/${gameIdRef.current}`)
+          .then(res => res.json())
+          .then(gameData => {
+            setGame(gameData);
+            const cp = gameData.players.find(p => p.id === playerIdRef.current);
+            if (cp) setCurrentPlayer(cp);
+          })
+          .catch(err => console.error("Error fetching updated game state:", err));
+      }
+    });
+
     return () => {
       socket.removeAllListeners();
       socket.disconnect();
