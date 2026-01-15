@@ -4,15 +4,15 @@ import { trovaMiglioreConversioneJolly } from './jollyLogic.js';
 import { SEMI_EMOJI, VALORI_NUM } from './constants.js';
 
 export function setupGameRoutes(app, gameState, io) {
-  // Lista tutte le partite in attesa
+  // Lista tutte le partite in attesa (solo pubbliche)
   app.get('/api/games/lobby', (req, res) => {
     const lobbies = Object.values(gameState.games)
-      .filter(g => g.status === 'waiting')
+      .filter(g => g.status === 'waiting' && !g.isPrivate)
       .map(g => ({
         id: g.id,
         requiredCredits: g.requiredCredits,
         playerCount: g.players.length,
-        maxPlayers: 10,
+        maxPlayers: g.maxPlayers || 10,
         creatorName: g.players[0]?.name || 'Unknown'
       }));
     
@@ -21,7 +21,7 @@ export function setupGameRoutes(app, gameState, io) {
 
   // Crea nuova partita
   app.post('/api/game/create', (req, res) => {
-    const { playerId, requiredCredits } = req.body;
+    const { playerId, requiredCredits, isPrivate, maxPlayers } = req.body;
     
     const player = gameState.players[playerId];
     if (!player) {
@@ -38,6 +38,8 @@ export function setupGameRoutes(app, gameState, io) {
       id: gameId,
       players: [],
       requiredCredits: requiredCredits || 100,
+      isPrivate: isPrivate || false,
+      maxPlayers: maxPlayers || 10,
       status: 'waiting',
       mazzo: [],
       carteEstratte: [],
@@ -82,8 +84,8 @@ export function setupGameRoutes(app, gameState, io) {
       return res.status(400).json({ error: 'Game already started' });
     }
     
-    if (game.players.length >= 10) {
-      return res.status(400).json({ error: 'Game full (max 10 players)' });
+    if (game.players.length >= game.maxPlayers) {
+      return res.status(400).json({ error: `Game full (max ${game.maxPlayers} players)` });
     }
 
     if (player.credits < game.requiredCredits) {
@@ -115,6 +117,40 @@ export function setupGameRoutes(app, gameState, io) {
     
     io.to(gameId).emit('playerJoined', { player: { id: playerId, name: player.name } });
     
+    // Auto-start se raggiunto maxPlayers
+    if (game.players.length === game.maxPlayers) {
+      autoStartGame(game, gameId, io, gameState);
+    }
+    
     res.json({ success: true, player: gamePlayer });
   });
+}
+
+// Funzione helper per auto-start
+function autoStartGame(game, gameId, io, gameState) {
+  const { generaMazzo } = require('./cardUtils.js');
+  
+  let montepremi = 0;
+  for (const gamePlayer of game.players) {
+    const player = gameState.players[gamePlayer.id];
+    if (player) {
+      player.credits -= game.requiredCredits;
+      gamePlayer.gettoni = player.credits;
+      montepremi += game.requiredCredits;
+    }
+  }
+  
+  game.status = 'playing';
+  game.mazzo = generaMazzo().sort(() => Math.random() - 0.5);
+  game.montepremi = montepremi;
+  
+  game.collezioniDistribuzione = {
+    tris: Math.floor(montepremi * 0.10),
+    sequenza: Math.floor(montepremi * 0.15),
+    scopa: Math.floor(montepremi * 0.20),
+    napola: Math.floor(montepremi * 0.25),
+    combocard_reale: Math.floor(montepremi * 0.30)
+  };
+  
+  io.to(gameId).emit('gameStarted', { game });
 }

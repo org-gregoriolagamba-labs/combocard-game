@@ -17,6 +17,10 @@ export default function HallScreen({
   const [creditiDaAcquistare, setCreditiDaAcquistare] = useState(100);
   const [showCreaPartita, setShowCreaPartita] = useState(false);
   const [creditiRichiesti, setCreditiRichiesti] = useState(100);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [maxPlayers, setMaxPlayers] = useState(10);
+  const [showJoinPrivate, setShowJoinPrivate] = useState(false);
+  const [privateGameCode, setPrivateGameCode] = useState("");
 
   useEffect(() => {
     caricaLobbies();
@@ -76,7 +80,12 @@ export default function HallScreen({
       const response = await fetch(`${API_URL}/game/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, requiredCredits: creditiRichiesti }),
+        body: JSON.stringify({ 
+          playerId, 
+          requiredCredits: creditiRichiesti,
+          isPrivate,
+          maxPlayers
+        }),
       });
 
       if (!response.ok) {
@@ -89,6 +98,10 @@ export default function HallScreen({
       const createdGameId = data.gameId;
       setGameId(createdGameId);
       setShowCreaPartita(false);
+      
+      // Reset form
+      setIsPrivate(false);
+      setMaxPlayers(10);
       
       // Unisciti automaticamente alla partita creata
       await uniscitiPartita(createdGameId);
@@ -131,6 +144,17 @@ export default function HallScreen({
     }
   };
 
+  const uniscitiPartitaPrivata = async () => {
+    if (!privateGameCode) {
+      alert("Inserisci il codice partita");
+      return;
+    }
+    
+    setShowJoinPrivate(false);
+    await uniscitiPartita(privateGameCode);
+    setPrivateGameCode("");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-orange-800 p-4">
       <div className="max-w-6xl mx-auto">
@@ -162,13 +186,21 @@ export default function HallScreen({
 
         {/* Crea Partita */}
         <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 mb-6 border-4 border-amber-700">
-          <button
-            onClick={() => setShowCreaPartita(true)}
-            className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg flex items-center justify-center gap-2 text-lg"
-          >
-            <Plus size={28} />
-            Crea Nuova Partita
-          </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button
+              onClick={() => setShowCreaPartita(true)}
+              className="bg-gradient-to-r from-green-600 to-green-800 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg flex items-center justify-center gap-2 text-lg"
+            >
+              <Plus size={28} />
+              Crea Nuova Partita
+            </button>
+            <button
+              onClick={() => setShowJoinPrivate(true)}
+              className="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-4 rounded-xl font-bold hover:from-purple-700 hover:to-purple-900 transition shadow-lg flex items-center justify-center gap-2 text-lg"
+            >
+              🔒 Unisciti con Codice
+            </button>
+          </div>
         </div>
 
         {/* Lista Lobbies */}
@@ -292,6 +324,35 @@ export default function HallScreen({
                   step="10"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-green-900 mb-2">
+                  👥 Numero Massimo Giocatori
+                </label>
+                <input
+                  type="number"
+                  value={maxPlayers}
+                  onChange={(e) => setMaxPlayers(Math.min(10, Math.max(2, parseInt(e.target.value) || 2)))}
+                  className="w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none bg-white"
+                  min="2"
+                  max="10"
+                />
+                <p className="text-xs text-green-700 mt-1">La partita inizierà automaticamente quando raggiunto</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isPrivate"
+                  checked={isPrivate}
+                  onChange={(e) => setIsPrivate(e.target.checked)}
+                  className="w-5 h-5"
+                />
+                <label htmlFor="isPrivate" className="text-sm font-medium text-green-900">
+                  🔒 Partita Privata (solo con codice)
+                </label>
+              </div>
+              
               <div className="bg-green-100 p-3 rounded-xl text-sm text-green-800">
                 <p>I tuoi crediti: <strong>{playerCredits}</strong></p>
                 <p className="mt-1">
@@ -310,6 +371,49 @@ export default function HallScreen({
                 </button>
                 <button
                   onClick={() => setShowCreaPartita(false)}
+                  className="flex-1 bg-gray-300 text-gray-800 py-3 rounded-xl font-bold hover:bg-gray-400 transition"
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Unisciti Partita Privata */}
+      {showJoinPrivate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-amber-50 rounded-3xl shadow-2xl p-8 max-w-md w-full border-4 border-purple-600">
+            <h2 className="text-2xl font-bold mb-6 text-center text-green-900">
+              🔒 Unisciti a Partita Privata
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-green-900 mb-2">
+                  Codice Partita
+                </label>
+                <input
+                  type="text"
+                  value={privateGameCode}
+                  onChange={(e) => setPrivateGameCode(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-purple-600 rounded-xl focus:border-purple-800 focus:outline-none bg-white"
+                  placeholder="Inserisci il codice"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={uniscitiPartitaPrivata}
+                  disabled={!privateGameCode}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-purple-800 text-white py-3 rounded-xl font-bold hover:from-purple-700 hover:to-purple-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ✅ Unisciti
+                </button>
+                <button
+                  onClick={() => {
+                    setShowJoinPrivate(false);
+                    setPrivateGameCode("");
+                  }}
                   className="flex-1 bg-gray-300 text-gray-800 py-3 rounded-xl font-bold hover:bg-gray-400 transition"
                 >
                   Annulla
