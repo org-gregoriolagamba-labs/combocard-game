@@ -77,6 +77,20 @@ function App() {
   };
 
   const tornaAllaHall = async () => {
+    // Se la partita è in corso, chiedi conferma
+    if (game && game.status === 'playing') {
+      const confirmed = window.confirm(
+        "⚠️ La partita è ancora in corso!\n\n" +
+        "Se esci ora perderai i crediti spesi per partecipare e non potrai rientrare.\n" +
+        "I tuoi gettoni attuali verranno salvati.\n\n" +
+        "Sei sicuro di voler uscire?"
+      );
+      
+      if (!confirmed) {
+        return; // L'utente ha annullato
+      }
+    }
+    
     if (game && playerId) {
       try {
         await fetch(`${API_URL}/game/${gameId}/leave`, {

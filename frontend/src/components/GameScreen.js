@@ -21,6 +21,7 @@ export default function GameScreen({
   const montepremi = game?.montepremi || 0;
   const isCreator = game?.players?.[0]?.id === playerId;
   const [drawCooldown, setDrawCooldown] = useState(0);
+  const isGameFinished = game?.status === 'finished';
 
   useEffect(() => {
     if (drawCooldown > 0) {
@@ -170,7 +171,14 @@ export default function GameScreen({
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-4">
       <div className="max-w-7xl mx-auto">
-        {jollyMode && (
+        {isGameFinished && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-xl shadow-2xl z-50 font-bold text-center">
+            <p className="text-lg">🏆 PARTITA TERMINATA!</p>
+            <p className="text-sm">Torna alla Hall per iniziare una nuova partita</p>
+          </div>
+        )}
+
+        {jollyMode && !isGameFinished && (
           <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-xl shadow-2xl z-50 font-bold text-center">
             <p>
               🎯 Modalità Jolly attivata per{" "}
@@ -235,10 +243,10 @@ export default function GameScreen({
               jollyPos={currentPlayer.jollyPos}
               jollyMode={jollyMode}
               jollyUsato={currentPlayer.jollyUsato}
-              onCardClick={usaJolly}
+              onCardClick={isGameFinished ? () => {} : usaJolly}
             />
 
-            {!currentPlayer.jollyUsato && !jollyMode && (
+            {!currentPlayer.jollyUsato && !jollyMode && !isGameFinished && (
               <p className="text-xs text-green-700 mt-3 text-center">
                 💡 Seleziona una collezione e poi clicca "Usa Jolly" per
                 attivare la modalità Jolly
@@ -276,17 +284,21 @@ export default function GameScreen({
 
               <button
                 onClick={estraiCarta}
-                disabled={game?.status !== "playing" || !isCreator || drawCooldown > 0}
+                disabled={isGameFinished || game?.status !== "playing" || !isCreator || drawCooldown > 0}
                 className="w-full mt-4 bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {drawCooldown > 0 ? `⏱️ Attendi ${drawCooldown}s` : "🎲 Estrai Carta"}
+                {isGameFinished 
+                  ? "🏆 Partita Terminata" 
+                  : drawCooldown > 0 
+                  ? `⏱️ Attendi ${drawCooldown}s` 
+                  : "🎲 Estrai Carta"}
               </button>
 
               <p className="text-xs text-green-700 mt-2 text-center">
                 Carte rimaste: {game?.mazzo.length || 0}/40
               </p>
               
-              {drawCooldown > 0 && (
+              {drawCooldown > 0 && !isGameFinished && (
                 <div className="mt-2 bg-yellow-100 rounded-lg p-2 text-center">
                   <div className="text-xs text-yellow-800 font-bold">
                     💡 Usa questo tempo per valutare il Jolly
@@ -306,8 +318,9 @@ export default function GameScreen({
             <CollezioniPanel
               game={game}
               currentPlayer={currentPlayer}
-              onClaim={rivendicaCollezione}
-              onJollyMode={attivaModalitaJolly}
+              onClaim={isGameFinished ? () => {} : rivendicaCollezione}
+              onJollyMode={isGameFinished ? () => {} : attivaModalitaJolly}
+              isGameFinished={isGameFinished}
             />
           </div>
         </div>

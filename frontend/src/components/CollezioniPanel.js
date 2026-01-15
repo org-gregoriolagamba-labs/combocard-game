@@ -6,6 +6,7 @@ export default function CollezioniPanel({
   currentPlayer,
   onClaim,
   onJollyMode,
+  isGameFinished = false,
 }) {
   const collezioni = [
     { tipo: "tris", label: "TRIS", icon: "🎯" },
@@ -43,9 +44,9 @@ export default function CollezioniPanel({
               <div className="flex items-center justify-between gap-2 mb-2">
                 <button
                   onClick={() => onClaim(tipo)}
-                  disabled={collezione?.vinto || game?.status !== "playing"}
+                  disabled={isGameFinished || collezione?.vinto || game?.status !== "playing"}
                   className={`flex-1 text-left py-2 px-3 rounded-lg font-bold transition text-sm ${
-                    collezione?.vinto
+                    collezione?.vinto || isGameFinished
                       ? "bg-gray-300 text-gray-600 cursor-not-allowed"
                       : isReale
                       ? "bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 shadow-lg"
@@ -55,7 +56,7 @@ export default function CollezioniPanel({
                   {icon} {label}
                 </button>
 
-                {!currentPlayer.jollyUsato && !collezione?.vinto && (
+                {!currentPlayer.jollyUsato && !collezione?.vinto && !isGameFinished && (
                   <button
                     onClick={() => onJollyMode(tipo)}
                     className="bg-yellow-400 text-yellow-900 px-3 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 transition"
