@@ -241,12 +241,12 @@ export default function HallScreen({
                   step="10"
                 />
               </div>
-              <div className="flex gap-2">
-                {[100, 500, 1000].map((amount) => (
+              <div className="flex gap-2 flex-wrap">
+                {[5, 10, 25, 50, 100, 500, 1000].map((amount) => (
                   <button
                     key={amount}
-                    onClick={() => setCreditiDaAcquistare(amount)}
-                    className="flex-1 bg-green-100 text-green-800 px-3 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
+                    onClick={() => setCreditiDaAcquistare(prev => prev + amount)}
+                    className="flex-1 min-w-[60px] bg-green-100 text-green-800 px-3 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
                   >
                     +{amount}
                   </button>
