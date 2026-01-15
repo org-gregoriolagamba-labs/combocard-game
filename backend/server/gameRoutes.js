@@ -1,4 +1,4 @@
-import { generaCartella } from './cardUtils.js';
+import { generaCartella, generaMazzo } from './cardUtils.js';
 import { autoClaimCollezioni } from './gameLogic.js';
 import { trovaMiglioreConversioneJolly } from './jollyLogic.js';
 import { SEMI_EMOJI, VALORI_NUM } from './constants.js';
@@ -136,8 +136,6 @@ export function setupGameRoutes(app, gameState, io) {
 
 // Funzione helper per auto-start
 function autoStartGame(game, gameId, io, gameState) {
-  const { generaMazzo } = require('./cardUtils.js');
-  
   let montepremi = 0;
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
