@@ -1,0 +1,14 @@
+# E2E Test Artifacts
+node_modules/
+reports/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Environment
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db

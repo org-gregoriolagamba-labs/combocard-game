@@ -1,0 +1,32 @@
+{
+  "name": "combocard-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for ComboCard Game using Playwright",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:critical": "playwright test --grep @critical",
+    "report": "playwright show-report reports/html",
+    "codegen": "playwright codegen http://localhost:3000",
+    "install-browsers": "playwright install --with-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@faker-js/faker": "^8.3.1",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "playwright",
+    "e2e",
+    "testing",
+    "automation",
+    "combocard"
+  ]
+}
