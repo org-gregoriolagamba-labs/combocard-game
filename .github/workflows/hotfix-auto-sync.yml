@@ -1,0 +1,55 @@
+name: Hotfix auto sync main -> develop
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  auto-sync:
+    if: >
+      github.event.pull_request.merged == true &&
+      contains(join(github.event.pull_request.labels.*.name, ','), 'hotfix')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create sync PR from main to develop if missing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            console.log(`Hotfix merged: ${pr.html_url}`);
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // 1. Controlla se esiste già una PR main -> develop
+            const { data: existingPRs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              base: 'develop',
+              head: `${owner}:main`
+            });
+
+            if (existingPRs.length > 0) {
+              console.log('Sync PR already exists:', existingPRs[0].html_url);
+              return;
+            }
+
+            // 2. Crea la PR di sync
+            const syncTitle = `Sync main into develop (hotfix #${pr.number})`;
+            const syncBody = `Questa PR è stata creata automaticamente dopo il merge di un hotfix. Hotfix PR: ${pr.html_url}`;
+
+            const syncPR = await github.rest.pulls.create({
+              owner,
+              repo,
+              base: 'develop',
+              head: 'main',
+              title: syncTitle,
+              body: syncBody
+            });
+
+            console.log('Sync PR created:', syncPR.data.html_url);
