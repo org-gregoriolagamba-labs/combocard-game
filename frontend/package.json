@@ -1,31 +1,40 @@
 {
-  "name": "frontend",
+  "name": "combocard-frontend",
   "version": "1.0.0",
-  "description": "Frontend for Fullstack Node-React Template",
+  "description": "Frontend for ComboCard Game - Italian Card Game",
   "private": true,
   "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "@reduxjs/toolkit": "^2.2.1",
+    "lucide-react": "^0.344.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^9.1.0",
+    "react-router-dom": "^6.22.1",
     "react-scripts": "5.0.1",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
     "autoprefixer": "^10.4.23",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "postcss": "^8.5.6",
-    "stylelint": "^16.26.1",
-    "stylelint-config-standard": "^39.0.1",
-    "tailwindcss": "^4.1.18"
-  },
-  "overrides": {
-    "nth-check": "2.0.1"
+    "prettier": "^3.2.5",
+    "tailwindcss": "^3.4.1"
   },
   "proxy": "http://localhost:3001",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:css": "node ./node_modules/tailwindcss/dist/lib.js -i ./src/index.css -o ./src/tailwind-output.css --minify",
-    "tailwind:init": "node ./node_modules/tailwindcss/dist/lib.js init -p",
-    "test": "react-scripts test"
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.{js,jsx,json,css}\""
   },
   "browserslist": {
     "production": [

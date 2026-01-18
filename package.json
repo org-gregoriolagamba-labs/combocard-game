@@ -1,18 +1,47 @@
 {
-  "name": "template-fullstack-node-react",
+  "name": "combocard-game",
   "version": "1.0.0",
+  "description": "ComboCard - Italian Card Game with Real-time Multiplayer",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:start --prefix backend\" \"npm:start --prefix frontend\"",
-    "install-deps": "npm install --prefix backend && npm install --prefix frontend",
-    "build": "npm --prefix frontend run build",
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend start",
     "start": "npm --prefix backend start",
-    "deploy": "npm run build && npm run start"
+    "start:backend": "npm --prefix backend start",
+    "start:frontend": "npm --prefix frontend start",
+    "build": "npm --prefix frontend run build",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix e2e install",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend test -- --watchAll=false",
+    "test:coverage": "npm --prefix backend test -- --coverage && npm --prefix frontend test -- --coverage --watchAll=false",
+    "test:e2e": "npm --prefix e2e test",
+    "test:e2e:headed": "npm --prefix e2e run test:headed",
+    "test:e2e:ui": "npm --prefix e2e run test:ui",
+    "test:e2e:smoke": "npm --prefix e2e run test:smoke",
+    "e2e:install": "npm --prefix e2e run install-browsers",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
   },
-  "dependencies": {
-    "lucide-react": "^0.562.0"
-  }
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "card-game",
+    "multiplayer",
+    "socket.io",
+    "react",
+    "express",
+    "italian-cards"
+  ],
+  "author": "",
+  "license": "MIT"
 }
