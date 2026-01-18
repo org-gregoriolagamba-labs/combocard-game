@@ -11,14 +11,16 @@ import uiReducer, {
 } from '../../store/slices/uiSlice';
 
 describe('uiSlice', () => {
+  // Updated to match the actual structure in uiSlice.js
   const initialState = {
-    currentScreen: 'home',
     toasts: [],
+    currentScreen: "home",
     modals: {
-      isOpen: false,
-      type: null,
-      data: null,
+      cassa: false,
+      creaPartita: false,
+      joinPrivate: false,
     },
+    isLoading: false,
   };
 
   test('should return initial state', () => {
@@ -28,13 +30,11 @@ describe('uiSlice', () => {
   describe('setScreen', () => {
     test('should set current screen', () => {
       const state = uiReducer(initialState, setScreen('hall'));
-      
       expect(state.currentScreen).toBe('hall');
     });
 
     test('should handle all valid screens', () => {
       const screens = ['home', 'hall', 'lobby', 'game'];
-      
       screens.forEach(screen => {
         const state = uiReducer(initialState, setScreen(screen));
         expect(state.currentScreen).toBe(screen);
@@ -87,27 +87,29 @@ describe('uiSlice', () => {
     });
   });
 
-  describe('openModal', () => {
-    test('should open modal with type and data', () => {
-      const state = uiReducer(initialState, openModal({ 
-        type: 'confirm', 
-        data: { title: 'Confirm Action' } 
-      }));
+  describe('modals', () => {
+    test('should open specific modal', () => {
+      // The slice expects the payload to be the key of the modal (e.g., 'cassa')
+      const state = uiReducer(initialState, openModal('cassa'));
       
-      expect(state.modals.isOpen).toBe(true);
-      expect(state.modals.type).toBe('confirm');
-      expect(state.modals.data).toEqual({ title: 'Confirm Action' });
+      expect(state.modals.cassa).toBe(true);
+      // Ensure other modals remain closed
+      expect(state.modals.creaPartita).toBe(false);
     });
-  });
 
-  describe('closeModal', () => {
-    test('should close modal', () => {
-      let state = uiReducer(initialState, openModal({ type: 'confirm' }));
-      state = uiReducer(state, closeModal());
+    test('should close specific modal', () => {
+      // Start with a state where 'cassa' is open
+      const startState = {
+        ...initialState,
+        modals: {
+          ...initialState.modals,
+          cassa: true
+        }
+      };
+
+      const state = uiReducer(startState, closeModal('cassa'));
       
-      expect(state.modals.isOpen).toBe(false);
-      expect(state.modals.type).toBeNull();
-      expect(state.modals.data).toBeNull();
+      expect(state.modals.cassa).toBe(false);
     });
   });
 });

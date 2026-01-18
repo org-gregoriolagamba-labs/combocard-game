@@ -5,96 +5,145 @@
  */
 
 import { jest } from '@jest/globals';
-import { successResponse, errorResponse, paginatedResponse } from '../../src/utils/response.utils.js';
+import { sendSuccess, sendCreated, sendNoContent, sendPaginated } from '../../src/utils/response.utils.js';
 
 describe('Response Utils', () => {
-  describe('successResponse', () => {
-    test('should format success response with data', () => {
-      const response = successResponse({ id: 1, name: 'Test' });
+  let mockRes;
+
+  beforeEach(() => {
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
+    };
+  });
+
+  describe('sendSuccess', () => {
+    test('should send success response with data', () => {
+      const data = { id: 1, name: 'Test' };
+      sendSuccess(mockRes, data);
       
-      expect(response).toEqual({
-        success: true,
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: 'success',
+        message: 'Success',
         data: { id: 1, name: 'Test' },
       });
     });
 
-    test('should format success response with message', () => {
-      const response = successResponse({ id: 1 }, 'Created successfully');
+    test('should send success response with custom message', () => {
+      const data = { id: 1 };
+      sendSuccess(mockRes, data, 'Created successfully');
       
-      expect(response).toEqual({
-        success: true,
-        data: { id: 1 },
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: 'success',
         message: 'Created successfully',
+        data: { id: 1 },
       });
     });
 
-    test('should handle null data', () => {
-      const response = successResponse(null);
+    test('should send success response with custom status code', () => {
+      const data = { id: 1 };
+      sendSuccess(mockRes, data, 'Created', 201);
       
-      expect(response).toEqual({
-        success: true,
-        data: null,
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    test('should handle null data', () => {
+      sendSuccess(mockRes, null);
+      
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: 'success',
+        message: 'Success',
       });
     });
 
     test('should handle array data', () => {
-      const response = successResponse([1, 2, 3]);
+      sendSuccess(mockRes, [1, 2, 3]);
       
-      expect(response).toEqual({
-        success: true,
-        data: [1, 2, 3],
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [1, 2, 3],
+        })
+      );
+    });
+  });
+
+  describe('sendCreated', () => {
+    test('should send 201 created response', () => {
+      const data = { id: 1, name: 'New Item' };
+      sendCreated(mockRes, data);
+      
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: 'success',
+        message: 'Created successfully',
+        data,
+      });
+    });
+
+    test('should send created response with custom message', () => {
+      const data = { id: 1 };
+      sendCreated(mockRes, data, 'Player created');
+      
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: 'success',
+        message: 'Player created',
+        data,
       });
     });
   });
 
-  describe('errorResponse', () => {
-    test('should format error response with message', () => {
-      const response = errorResponse('Something went wrong');
+  describe('sendNoContent', () => {
+    test('should send 204 no content response', () => {
+      sendNoContent(mockRes);
       
-      expect(response).toEqual({
-        success: false,
-        error: 'Something went wrong',
-      });
-    });
-
-    test('should format error response with details', () => {
-      const response = errorResponse('Validation failed', { field: 'email' });
-      
-      expect(response).toEqual({
-        success: false,
-        error: 'Validation failed',
-        details: { field: 'email' },
-      });
+      expect(mockRes.status).toHaveBeenCalledWith(204);
+      expect(mockRes.send).toHaveBeenCalled();
     });
   });
 
-  describe('paginatedResponse', () => {
-    test('should format paginated response', () => {
-      const response = paginatedResponse([1, 2, 3], 1, 10, 25);
+  describe('sendPaginated', () => {
+    test('should send paginated response', () => {
+      const data = [1, 2, 3];
+      sendPaginated(mockRes, { data, page: 1, limit: 10, total: 25 });
       
-      expect(response).toEqual({
-        success: true,
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: 'success',
         data: [1, 2, 3],
         pagination: {
           page: 1,
           limit: 10,
           total: 25,
-          pages: 3,
+          totalPages: 3,
+          hasNextPage: true,
+          hasPrevPage: false,
         },
       });
     });
 
     test('should calculate pages correctly', () => {
-      const response = paginatedResponse([], 1, 10, 100);
+      sendPaginated(mockRes, { data: [], page: 1, limit: 10, total: 100 });
       
-      expect(response.pagination.pages).toBe(10);
+      const call = mockRes.json.mock.calls[0][0];
+      expect(call.pagination.totalPages).toBe(10);
+    });
+
+    test('should handle last page correctly', () => {
+      sendPaginated(mockRes, { data: [], page: 3, limit: 10, total: 25 });
+      
+      const call = mockRes.json.mock.calls[0][0];
+      expect(call.pagination.hasNextPage).toBe(false);
+      expect(call.pagination.hasPrevPage).toBe(true);
     });
 
     test('should handle empty results', () => {
-      const response = paginatedResponse([], 1, 10, 0);
+      sendPaginated(mockRes, { data: [], page: 1, limit: 10, total: 0 });
       
-      expect(response.pagination.pages).toBe(0);
-      expect(response.data).toEqual([]);
+      const call = mockRes.json.mock.calls[0][0];
+      expect(call.pagination.totalPages).toBe(0);
+      expect(call.data).toEqual([]);
     });
   });
 });

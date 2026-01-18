@@ -80,7 +80,7 @@ export const claimCollection = createAsyncThunk(
   }
 );
 
-export const useJolly = createAsyncThunk(
+export const playJolly = createAsyncThunk(
   "game/useJolly",
   async ({ gameId, playerId, row, col, tipo }, { rejectWithValue }) => {
     try {

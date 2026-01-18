@@ -1,7 +1,6 @@
 /**
  * Button Component
- * 
- * Reusable button component with variants.
+ * * Reusable button component with variants.
  */
 
 import React from "react";
@@ -12,6 +11,7 @@ function Button({
   size = "md",
   disabled = false,
   loading = false,
+  fullWidth = false, // Destructured to prevent passing to DOM and enable logic
   className = "",
   ...props
 }) {
@@ -33,13 +33,23 @@ function Button({
 
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`
+        ${baseClasses} 
+        ${variantClasses[variant]} 
+        ${sizeClasses[size]} 
+        ${fullWidth ? "w-full" : ""} 
+        ${className}
+      `}
       disabled={disabled || loading}
       {...props}
     >
       {loading ? (
         <span className="flex items-center gap-2">
-          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          {/* Added data-testid for testing */}
+          <span 
+            data-testid="loading-spinner"
+            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" 
+          />
           Caricamento...
         </span>
       ) : (

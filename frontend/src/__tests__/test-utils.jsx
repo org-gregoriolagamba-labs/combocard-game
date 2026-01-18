@@ -1,7 +1,6 @@
 /**
  * Test Utilities
- * 
- * Custom render function and test utilities for React Testing Library.
+ * * Custom render function and test utilities for React Testing Library.
  */
 
 import React from 'react';
@@ -116,6 +115,12 @@ export const mockUiState = {
     data: null,
   },
 };
+
+// Dummy test to ensure this file is treated as a valid test suite if picked up by Jest
+test('test-utils exports are defined', () => {
+  expect(createTestStore).toBeDefined();
+  expect(renderWithProviders).toBeDefined();
+});
 
 // Re-export everything from testing library
 export * from '@testing-library/react';

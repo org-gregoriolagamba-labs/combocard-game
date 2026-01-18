@@ -5,7 +5,13 @@
  */
 
 import { jest } from '@jest/globals';
-import GameService from '../../src/services/game.service.js';
+import {
+  verificaTris,
+  verificaSequenza,
+  verificaScopa,
+  verificaNapola,
+  verificaCombocardReale,
+} from '../../src/services/game.service.js';
 
 describe('GameService', () => {
   // Helper to create a covered cards matrix
@@ -49,7 +55,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2]]);
       
-      expect(GameService.verificaTris(cartella, coperte)).toBe(true);
+      expect(verificaTris(cartella, coperte)).toBe(true);
     });
 
     test('should return false when less than 3 cards of same value', () => {
@@ -60,7 +66,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2]]);
       
-      expect(GameService.verificaTris(cartella, coperte)).toBe(false);
+      expect(verificaTris(cartella, coperte)).toBe(false);
     });
 
     test('should return false when cards are not covered', () => {
@@ -71,7 +77,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1]]); // Only 2 covered
       
-      expect(GameService.verificaTris(cartella, coperte)).toBe(false);
+      expect(verificaTris(cartella, coperte)).toBe(false);
     });
   });
 
@@ -85,7 +91,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3]]);
       
-      expect(GameService.verificaSequenza(cartella, coperte)).toBe(true);
+      expect(verificaSequenza(cartella, coperte)).toBe(true);
     });
 
     test('should return false when values are not consecutive', () => {
@@ -97,7 +103,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3]]);
       
-      expect(GameService.verificaSequenza(cartella, coperte)).toBe(false);
+      expect(verificaSequenza(cartella, coperte)).toBe(false);
     });
   });
 
@@ -112,7 +118,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]]);
       
-      expect(GameService.verificaScopa(cartella, coperte)).toBe(true);
+      expect(verificaScopa(cartella, coperte)).toBe(true);
     });
 
     test('should return false when less than 5 cards of same suit', () => {
@@ -125,7 +131,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]]);
       
-      expect(GameService.verificaScopa(cartella, coperte)).toBe(false);
+      expect(verificaScopa(cartella, coperte)).toBe(false);
     });
   });
 
@@ -142,7 +148,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]]);
       
-      expect(GameService.verificaNapola(cartella, coperte)).toBe(true);
+      expect(verificaNapola(cartella, coperte)).toBe(true);
     });
 
     test('should return false without full house', () => {
@@ -155,7 +161,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]]);
       
-      expect(GameService.verificaNapola(cartella, coperte)).toBe(false);
+      expect(verificaNapola(cartella, coperte)).toBe(false);
     });
   });
 
@@ -169,7 +175,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3]]);
       
-      expect(GameService.verificaCombocardReale(cartella, coperte)).toBe(true);
+      expect(verificaCombocardReale(cartella, coperte)).toBe(true);
     });
 
     test('should return false when cards are not of same suit', () => {
@@ -181,7 +187,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3]]);
       
-      expect(GameService.verificaCombocardReale(cartella, coperte)).toBe(false);
+      expect(verificaCombocardReale(cartella, coperte)).toBe(false);
     });
 
     test('should return false when cards are not consecutive', () => {
@@ -193,7 +199,7 @@ describe('GameService', () => {
       ]);
       const coperte = createCoperte([[0, 0], [0, 1], [0, 2], [0, 3]]);
       
-      expect(GameService.verificaCombocardReale(cartella, coperte)).toBe(false);
+      expect(verificaCombocardReale(cartella, coperte)).toBe(false);
     });
   });
 });

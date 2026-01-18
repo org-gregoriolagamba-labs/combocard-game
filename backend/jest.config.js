@@ -1,6 +1,10 @@
 export default {
   testEnvironment: "node",
-  testMatch: ["**/__tests__/**/*.js", "**/*.test.js"],
+  testMatch: [
+    '**/*.test.js',
+    '**/__tests__/**/*.js',
+    '**/?(*.)+(spec|test).js'
+  ],
   collectCoverageFrom: [
     "src/**/*.js",
     "!src/server.js",
@@ -8,6 +12,9 @@ export default {
   coverageDirectory: "coverage",
   coverageReporters: ["text", "lcov", "html"],
   moduleFileExtensions: ["js", "json"],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
+  },
   transform: {},
   verbose: true,
 };

@@ -1,7 +1,6 @@
 /**
  * Input Component
- * 
- * Reusable input component.
+ * * Reusable input component.
  */
 
 import React from "react";
@@ -15,8 +14,12 @@ function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-green-900 mb-2">
+        <label 
+          htmlFor={props.id} 
+          className="block text-sm font-medium text-green-900 mb-2"
+        >
           {label}
+          {props.required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
       <input

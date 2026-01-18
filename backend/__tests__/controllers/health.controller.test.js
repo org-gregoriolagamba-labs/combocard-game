@@ -26,7 +26,10 @@ describe('Health Controller', () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'ok',
+          status: 'success',
+          data: expect.objectContaining({
+            status: 'ok',
+          })
         })
       );
     });
@@ -36,7 +39,9 @@ describe('Health Controller', () => {
       
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          timestamp: expect.any(String),
+          data: expect.objectContaining({
+            timestamp: expect.any(String),
+          })
         })
       );
     });
@@ -46,7 +51,19 @@ describe('Health Controller', () => {
       
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          uptime: expect.any(Number),
+          data: expect.objectContaining({
+            uptime: expect.any(Number),
+          })
+        })
+      );
+    });
+
+    test('should include success message', () => {
+      healthCheck(mockReq, mockRes);
+      
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Success',
         })
       );
     });

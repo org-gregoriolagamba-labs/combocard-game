@@ -8,7 +8,8 @@ import Input from '../../components/common/Input';
 
 describe('Input', () => {
   test('renders input with label', () => {
-    render(<Input label="Username" name="username" />);
+    // Added id to link label and input
+    render(<Input label="Username" name="username" id="username-input" />);
     
     expect(screen.getByLabelText('Username')).toBeInTheDocument();
   });
@@ -49,10 +50,10 @@ describe('Input', () => {
   });
 
   test('renders with type password', () => {
-    render(<Input name="password" type="password" />);
+    const { container } = render(<Input name="password" type="password" />);
     
-    expect(screen.getByRole('textbox', { hidden: true }) || 
-           document.querySelector('input[type="password"]')).toBeInTheDocument();
+    // Password inputs do not have role="textbox", so we query by selector
+    expect(container.querySelector('input[type="password"]')).toBeInTheDocument();
   });
 
   test('applies custom className', () => {

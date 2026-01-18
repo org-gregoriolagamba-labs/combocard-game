@@ -5,17 +5,18 @@
  */
 
 import { jest } from '@jest/globals';
-import { creaMazzo, creaCartella, SEMI, VALORI, SEMI_EMOJI } from '../../src/utils/card.utils.js';
+import { generaMazzo, generaCartella } from '../../src/utils/card.utils.js';
+import { SEMI, VALORI, SEMI_EMOJI } from '../../src/config/constants.js';
 
 describe('Card Utils', () => {
-  describe('creaMazzo', () => {
+  describe('generaMazzo', () => {
     test('should create a deck with 40 cards', () => {
-      const mazzo = creaMazzo();
+      const mazzo = generaMazzo();
       expect(mazzo).toHaveLength(40);
     });
 
     test('should have 10 cards for each suit', () => {
-      const mazzo = creaMazzo();
+      const mazzo = generaMazzo();
       
       SEMI.forEach(seme => {
         const cardsOfSuit = mazzo.filter(card => card.seme === seme);
@@ -24,7 +25,7 @@ describe('Card Utils', () => {
     });
 
     test('should have all values for each suit', () => {
-      const mazzo = creaMazzo();
+      const mazzo = generaMazzo();
       
       SEMI.forEach(seme => {
         const cardsOfSuit = mazzo.filter(card => card.seme === seme);
@@ -37,7 +38,7 @@ describe('Card Utils', () => {
     });
 
     test('each card should have required properties', () => {
-      const mazzo = creaMazzo();
+      const mazzo = generaMazzo();
       
       mazzo.forEach(card => {
         expect(card).toHaveProperty('seme');
@@ -49,22 +50,11 @@ describe('Card Utils', () => {
         expect(typeof card.valoreNum).toBe('number');
       });
     });
-
-    test('should create a shuffled deck', () => {
-      const mazzo1 = creaMazzo();
-      const mazzo2 = creaMazzo();
-      
-      // Due to shuffling, decks should be in different order
-      // There's a tiny chance they could be the same, so we check structure
-      expect(mazzo1).toHaveLength(40);
-      expect(mazzo2).toHaveLength(40);
-    });
   });
 
-  describe('creaCartella', () => {
+  describe('generaCartella', () => {
     test('should create a 5x5 grid', () => {
-      const mazzo = creaMazzo();
-      const cartella = creaCartella(mazzo);
+      const cartella = generaCartella();
       
       expect(cartella).toHaveLength(5);
       cartella.forEach(row => {
@@ -72,18 +62,21 @@ describe('Card Utils', () => {
       });
     });
 
-    test('should use 25 cards from the deck', () => {
-      const mazzo = creaMazzo();
-      const initialLength = mazzo.length;
-      const cartella = creaCartella(mazzo);
+    test('should use 25 cards', () => {
+      const cartella = generaCartella();
       
-      // Cards should be removed from deck
-      expect(mazzo.length).toBe(initialLength - 25);
+      let totalCards = 0;
+      cartella.forEach(row => {
+        row.forEach(card => {
+          if (card) totalCards++;
+        });
+      });
+      
+      expect(totalCards).toBe(25);
     });
 
     test('each cell should have a valid card', () => {
-      const mazzo = creaMazzo();
-      const cartella = creaCartella(mazzo);
+      const cartella = generaCartella();
       
       cartella.forEach(row => {
         row.forEach(card => {
@@ -91,6 +84,19 @@ describe('Card Utils', () => {
           expect(card).toHaveProperty('valore');
           expect(card).toHaveProperty('valoreNum');
           expect(card).toHaveProperty('emoji');
+        });
+      });
+    });
+
+    test('cards should be unique in cartella', () => {
+      const cartella = generaCartella();
+      const cards = [];
+      
+      cartella.forEach(row => {
+        row.forEach(card => {
+          const cardKey = `${card.valore}-${card.seme}`;
+          expect(cards).not.toContain(cardKey);
+          cards.push(cardKey);
         });
       });
     });

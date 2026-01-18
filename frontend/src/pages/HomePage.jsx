@@ -6,9 +6,9 @@
 
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { registerPlayer } from "../../store/slices/playerSlice";
-import { setScreen } from "../../store/slices/uiSlice";
-import { useToast } from "../../hooks";
+import { registerPlayer } from "../store/slices/playerSlice";
+import { setScreen } from "../store/slices/uiSlice";
+import { useToast } from "../hooks";
 
 function HomePage() {
   const dispatch = useDispatch();

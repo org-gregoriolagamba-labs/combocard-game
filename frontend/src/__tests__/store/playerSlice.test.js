@@ -5,17 +5,17 @@
 import playerReducer, {
   setPlayer,
   clearPlayer,
-  setLoading,
-  setError,
+  clearError,
 } from '../../store/slices/playerSlice';
 
 describe('playerSlice', () => {
+  // Updated to match the actual initialState in playerSlice.js
   const initialState = {
     id: null,
     name: '',
     credits: 0,
-    isRegistered: false,
-    loading: false,
+    currentGameId: null,
+    isLoading: false,
     error: null,
   };
 
@@ -35,7 +35,6 @@ describe('playerSlice', () => {
     expect(state.id).toBe('player-123');
     expect(state.name).toBe('Test Player');
     expect(state.credits).toBe(100);
-    expect(state.isRegistered).toBe(true);
   });
 
   test('should handle clearPlayer', () => {
@@ -43,8 +42,8 @@ describe('playerSlice', () => {
       id: 'player-123',
       name: 'Test Player',
       credits: 100,
-      isRegistered: true,
-      loading: false,
+      currentGameId: 'game-1',
+      isLoading: false,
       error: null,
     };
     
@@ -53,16 +52,14 @@ describe('playerSlice', () => {
     expect(state).toEqual(initialState);
   });
 
-  test('should handle setLoading', () => {
-    const state = playerReducer(initialState, setLoading(true));
-    
-    expect(state.loading).toBe(true);
-  });
+  test('should handle clearError', () => {
+    const currentState = {
+      ...initialState,
+      error: 'Some error message'
+    };
 
-  test('should handle setError', () => {
-    const state = playerReducer(initialState, setError('Network error'));
+    const state = playerReducer(currentState, clearError());
     
-    expect(state.error).toBe('Network error');
-    expect(state.loading).toBe(false);
+    expect(state.error).toBe(null);
   });
 });

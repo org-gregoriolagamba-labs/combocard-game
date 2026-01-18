@@ -10,7 +10,7 @@ import { Coins, ArrowLeft } from "lucide-react";
 import {
   drawCard,
   claimCollection,
-  useJolly,
+  playJolly,
   leaveGame,
   setJollyMode,
   decrementDrawCooldown,
@@ -128,7 +128,7 @@ function GameScreen() {
     }
 
     try {
-      const result = await dispatch(useJolly({ gameId, playerId, row, col, tipo: jollyMode })).unwrap();
+      const result = await dispatch(playJolly({ gameId, playerId, row, col, tipo: jollyMode })).unwrap();
       dispatch(addToast({
         message: `✨ Jolly attivato! Carta convertita in ${result.convertedTo.valore} di ${result.convertedTo.seme}`,
         type: "success",
@@ -253,7 +253,7 @@ function GameScreen() {
 
             {!currentPlayer.jollyUsato && !jollyMode && !isGameFinished && (
               <p className="text-xs text-green-700 mt-3 text-center">
-                💡 Seleziona una collezione e poi clicca "Usa Jolly" per attivare la modalità Jolly
+                💡 Seleziona una collezione e poi clicca &quot;Usa Jolly&quot; per attivare la modalità Jolly
               </p>
             )}
           </div>

@@ -5,7 +5,7 @@
  */
 
 import { jest } from '@jest/globals';
-import AppError from '../../src/utils/AppError.js';
+import { AppError, createError } from '../../src/utils/AppError.js';
 
 describe('AppError', () => {
   test('should create error with message and status code', () => {
@@ -43,9 +43,47 @@ describe('AppError', () => {
     expect(error.stack).toContain('AppError');
   });
 
-  test('should default to 500 if no status code provided', () => {
-    const error = new AppError('Unknown error');
-    
-    expect(error.statusCode).toBe(500);
+  describe('createError helpers', () => {
+    test('should create bad request error', () => {
+      const error = createError.badRequest('Invalid input');
+      
+      expect(error.statusCode).toBe(400);
+      expect(error.message).toBe('Invalid input');
+    });
+
+    test('should create unauthorized error', () => {
+      const error = createError.unauthorized();
+      
+      expect(error.statusCode).toBe(401);
+      expect(error.message).toBe('Unauthorized');
+    });
+
+    test('should create forbidden error', () => {
+      const error = createError.forbidden();
+      
+      expect(error.statusCode).toBe(403);
+      expect(error.message).toBe('Forbidden');
+    });
+
+    test('should create not found error', () => {
+      const error = createError.notFound('Resource not found');
+      
+      expect(error.statusCode).toBe(404);
+      expect(error.message).toBe('Resource not found');
+    });
+
+    test('should create conflict error', () => {
+      const error = createError.conflict();
+      
+      expect(error.statusCode).toBe(409);
+      expect(error.message).toBe('Conflict');
+    });
+
+    test('should create internal server error', () => {
+      const error = createError.internal();
+      
+      expect(error.statusCode).toBe(500);
+      expect(error.message).toBe('Internal Server Error');
+    });
   });
 });

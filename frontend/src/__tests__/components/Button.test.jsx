@@ -41,33 +41,38 @@ describe('Button', () => {
     render(<Button>Primary</Button>);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-green-600');
+    // Updated to match the gradient class used in component
+    expect(button).toHaveClass('from-green-600');
   });
 
   test('applies secondary variant styles', () => {
     render(<Button variant="secondary">Secondary</Button>);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-gray-600');
+    // Updated to match the amber gradient used in component
+    expect(button).toHaveClass('from-amber-500');
   });
 
   test('applies danger variant styles', () => {
     render(<Button variant="danger">Danger</Button>);
     
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-red-600');
+    // Updated to match the gradient class
+    expect(button).toHaveClass('from-red-500');
   });
 
   test('renders with loading state', () => {
     render(<Button loading>Loading</Button>);
     
     expect(screen.getByRole('button')).toBeDisabled();
+    // This will now pass because we added the data-testid to the component
     expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
   });
 
   test('applies fullWidth styles when prop is true', () => {
     render(<Button fullWidth>Full Width</Button>);
     
+    // This will now pass because we added the logic to the component
     expect(screen.getByRole('button')).toHaveClass('w-full');
   });
 

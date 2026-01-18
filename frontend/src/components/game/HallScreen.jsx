@@ -227,10 +227,10 @@ function HallScreen() {
             {[100, 500, 1000].map((amount) => (
               <button
                 key={amount}
-                onClick={() => setCreditiDaAcquistare(amount)}
+                onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
                 className="bg-green-100 text-green-800 py-2 rounded-lg font-bold hover:bg-green-200 transition"
               >
-                {amount}
+                +{amount}
               </button>
             ))}
           </div>
