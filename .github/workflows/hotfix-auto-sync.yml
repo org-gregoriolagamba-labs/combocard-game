@@ -12,21 +12,25 @@ jobs:
       github.event.pull_request.merged == true &&
       contains(join(github.event.pull_request.labels.*.name, ','), 'hotfix')
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT }}   # PAT con permessi repo completo
 
     steps:
-      - name: Create sync PR from main to develop if missing
+      - name: Setup Octokit with PAT
         uses: actions/github-script@v7
         with:
           script: |
             const pr = context.payload.pull_request;
-
             console.log(`Hotfix merged: ${pr.html_url}`);
 
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
-            // 1. Controlla se esiste già una PR main -> develop
-            const { data: existingPRs } = await github.rest.pulls.list({
+            // Inizializza Octokit con PAT
+            const octokit = github.getOctokit(process.env.GH_TOKEN);
+
+            // 1️⃣ Controlla se esiste già una PR aperta main -> develop
+            const { data: existingPRs } = await octokit.rest.pulls.list({
               owner,
               repo,
               state: 'open',
@@ -39,11 +43,11 @@ jobs:
               return;
             }
 
-            // 2. Crea la PR di sync
+            // 2️⃣ Crea la PR di sync
             const syncTitle = `Sync main into develop (hotfix #${pr.number})`;
-            const syncBody = `Questa PR è stata creata automaticamente dopo il merge di un hotfix. Hotfix PR: ${pr.html_url}`;
+            const syncBody = `Questa PR è stata creata automaticamente dopo il merge di un hotfix. Hotfix PR: ${pr.html_url} ⚠️ Questa PR fa parte integrante del workflow hotfix.`;
 
-            const syncPR = await github.rest.pulls.create({
+            const syncPR = await octokit.rest.pulls.create({
               owner,
               repo,
               base: 'develop',
