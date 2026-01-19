@@ -25,6 +25,7 @@ Queste regole valgono **per tutti, inclusi gli admin**.
 | `main` | Release stabili / produzione |
 | `develop` | Integrazione continua |
 | `feature/*` | Nuove funzionalità |
+| `bugfix/*` | Correzioni non urgenti |
 | `hotfix/*` | Correzioni urgenti |
 
 ---
@@ -34,16 +35,18 @@ Queste regole valgono **per tutti, inclusi gli admin**.
 Usa nomi chiari e descrittivi:
 
 feature/short-description  
+bugfix/short-description  
 hotfix/short-description
 
 Esempi:
 - `feature/user-authentication`
 - `feature/api-timeout-handling`
+- `bugfix/error-on-createuser`
 - `hotfix/null-pointer-on-startup`
 
 ---
 
-## 🔁 Workflow standard
+## 🔁 Workflow standard (feature / bugfix)
 
 1. Parti da `develop`:
     ```bash

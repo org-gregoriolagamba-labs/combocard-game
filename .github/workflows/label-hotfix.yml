@@ -1,0 +1,16 @@
+name: Auto-label Hotfix PR
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  add-hotfix-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add Hotfix label
+        if: startsWith(github.head_ref, 'hotfix/')
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: hotfix
