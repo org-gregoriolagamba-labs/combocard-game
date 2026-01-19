@@ -200,5 +200,21 @@ npm run lint:fix
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+**Proprietary-Use License – Personal & Educational Only**
 
+Copyright (c) 2026 Gregorio La Gamba
+
+This software is provided under a license that allows **personal, educational, or non-commercial use only**.  
+You may:
+- Use the Software on your own devices.
+- Study, explore, or experiment with the Software.
+- Fork or modify the Software for **personal or educational purposes only**.
+
+You may **not**:
+- Use the Software for commercial purposes, including selling or integrating
+  it into a product or service that generates revenue.
+- Redistribute, publish, or sublicense the Software without prior written
+  permission from the copyright holder.
+- Remove or alter the copyright notice or any other notices contained in the Software.
+
+See [LICENSE](LICENSE) for full terms.
