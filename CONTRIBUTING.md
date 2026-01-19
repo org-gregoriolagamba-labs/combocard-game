@@ -144,6 +144,8 @@ Gli hotfix vengono applicati **prima su `main`** e **solo successivamente** ripo
 
 Dopo il merge, una GitHub Action creerà automaticamente una Pull Request di sincronizzazione da `main` verso `develop`, con titolo: _Sync main into develop (hotfix #N)_
 
+⚠️ Non è necessario che tu crei manualmente la PR di sync: la Action gestisce automaticamente questo passaggio.
+
 **Chiusura dell’hotfix**  
 Un hotfix è considerato completato solo quando:
 - la PR hotfix è mergiata su `main`
@@ -153,6 +155,14 @@ Un hotfix è considerato completato solo quando:
 - sincronizzare `main` → `develop` prima del merge dell’hotfix
 - usare cherry-pick, salvo casi eccezionali e concordati
 - fare merge locali senza Pull Request
+
+**🔔 Nota per i contributors**
+
+La GitHub Action gestisce automaticamente la sincronizzazione di develop dopo ogni hotfix.
+
+Il tuo compito è solo fare il merge corretto della PR hotfix e, successivamente, approvare la PR di sync creata dall’Action.
+
+Tutto il resto è automatizzato per evitare dimenticanze o errori.
 
 ---
 
