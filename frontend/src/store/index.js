@@ -4,6 +4,8 @@
  * Configures the Redux store with slices and middleware.
  */
 
+/* global process */
+
 import { configureStore } from "@reduxjs/toolkit";
 import playerReducer from "./slices/playerSlice";
 import gameReducer from "./slices/gameSlice";
