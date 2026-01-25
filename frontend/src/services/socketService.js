@@ -44,10 +44,12 @@ class SocketService {
     });
 
     this.socket.on("connect", () => {
+      // eslint-disable-next-line no-console
       console.log("🔌 Socket connected:", this.socket.id);
     });
 
     this.socket.on("disconnect", (reason) => {
+      // eslint-disable-next-line no-console
       console.log("🔌 Socket disconnected:", reason);
     });
 

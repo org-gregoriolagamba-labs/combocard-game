@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import PropTypes from "prop-types";
 
 function LoadingSpinner({ size = "md", className = "" }) {
   const sizeClasses = {
@@ -22,5 +23,10 @@ function LoadingSpinner({ size = "md", className = "" }) {
     </div>
   );
 }
+
+LoadingSpinner.propTypes = {
+  size: PropTypes.oneOf(["sm", "md", "lg", "xl"]),
+  className: PropTypes.string,
+};
 
 export default LoadingSpinner;
