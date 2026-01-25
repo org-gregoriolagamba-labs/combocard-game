@@ -43,22 +43,11 @@ test.describe('Player API', () => {
     });
     
     console.log(`Registration response status: ${response.status()}`);
-    const responseText = await response.text();
-    console.log(`Registration response body: ${responseText}`);
-    
-    // Log response details for debugging
-    if (!response.ok()) {
-      try {
-        const errorBody = JSON.parse(responseText);
-        console.error(`Player registration failed - Status: ${response.status()}`, errorBody);
-      } catch (e) {
-        console.error(`Player registration failed - Status: ${response.status()}, Body: ${responseText}`);
-      }
-    }
     
     expect(response.ok()).toBe(true);
     
-    const body = JSON.parse(responseText);
+    const body = await response.json();
+    console.log(`Registration response body:`, body);
     const player = body.data.player;
     expect(player.id).toBeDefined();
     expect(player.name).toBe('APITestPlayer');
