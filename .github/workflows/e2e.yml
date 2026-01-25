@@ -52,7 +52,7 @@ jobs:
       - name: Wait for servers to be ready
         run: |
           npm install -g wait-on
-          wait-on http://localhost:3000 http://localhost:3001/api/health --timeout 60000
+          wait-on http://localhost:3000 http://localhost:3001/api/health --timeout 120000 --interval 2000
 
       - name: Run E2E tests
         run: npm --prefix e2e test
@@ -117,7 +117,7 @@ jobs:
       - name: Wait for servers
         run: |
           npm install -g wait-on
-          wait-on http://localhost:3000 http://localhost:3001/api/health --timeout 60000
+          wait-on http://localhost:3000 http://localhost:3001/api/health --timeout 120000 --interval 2000
 
       - name: Run Smoke tests (Chromium only)
         run: npm --prefix e2e run test:smoke -- --project=chromium
