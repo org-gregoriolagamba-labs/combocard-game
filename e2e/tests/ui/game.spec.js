@@ -12,28 +12,28 @@ test.describe('Game Flow', () => {
     await page.goto('/');
 
     // Step 1: Register
-    const nameInput = page.getByRole('textbox').or(page.locator('input[type="text"]'));
+    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
     await nameInput.fill('E2EPlayer');
     
     const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
     await submitButton.click();
 
     // Step 2: Should see Hall
-    await expect(page.getByText(/hall|lobby|partite/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /hall|combocard/i })).toBeVisible({ timeout: 10000 });
   });
 
   test('should display game creation button in hall', async ({ page }) => {
     await page.goto('/');
 
     // Register first
-    const nameInput = page.getByRole('textbox').or(page.locator('input[type="text"]'));
+    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
     await nameInput.fill('HallPlayer');
     
     const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
     await submitButton.click();
 
     // Wait for hall to load
-    await page.waitForTimeout(2000);
+    await expect(page.getByRole('heading', { name: /hall|combocard/i })).toBeVisible({ timeout: 10000 });
 
     // Should see create game button
     const createGameButton = page.getByRole('button', { name: /crea|nuova partita|new game/i });
@@ -44,37 +44,34 @@ test.describe('Game Flow', () => {
     await page.goto('/');
 
     // Register
-    const nameInput = page.getByRole('textbox').or(page.locator('input[type="text"]'));
+    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
     await nameInput.fill('CreditPlayer');
     
     const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
     await submitButton.click();
 
-    // Wait for navigation
-    await page.waitForTimeout(2000);
-
-    // Should display credits (100 initial credits)
-    await expect(page.getByText(/100|crediti|gettoni/i)).toBeVisible();
+    // Wait for hall to load and credits to display
+    await expect(page.getByText('I Tuoi Crediti')).toBeVisible({ timeout: 10000 });
   });
 
   test('should create a new game', async ({ page }) => {
     await page.goto('/');
 
     // Register
-    const nameInput = page.getByRole('textbox').or(page.locator('input[type="text"]'));
+    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
     await nameInput.fill('GameCreator');
     
     const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
     await submitButton.click();
 
-    // Wait for hall
-    await page.waitForTimeout(2000);
+    // Wait for hall to load
+    await expect(page.getByRole('heading', { name: /hall|combocard/i })).toBeVisible({ timeout: 10000 });
 
     // Create game
     const createGameButton = page.getByRole('button', { name: /crea|nuova partita|new game/i });
     await createGameButton.click();
 
     // Should navigate to lobby
-    await expect(page.getByText(/lobby|attesa|waiting/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /attesa|waiting/i })).toBeVisible({ timeout: 10000 });
   });
 });
