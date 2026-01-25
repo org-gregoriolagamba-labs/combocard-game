@@ -4,8 +4,6 @@
  * Configures API calls with error handling.
  */
 
-/* global process */
-
 // API base URL from environment or default
 const API_BASE_URL = process.env.REACT_APP_API_URL || "/api";
 

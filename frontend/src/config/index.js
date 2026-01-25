@@ -4,8 +4,6 @@
  * Centralized configuration for the frontend application.
  */
 
-/* global process */
-
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const DEFAULT_BACKEND_PORT = 3001;
 const detectedHost =

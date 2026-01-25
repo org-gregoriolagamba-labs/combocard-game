@@ -4,8 +4,6 @@
  * Manages Socket.IO connection for real-time game features.
  */
 
-/* global process */
-
 import { io } from "socket.io-client";
 
 // Socket.IO server URL
