@@ -99,7 +99,7 @@ test.describe('Player API', () => {
     expect(getResponse.ok()).toBe(true);
     
     const body = await getResponse.json();
-    const playerData = body.data || body;
+    const playerData = body.data;
     expect(playerData.id).toBe(player.id);
     expect(playerData.name).toBe('GetTestPlayer');
   });
