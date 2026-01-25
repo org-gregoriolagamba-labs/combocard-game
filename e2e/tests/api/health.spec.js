@@ -151,6 +151,8 @@ test.describe('Game API', () => {
     const game = gameBody.data.game;
     expect(game.id).toBeDefined();
     expect(game.status).toBe('waiting');
+    // Note: Game creation and player joining are separate operations.
+    // Games are created with an empty players array; players join via the /join endpoint.
     expect(game.players).toHaveLength(0);
   });
 });
