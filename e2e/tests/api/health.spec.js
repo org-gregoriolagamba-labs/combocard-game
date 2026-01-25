@@ -147,7 +147,9 @@ test.describe('Game API', () => {
     
     if (!createResponse.ok()) {
       const errorBody = await createResponse.json().catch(() => ({}));
-      console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
+      if (process.env.E2E_DEBUG) {
+        console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
+      }
     }
     
     expect(createResponse.ok()).toBe(true);
