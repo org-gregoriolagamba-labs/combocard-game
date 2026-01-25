@@ -363,13 +363,13 @@ export const useJolly = asyncHandler(async (req, res) => {
     player.cartella,
     player.coperte,
     jollyPosTemp,
-    tipo
+    tipo,
   );
 
   if (!conversione) {
     throw new AppError(
       "Jolly cannot complete this collection or card already exists in grid",
-      400
+      400,
     );
   }
 
