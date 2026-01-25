@@ -90,7 +90,7 @@ test.describe('Player API', () => {
     expect(getResponse.ok()).toBe(true);
     
     const body = await getResponse.json();
-    const playerData = body.data || body;
+    const playerData = body.data;
     expect(playerData.id).toBe(player.id);
     expect(playerData.name).toBe('GetTestPlayer');
   });
@@ -138,7 +138,9 @@ test.describe('Game API', () => {
     
     if (!createResponse.ok()) {
       const errorBody = await createResponse.json().catch(() => ({}));
-      console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
+      if (process.env.E2E_DEBUG) {
+        console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
+      }
     }
     
     expect(createResponse.ok()).toBe(true);
