@@ -42,9 +42,7 @@ test.describe('Player API', () => {
       data: { playerName: 'APITestPlayer' },
     });
     
-    console.log(`Registration response status: ${response.status()}`);
     const responseText = await response.text();
-    console.log(`Registration response body: ${responseText}`);
     
     // Log response details for debugging
     if (!response.ok()) {
