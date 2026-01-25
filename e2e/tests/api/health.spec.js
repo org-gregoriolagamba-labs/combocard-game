@@ -114,7 +114,7 @@ test.describe('Game API', () => {
     expect(response.ok()).toBe(true);
     
     const body = await response.json();
-    const games = body.data || body;
+    const games = body.data;
     expect(Array.isArray(games)).toBe(true);
   });
 
