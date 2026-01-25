@@ -42,14 +42,23 @@ test.describe('Player API', () => {
       data: { playerName: 'APITestPlayer' },
     });
     
+    console.log(`Registration response status: ${response.status()}`);
+    const responseText = await response.text();
+    console.log(`Registration response body: ${responseText}`);
+    
+    // Log response details for debugging
     if (!response.ok()) {
-      const errorBody = await response.json().catch(() => ({}));
-      console.error(`Player registration failed - Status: ${response.status()}`, errorBody);
+      try {
+        const errorBody = JSON.parse(responseText);
+        console.error(`Player registration failed - Status: ${response.status()}`, errorBody);
+      } catch (e) {
+        console.error(`Player registration failed - Status: ${response.status()}, Body: ${responseText}`);
+      }
     }
     
     expect(response.ok()).toBe(true);
     
-    const body = await response.json();
+    const body = JSON.parse(responseText);
     const player = body.data.player;
     expect(player.id).toBeDefined();
     expect(player.name).toBe('APITestPlayer');
@@ -92,7 +101,7 @@ test.describe('Player API', () => {
     expect(getResponse.ok()).toBe(true);
     
     const body = await getResponse.json();
-    const playerData = body.data;
+    const playerData = body.data || body;
     expect(playerData.id).toBe(player.id);
     expect(playerData.name).toBe('GetTestPlayer');
   });
@@ -105,7 +114,7 @@ test.describe('Game API', () => {
     expect(response.ok()).toBe(true);
     
     const body = await response.json();
-    const games = body.data;
+    const games = body.data || body;
     expect(Array.isArray(games)).toBe(true);
   });
 
@@ -140,9 +149,7 @@ test.describe('Game API', () => {
     
     if (!createResponse.ok()) {
       const errorBody = await createResponse.json().catch(() => ({}));
-      if (process.env.E2E_DEBUG) {
-        console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
-      }
+      console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
     }
     
     expect(createResponse.ok()).toBe(true);
@@ -151,8 +158,6 @@ test.describe('Game API', () => {
     const game = gameBody.data.game;
     expect(game.id).toBeDefined();
     expect(game.status).toBe('waiting');
-    // Note: Game creation and player joining are separate operations.
-    // Games are created with an empty players array; players join via the /join endpoint.
     expect(game.players).toHaveLength(0);
   });
 });

@@ -72,6 +72,6 @@ test.describe('Game Flow', () => {
     await createGameButton.click();
 
     // Should navigate to lobby
-    await expect(page.getByRole('heading', { name: /lobby|combocard/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /attesa|waiting/i })).toBeVisible({ timeout: 10000 });
   });
 });
