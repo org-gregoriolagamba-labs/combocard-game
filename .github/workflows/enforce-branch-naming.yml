@@ -14,7 +14,7 @@ jobs:
           echo "Checking branch: $BRANCH"
           if [[ ! "$BRANCH" =~ ^(feature|hotfix|bugfix|copilot)/|^(develop|main)$ ]]; then
             echo "❌ Invalid branch name: $BRANCH"
-            echo "Branch name must start with feature/, hotfix/, bugfix/, copilot/ or be develop/main"
+            echo "The branch name must begin with feature/, hotfix/, bugfix/, copilot/, or be either develop or main"
             exit 1
           fi
             
