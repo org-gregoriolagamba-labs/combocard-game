@@ -49,10 +49,23 @@ async function globalSetup() {
     console.log(`Checking frontend at ${baseURL}...`);
     try {
       await page.goto(baseURL, { timeout: 30000, waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(2000); // Give React time to initialize
-      console.log('✅ Frontend is ready');
+      await page.waitForTimeout(3000); // Give React time to initialize
+      
+      // Check if page has expected elements loaded
+      const pageTitle = await page.title().catch(() => 'No title');
+      console.log(`  Page title: ${pageTitle}`);
+      
+      // Wait for body to have content
+      await page.waitForSelector('body', { timeout: 5000 });
+      const bodyText = await page.textContent('body');
+      if (bodyText && bodyText.length > 0) {
+        console.log('✅ Frontend is ready and has rendered content');
+      } else {
+        console.warn('⚠️ Frontend loaded but content may not be fully rendered');
+      }
     } catch (err) {
-      console.log('⚠️ Frontend check completed (may not be fully ready, but continuing)');
+      console.warn(`⚠️ Frontend check warning: ${err.message}`);
+      console.log('  Continuing anyway - tests will retry if needed');
     }
 
     console.log('✅ Global setup completed successfully');

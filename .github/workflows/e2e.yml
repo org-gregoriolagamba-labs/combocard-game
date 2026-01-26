@@ -40,19 +40,34 @@ jobs:
       - name: Build frontend
         run: npm --prefix frontend run build
 
-      - name: Start backend server
-        run: npm --prefix backend start &
+      - name: Start backend server in background
+        run: npm --prefix backend start > /tmp/backend.log 2>&1 &
         env:
           NODE_ENV: production
           PORT: 3001
 
-      - name: Start frontend server
-        run: npx serve -s frontend/build -l 3000 &
+      - name: Start frontend server in background
+        run: npx serve -s frontend/build -l 3000 > /tmp/frontend.log 2>&1 &
 
-      - name: Wait for servers to be ready
+      - name: Wait for backend to be ready
         run: |
           npm install -g wait-on
-          wait-on http://localhost:3000 http://localhost:3001/api/health --timeout 120000 --interval 2000
+          wait-on http://localhost:3001/api/health --timeout 120000 --interval 1000
+        continue-on-error: false
+
+      - name: Wait for frontend to be ready
+        run: |
+          wait-on http://localhost:3000 --timeout 60000 --interval 1000
+        continue-on-error: false
+
+      - name: Verify servers are responding
+        run: |
+          echo "Testing backend health..."
+          curl -f http://localhost:3001/api/health || (cat /tmp/backend.log && exit 1)
+          echo ""
+          echo "Testing frontend..."
+          curl -f http://localhost:3000 || (cat /tmp/frontend.log && exit 1)
+          echo "✅ Both servers are ready"
 
       - name: Run E2E tests
         run: npm --prefix e2e test
@@ -106,18 +121,20 @@ jobs:
       - name: Build frontend
         run: npm --prefix frontend run build
 
-      - name: Start servers
+      - name: Start servers in background
         run: |
-          npm --prefix backend start &
-          npx serve -s frontend/build -l 3000 &
+          npm --prefix backend start > /tmp/backend.log 2>&1 &
+          npx serve -s frontend/build -l 3000 > /tmp/frontend.log 2>&1 &
         env:
           NODE_ENV: production
           PORT: 3001
 
-      - name: Wait for servers
+      - name: Wait for servers to be ready
         run: |
           npm install -g wait-on
-          wait-on http://localhost:3000 http://localhost:3001/api/health --timeout 120000 --interval 2000
+          wait-on http://localhost:3001/api/health --timeout 120000 --interval 1000
+          wait-on http://localhost:3000 --timeout 60000 --interval 1000
+          echo "✅ Both servers are ready"
 
       - name: Run Smoke tests (Chromium only)
         run: npm --prefix e2e run test:smoke -- --project=chromium
