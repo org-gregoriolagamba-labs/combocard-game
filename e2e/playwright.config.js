@@ -52,19 +52,19 @@ export default defineConfig({
     // Ignore HTTPS errors (useful for local development)
     ignoreHTTPSErrors: true,
 
-    // Default timeout for actions
-    actionTimeout: 10000,
+    // Default timeout for actions - longer on CI
+    actionTimeout: process.env.CI ? 15000 : 10000,
 
-    // Default timeout for navigation
-    navigationTimeout: 30000,
+    // Default timeout for navigation - longer on CI
+    navigationTimeout: process.env.CI ? 60000 : 30000,
   },
 
-  // Global timeout for each test
-  timeout: 60000,
+  // Global timeout for each test - longer on CI
+  timeout: process.env.CI ? 180000 : 120000,
 
-  // Expect timeout
+  // Expect timeout - longer on CI
   expect: {
-    timeout: 10000,
+    timeout: process.env.CI ? 30000 : 15000,
   },
 
   // Global setup

@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Coins, Plus, Users, DollarSign } from "lucide-react";
-import { buyCredits, fetchPlayer } from "../../store/slices/playerSlice";
+import { buyCredits } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
