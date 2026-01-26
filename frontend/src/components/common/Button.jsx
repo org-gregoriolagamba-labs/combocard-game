@@ -4,6 +4,7 @@
  */
 
 import React from "react";
+import PropTypes from "prop-types";
 
 function Button({
   children,
@@ -58,5 +59,15 @@ function Button({
     </button>
   );
 }
+
+Button.propTypes = {
+  children: PropTypes.node,
+  variant: PropTypes.oneOf(["primary", "secondary", "danger", "outline"]),
+  size: PropTypes.oneOf(["sm", "md", "lg", "xl"]),
+  disabled: PropTypes.bool,
+  loading: PropTypes.bool,
+  fullWidth: PropTypes.bool,
+  className: PropTypes.string,
+};
 
 export default Button;

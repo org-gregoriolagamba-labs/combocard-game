@@ -51,14 +51,14 @@ const sendErrorProd = (err, res) => {
 /**
  * Global error handler middleware
  */
-export const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, _next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
   
   if (config.nodeEnv === "development") {
     sendErrorDev(err, res);
   } else {
-    let error = { ...err };
+    const error = { ...err };
     error.message = err.message;
     sendErrorProd(error, res);
   }

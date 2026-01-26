@@ -31,17 +31,23 @@ export const test = base.extend({
    * Register a new player and provide their data
    */
   registeredPlayer: async ({ page, apiUrl, playerName }, use) => {
-    // Register player via API
-    const response = await page.request.post(`${apiUrl}/api/players/register`, {
-      data: { name: playerName },
-    });
+    try {
+      // Register player via API
+      const response = await page.request.post(`${apiUrl}/api/players/register`, {
+        data: { name: playerName },
+      });
 
-    if (!response.ok()) {
-      throw new Error(`Failed to register player: ${response.status()}`);
+      if (!response.ok()) {
+        const errorBody = await response.text();
+        throw new Error(`Failed to register player: ${response.status()} - ${errorBody}`);
+      }
+
+      const player = await response.json();
+      await use(player);
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
     }
-
-    const player = await response.json();
-    await use(player);
   },
 
   /**
