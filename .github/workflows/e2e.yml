@@ -41,27 +41,39 @@ jobs:
         run: npm --prefix frontend run build
 
       - name: Start backend server in background
-        run: npm --prefix backend start > /tmp/backend.log 2>&1 &
+        run: |
+          nohup npm --prefix backend start > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+          echo "Backend PID: $(cat /tmp/backend.pid)"
         env:
           NODE_ENV: production
           PORT: 3001
+          CORS_ORIGIN: http://localhost:3000
 
       - name: Start frontend server in background
-        run: npx serve -s frontend/build -l 3000 > /tmp/frontend.log 2>&1 &
+        run: |
+          nohup npx serve -s frontend/build -l 3000 > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+          echo "Frontend PID: $(cat /tmp/frontend.pid)"
 
       - name: Wait for backend to be ready
         run: |
           npm install -g wait-on
-          wait-on http://localhost:3001/api/health --timeout 120000 --interval 1000
+          echo "Waiting for backend to be ready..."
+          wait-on http://localhost:3001/api/health --timeout 120000 --interval 1000 || (echo "Backend failed to start:" && cat /tmp/backend.log && exit 1)
         continue-on-error: false
 
       - name: Wait for frontend to be ready
         run: |
-          wait-on http://localhost:3000 --timeout 60000 --interval 1000
+          echo "Waiting for frontend to be ready..."
+          wait-on http://localhost:3000 --timeout 60000 --interval 1000 || (echo "Frontend failed to start:" && cat /tmp/frontend.log && exit 1)
         continue-on-error: false
 
       - name: Verify servers are responding
         run: |
+          echo "Checking if servers are still running..."
+          ps aux | grep -E "node|serve" | grep -v grep || true
+          echo ""
           echo "Testing backend health..."
           curl -f http://localhost:3001/api/health || (cat /tmp/backend.log && exit 1)
           echo ""
@@ -70,11 +82,29 @@ jobs:
           echo "✅ Both servers are ready"
 
       - name: Run E2E tests
-        run: npm --prefix e2e test
+        run: |
+          echo "Verifying servers are still running before tests..."
+          ps aux | grep -E "node|serve" | grep -v grep || echo "Warning: No server processes found"
+          curl -sf http://localhost:3001/api/health || echo "Warning: Backend health check failed"
+          curl -sf http://localhost:3000 > /dev/null || echo "Warning: Frontend check failed"
+          echo "Starting E2E tests..."
+          npm --prefix e2e test
         env:
           CI: true
           E2E_BASE_URL: http://localhost:3000
           E2E_API_URL: http://localhost:3001
+
+      - name: Dump server logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend Server Log ==="
+          cat /tmp/backend.log || echo "No backend log found"
+          echo ""
+          echo "=== Frontend Server Log ==="
+          cat /tmp/frontend.log || echo "No frontend log found"
+          echo ""
+          echo "=== Running Processes ==="
+          ps aux | grep -E "node|serve" | grep -v grep || echo "No server processes found"
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -92,6 +122,8 @@ jobs:
           path: |
             e2e/test-results/
             e2e/reports/
+            /tmp/backend.log
+            /tmp/frontend.log
           retention-days: 7
 
   e2e-tests-smoke:
@@ -123,17 +155,24 @@ jobs:
 
       - name: Start servers in background
         run: |
-          npm --prefix backend start > /tmp/backend.log 2>&1 &
-          npx serve -s frontend/build -l 3000 > /tmp/frontend.log 2>&1 &
+          nohup npm --prefix backend start > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+          nohup npx serve -s frontend/build -l 3000 > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
         env:
           NODE_ENV: production
           PORT: 3001
+          CORS_ORIGIN: http://localhost:3000
 
       - name: Wait for servers to be ready
         run: |
           npm install -g wait-on
-          wait-on http://localhost:3001/api/health --timeout 120000 --interval 1000
-          wait-on http://localhost:3000 --timeout 60000 --interval 1000
+          echo "Waiting for backend..."
+          wait-on http://localhost:3001/api/health --timeout 120000 --interval 1000 || (cat /tmp/backend.log && exit 1)
+          echo "Waiting for frontend..."
+          wait-on http://localhost:3000 --timeout 60000 --interval 1000 || (cat /tmp/frontend.log && exit 1)
+          echo "Verifying servers are still running..."
+          ps aux | grep -E "node|serve" | grep -v grep || true
           echo "✅ Both servers are ready"
 
       - name: Run Smoke tests (Chromium only)
