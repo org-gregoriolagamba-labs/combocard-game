@@ -12,9 +12,9 @@ jobs:
         run: |
           BRANCH="${GITHUB_HEAD_REF}"
           echo "Checking branch: $BRANCH"
-          if [[ ! "$BRANCH" =~ ^(feature|hotfix|bugfix|copilot)/ ]]; then
+          if [[ ! "$BRANCH" =~ ^(feature|hotfix|bugfix|copilot)/|^(develop|main)$ ]]; then
             echo "❌ Invalid branch name: $BRANCH"
-            echo "Branch name must start with feature/, hotfix/, bugfix/ or copilot/"
+            echo "Branch name must start with feature/, hotfix/, bugfix/, copilot/ or be develop/main"
             exit 1
           fi
             
