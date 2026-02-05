@@ -223,12 +223,12 @@ function HallScreen() {
             min="0"
             max="10000"
           />
-          <div className="grid grid-cols-3 gap-2">
-            {[100, 500, 1000].map((amount) => (
+          <div className="grid grid-cols-4 gap-2">
+            {[5, 10, 25, 50, 100, 500, 1000].map((amount) => (
               <button
                 key={amount}
                 onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
-                className="bg-green-100 text-green-800 py-2 rounded-lg font-bold hover:bg-green-200 transition"
+                className="bg-green-100 text-green-800 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
               >
                 +{amount}
               </button>
