@@ -1,0 +1,291 @@
+/**
+ * Complete Game Flow UI Tests
+ * 
+ * End-to-end tests covering full player journey: registration → hall → lobby → game → collections → end
+ * @tags @ui @e2e @game-flow
+ */
+
+import { test, expect } from '@playwright/test';
+
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
+
+test.describe('Full Game Flow - Single Player', () => {
+  test('should complete full game lifecycle from registration to game end', async ({ page }) => {
+    // 1. Registration
+    await page.goto(BASE_URL);
+    await expect(page.locator('h1, h2').filter({ hasText: /registra|benvenuto/i })).toBeVisible();
+    
+    const playerName = `Player${Date.now()}`;
+    await page.fill('input[name="playerName"], input[placeholder*="nome"]', playerName);
+    await page.click('button:has-text("Registrati"), button:has-text("Entra")');
+    
+    // 2. Hall - verify player has 0 credits
+    await expect(page.locator('text=/crediti|gettoni/i')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=/0.*crediti|crediti.*0/i')).toBeVisible();
+    
+    // 3. Buy credits via cash register
+    await page.click('button:has-text("Cassa"), button:has-text("Acquista")');
+    await expect(page.locator('text=/seleziona|tagli|acquista crediti/i')).toBeVisible();
+    
+    // Select 100 credits
+    await page.click('button:has-text("100")');
+    await page.click('button:has-text("Conferma"), button:has-text("Acquista")');
+    
+    // Verify credits updated
+    await expect(page.locator('text=/100.*crediti|crediti.*100/i')).toBeVisible({ timeout: 3000 });
+    
+    // 4. Create game
+    await page.click('button:has-text("Crea Partita"), button:has-text("Nuova")');
+    await expect(page.locator('input[name="maxPlayers"], input[placeholder*="giocatori"]')).toBeVisible();
+    
+    // Fill game settings
+    await page.fill('input[name="requiredCredits"], input[placeholder*="crediti"]', '50');
+    await page.fill('input[name="maxPlayers"], input[placeholder*="giocatori"]', '2');
+    await page.click('button:has-text("Crea"), button:has-text("Conferma")');
+    
+    // 5. Lobby - wait for game to be ready
+    await expect(page.locator('text=/lobby|attesa|partita/i')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=/giocatori.*1.*2/i')).toBeVisible();
+    
+    // 6. Start game manually (since we're alone)
+    const startButton = page.locator('button:has-text("Inizia"), button:has-text("Start")');
+    if (await startButton.isVisible({ timeout: 2000 })) {
+      await startButton.click();
+    }
+    
+    // 7. Game screen - verify grid and controls
+    await expect(page.locator('text=/griglia|mazzo|pesca/i')).toBeVisible({ timeout: 5000 });
+    
+    // Verify 5x5 grid rendered
+    const gridCells = page.locator('[class*="grid"] > div, [class*="cell"]');
+    await expect(gridCells.first()).toBeVisible({ timeout: 3000 });
+    
+    // 8. Draw cards
+    const drawButton = page.locator('button:has-text("Pesca"), button:has-text("Draw")');
+    await expect(drawButton).toBeVisible();
+    
+    for (let i = 0; i < 3; i++) {
+      if (await drawButton.isEnabled({ timeout: 2000 })) {
+        await drawButton.click();
+        await page.waitForTimeout(500);
+      }
+    }
+    
+    // 9. Verify cards appeared in grid
+    const cardElements = page.locator('[class*="card"]:not(:empty), [class*="carta"]');
+    await expect(cardElements.first()).toBeVisible({ timeout: 3000 });
+    
+    // 10. Try to claim a collection (will likely fail without valid combo)
+    const claimButton = page.locator('button:has-text("Rivendica"), button:has-text("Claim")');
+    if (await claimButton.isVisible({ timeout: 1000 })) {
+      // This is optional - just checking UI exists
+      await expect(claimButton).toBeVisible();
+    }
+    
+    // 11. Leave game
+    const leaveButton = page.locator('button:has-text("Abbandona"), button:has-text("Esci"), button:has-text("Leave")');
+    await expect(leaveButton).toBeVisible();
+    await leaveButton.click();
+    
+    // Confirm leave if modal appears
+    const confirmLeave = page.locator('button:has-text("Conferma"), button:has-text("Sì")').last();
+    if (await confirmLeave.isVisible({ timeout: 1000 })) {
+      await confirmLeave.click();
+    }
+    
+    // 12. Back to hall
+    await expect(page.locator('text=/sala|lobby|hall/i')).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe('Full Game Flow - Multi Player', () => {
+  test('should support 2 players joining and starting game', async ({ browser }) => {
+    // Create two separate contexts for two players
+    const context1 = await browser.newContext();
+    const context2 = await browser.newContext();
+    
+    const page1 = await context1.newPage();
+    const page2 = await context2.newPage();
+    
+    try {
+      // Player 1: Register and create game
+      await page1.goto(BASE_URL);
+      const name1 = `Host${Date.now()}`;
+      await page1.fill('input[name="playerName"], input[placeholder*="nome"]', name1);
+      await page1.click('button:has-text("Registrati"), button:has-text("Entra")');
+      
+      await expect(page1.locator('text=/crediti|gettoni/i')).toBeVisible({ timeout: 5000 });
+      
+      // Buy credits
+      await page1.click('button:has-text("Cassa"), button:has-text("Acquista")');
+      await page1.click('button:has-text("100")');
+      await page1.click('button:has-text("Conferma"), button:has-text("Acquista")');
+      await page1.waitForTimeout(500);
+      
+      // Create game
+      await page1.click('button:has-text("Crea Partita"), button:has-text("Nuova")');
+      await page1.fill('input[name="requiredCredits"], input[placeholder*="crediti"]', '50');
+      await page1.fill('input[name="maxPlayers"], input[placeholder*="giocatori"]', '2');
+      await page1.click('button:has-text("Crea"), button:has-text("Conferma")');
+      
+      await expect(page1.locator('text=/lobby|attesa/i')).toBeVisible({ timeout: 5000 });
+      
+      // Player 2: Register
+      await page2.goto(BASE_URL);
+      const name2 = `Guest${Date.now()}`;
+      await page2.fill('input[name="playerName"], input[placeholder*="nome"]', name2);
+      await page2.click('button:has-text("Registrati"), button:has-text("Entra")');
+      
+      await expect(page2.locator('text=/crediti|gettoni/i')).toBeVisible({ timeout: 5000 });
+      
+      // Buy credits
+      await page2.click('button:has-text("Cassa"), button:has-text("Acquista")');
+      await page2.click('button:has-text("100")');
+      await page2.click('button:has-text("Conferma"), button:has-text("Acquista")');
+      await page2.waitForTimeout(500);
+      
+      // Join game from lobby list
+      const gameCard = page2.locator('[class*="game-card"], [class*="partita"]').first();
+      await expect(gameCard).toBeVisible({ timeout: 5000 });
+      await gameCard.click();
+      
+      const joinButton = page2.locator('button:has-text("Unisciti"), button:has-text("Entra")');
+      await joinButton.click();
+      
+      // Both players should be in lobby now
+      await expect(page1.locator('text=/2.*2.*giocatori/i')).toBeVisible({ timeout: 3000 });
+      await expect(page2.locator('text=/lobby|attesa/i')).toBeVisible({ timeout: 3000 });
+      
+      // Game should auto-start
+      await expect(page1.locator('text=/griglia|mazzo/i')).toBeVisible({ timeout: 5000 });
+      await expect(page2.locator('text=/griglia|mazzo/i')).toBeVisible({ timeout: 5000 });
+      
+      // Player 1 draws cards (creator)
+      const drawBtn = page1.locator('button:has-text("Pesca"), button:has-text("Draw")');
+      await expect(drawBtn).toBeVisible();
+      await drawBtn.click();
+      
+      // Player 2 should see the card appear on their screen
+      await page2.waitForTimeout(1000);
+      const cards2 = page2.locator('[class*="card"]:not(:empty)');
+      await expect(cards2.first()).toBeVisible({ timeout: 3000 });
+      
+    } finally {
+      await context1.close();
+      await context2.close();
+    }
+  });
+});
+
+test.describe('Private Game Flow', () => {
+  test('should create and join private game with code', async ({ browser }) => {
+    const context1 = await browser.newContext();
+    const context2 = await browser.newContext();
+    
+    const page1 = await context1.newPage();
+    const page2 = await context2.newPage();
+    
+    try {
+      // Player 1: Create private game
+      await page1.goto(BASE_URL);
+      const name1 = `Private${Date.now()}`;
+      await page1.fill('input[name="playerName"], input[placeholder*="nome"]', name1);
+      await page1.click('button:has-text("Registrati"), button:has-text("Entra")');
+      
+      await expect(page1.locator('text=/crediti/i')).toBeVisible({ timeout: 5000 });
+      
+      await page1.click('button:has-text("Cassa")');
+      await page1.click('button:has-text("100")');
+      await page1.click('button:has-text("Conferma")');
+      await page1.waitForTimeout(500);
+      
+      // Create private game
+      await page1.click('button:has-text("Crea Partita")');
+      await page1.fill('input[name="requiredCredits"]', '50');
+      await page1.fill('input[name="maxPlayers"]', '3');
+      
+      // Check private checkbox
+      const privateCheckbox = page1.locator('input[type="checkbox"][name="isPrivate"], input[type="checkbox"] + label:has-text("Privata")');
+      if (await privateCheckbox.isVisible()) {
+        await privateCheckbox.click();
+      }
+      
+      await page1.click('button:has-text("Crea")');
+      
+      await expect(page1.locator('text=/lobby/i')).toBeVisible({ timeout: 5000 });
+      
+      // Get join code
+      const codeElement = page1.locator('text=/codice.*[A-Z0-9]{6}|[A-Z0-9]{6}/i');
+      await expect(codeElement).toBeVisible({ timeout: 3000 });
+      const codeText = await codeElement.textContent();
+      const joinCode = codeText.match(/[A-Z0-9]{6}/)?.[0];
+      
+      expect(joinCode).toBeDefined();
+      
+      // Player 2: Try to join with code
+      await page2.goto(BASE_URL);
+      const name2 = `Joiner${Date.now()}`;
+      await page2.fill('input[name="playerName"]', name2);
+      await page2.click('button:has-text("Registrati")');
+      
+      await expect(page2.locator('text=/crediti/i')).toBeVisible({ timeout: 5000 });
+      
+      await page2.click('button:has-text("Cassa")');
+      await page2.click('button:has-text("100")');
+      await page2.click('button:has-text("Conferma")');
+      await page2.waitForTimeout(500);
+      
+      // Join private game
+      await page2.click('button:has-text("Partita Privata"), button:has-text("Codice")');
+      await page2.fill('input[name="joinCode"], input[placeholder*="codice"]', joinCode);
+      await page2.click('button:has-text("Unisciti")');
+      
+      // Both in lobby
+      await expect(page2.locator('text=/lobby/i')).toBeVisible({ timeout: 5000 });
+      await expect(page1.locator('text=/2.*3/i')).toBeVisible({ timeout: 3000 });
+      
+    } finally {
+      await context1.close();
+      await context2.close();
+    }
+  });
+});
+
+test.describe('Cash Register', () => {
+  test('should support all denomination buttons', async ({ page }) => {
+    await page.goto(BASE_URL);
+    
+    const name = `Cashier${Date.now()}`;
+    await page.fill('input[name="playerName"]', name);
+    await page.click('button:has-text("Registrati")');
+    
+    await expect(page.locator('text=/crediti/i')).toBeVisible({ timeout: 5000 });
+    
+    // Open cash register
+    await page.click('button:has-text("Cassa")');
+    await expect(page.locator('text=/tagli|crediti/i')).toBeVisible();
+    
+    // Verify all denominations exist
+    const denominations = [5, 10, 25, 50, 100, 500, 1000];
+    
+    for (const denom of denominations) {
+      const btn = page.locator(`button:has-text("${denom}")`);
+      await expect(btn).toBeVisible();
+    }
+    
+    // Test adding multiple denominations
+    await page.click('button:has-text("100")');
+    await page.click('button:has-text("50")');
+    await page.click('button:has-text("10")');
+    
+    // Should show 160 total
+    await expect(page.locator('text=/160|totale.*160/i')).toBeVisible();
+    
+    // Test reset button
+    const resetBtn = page.locator('button:has-text("Reset"), button:has-text("Azzera")');
+    if (await resetBtn.isVisible()) {
+      await resetBtn.click();
+      await expect(page.locator('text=/^0$|totale.*0/i')).toBeVisible();
+    }
+  });
+});

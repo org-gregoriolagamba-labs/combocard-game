@@ -405,8 +405,13 @@ Runs on every push and pull request:
 NODE_ENV=development
 PORT=3001
 
-# CORS (comma-separated origins)
-CORS_ORIGINS=http://localhost:3000
+# CORS (comma-separated allowlist; supports wildcard patterns using '*')
+# Examples:
+# - Local dev only:
+#   CORS_ORIGIN=http://localhost:3000,http://localhost:3001
+# - Local dev + any device in 192.168.1.x subnet:
+#   CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
+CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=60000
@@ -419,11 +424,11 @@ LOG_LEVEL=info
 ### Frontend (`frontend/.env`)
 
 ```env
-# API URL (for production builds)
-REACT_APP_API_URL=http://localhost:3001
+# API URL (optional; defaults to /api via CRA proxy)
+REACT_APP_API_URL=/api
 
-# WebSocket URL
-REACT_APP_WS_URL=http://localhost:3001
+# Socket/Backend URL (used for Socket.IO)
+REACT_APP_BACKEND_URL=http://localhost:3001
 
 # Environment
 REACT_APP_ENV=development
@@ -463,6 +468,23 @@ kill -9 <PID>
 - Check CORS configuration
 - Verify proxy settings in `frontend/package.json`
 - Check firewall rules
+
+#### 3. LAN / Multi-device Testing
+
+- Prefer using a wildcard allowlist for LAN origins to avoid enumerating every device IP:
+  - `CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000`
+- If the frontend is opened via IP (e.g. `http://192.168.1.42:3000`), that exact origin must be allowed.
+- Restart the backend after changing `.env`.
+
+**Quick verification (simulate LAN Origin locally):**
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+  -H "Origin: http://192.168.1.42:3000" \
+  http://localhost:3001/api/health
+```
+
+Expected: `HTTP 200` if allowed; `HTTP 500` if blocked.
 
 #### 3. Build Fails
 

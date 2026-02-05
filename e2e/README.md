@@ -53,6 +53,14 @@ npm run test:firefox
 npm run test:webkit
 ```
 
+### Fast feedback (recommended locally)
+The full Playwright configuration defines multiple projects (desktop + mobile). For quicker local runs,
+prefer running Chromium only:
+
+```bash
+npm run test:chromium
+```
+
 ## Viewing Reports
 
 ```bash

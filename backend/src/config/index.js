@@ -13,13 +13,16 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
+const corsOriginRaw = process.env.CORS_ORIGIN;
+
 const config = {
   // Server configuration
   nodeEnv: process.env.NODE_ENV || "development",
   port: parseInt(process.env.PORT, 10) || 3001,
   
   // CORS configuration
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  corsOrigin: corsOriginRaw || (process.env.NODE_ENV === "production" ? "http://localhost:3000" : "*"),
+  corsOriginRaw,
   
   // Rate limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000, // 15 minutes

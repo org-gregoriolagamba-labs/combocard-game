@@ -79,6 +79,18 @@ The app uses Redux Toolkit with the following slices:
 Create a `.env` file based on `.env.example`:
 
 ```bash
+# API base URL (optional). Defaults to /api via CRA proxy
+REACT_APP_API_URL=/api
+# Socket/Backend URL (used for Socket.IO)
 REACT_APP_BACKEND_URL=http://localhost:3001
 REACT_APP_ENV=development
 ```
+
+### LAN / Multi-device note
+When opening the app from another device on the same network:
+
+- The Socket.IO client can auto-resolve the backend using the current host (recommended). In that case,
+	you can usually leave `REACT_APP_BACKEND_URL` empty.
+- The backend must allow the frontend origin via `CORS_ORIGIN` (see backend docs). If you open the frontend
+	via IP (e.g. `http://192.168.1.42:3000`), ensure that origin is allowed (wildcards like
+	`http://192.168.1.*:3000` are supported).

@@ -234,6 +234,12 @@ function HallScreen() {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => setCreditiDaAcquistare(0)}
+            className="w-full bg-red-100 text-red-800 py-2 rounded-lg font-bold hover:bg-red-200 transition"
+          >
+            🔄 Reset
+          </button>
           <Button onClick={handleAcquistaCrediti} className="w-full">
             💳 Acquista {creditiDaAcquistare} Crediti
           </Button>
