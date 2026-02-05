@@ -42,7 +42,7 @@ export function buildCorsOriginHandler(corsOriginConfig) {
     .filter(Boolean);
 
   const originMatchers = allowedOrigins.map((pattern) =>
-    pattern.includes("*") ? wildcardToRegex(pattern) : pattern
+    pattern.includes("*") ? wildcardToRegex(pattern) : pattern,
   );
 
   return (origin, callback) => {
@@ -52,7 +52,7 @@ export function buildCorsOriginHandler(corsOriginConfig) {
     }
 
     const isAllowed = originMatchers.some((matcher) =>
-      matcher instanceof RegExp ? matcher.test(origin) : matcher === origin
+      matcher instanceof RegExp ? matcher.test(origin) : matcher === origin,
     );
 
     if (isAllowed) {
