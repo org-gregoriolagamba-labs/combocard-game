@@ -35,7 +35,7 @@ export function generaCartella() {
   const carte25 = mazzoMescolato.slice(0, GAME_DEFAULTS.GRID_SIZE * GAME_DEFAULTS.GRID_SIZE);
   
   const cartella = Array(GAME_DEFAULTS.GRID_SIZE).fill(null).map(() => 
-    Array(GAME_DEFAULTS.GRID_SIZE).fill(null)
+    Array(GAME_DEFAULTS.GRID_SIZE).fill(null),
   );
   
   let idx = 0;

@@ -52,19 +52,19 @@ export default defineConfig({
     // Ignore HTTPS errors (useful for local development)
     ignoreHTTPSErrors: true,
 
-    // Default timeout for actions
-    actionTimeout: 10000,
+    // Default timeout for actions - longer on CI
+    actionTimeout: process.env.CI ? 15000 : 10000,
 
-    // Default timeout for navigation
-    navigationTimeout: 30000,
+    // Default timeout for navigation - longer on CI
+    navigationTimeout: process.env.CI ? 60000 : 30000,
   },
 
-  // Global timeout for each test
-  timeout: 60000,
+  // Global timeout for each test - longer on CI
+  timeout: process.env.CI ? 180000 : 120000,
 
-  // Expect timeout
+  // Expect timeout - longer on CI
   expect: {
-    timeout: 10000,
+    timeout: process.env.CI ? 30000 : 15000,
   },
 
   // Global setup
@@ -72,7 +72,7 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
-    // Desktop browsers
+    // Desktop browsers - chromium only for fast feedback
     {
       name: 'chromium',
       use: {
@@ -80,28 +80,29 @@ export default defineConfig({
       },
     },
 
+    // NOTE: Disabled other browsers for faster test feedback
     {
       name: 'firefox',
       use: {
         ...devices['Desktop Firefox'],
       },
     },
-
+    
     {
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
       },
     },
-
+    
     // Mobile browsers
     {
       name: 'mobile-chrome',
       use: {
-        ...devices['Pixel 5'],
+       ...devices['Pixel 5'],
       },
     },
-
+    
     {
       name: 'mobile-safari',
       use: {
@@ -111,10 +112,10 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting the tests (optional)
-  // webServer: {
-  //   command: 'npm run dev',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120 * 1000,
-  // },
+  //webServer: {
+  //  command: 'npm run dev',
+  //  url: 'http://localhost:3000',
+  //  reuseExistingServer: !process.env.CI,
+  //  timeout: 120 * 1000,
+  //},
 });

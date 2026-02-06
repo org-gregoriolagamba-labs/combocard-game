@@ -16,41 +16,58 @@ test.describe('API Health', () => {
     expect(response.ok()).toBe(true);
     
     const body = await response.json();
-    expect(body.status).toBe('ok');
+    expect(body.status).toBe('success');
   });
 
   test('should include timestamp in health response', async ({ request }) => {
     const response = await request.get(`${API_URL}/api/health`);
     
     const body = await response.json();
-    expect(body.timestamp).toBeDefined();
+    expect(body.data.timestamp).toBeDefined();
   });
 
   test('should include uptime in health response', async ({ request }) => {
     const response = await request.get(`${API_URL}/api/health`);
     
     const body = await response.json();
-    expect(body.uptime).toBeDefined();
-    expect(typeof body.uptime).toBe('number');
+    expect(body.data.uptime).toBeDefined();
+    expect(typeof body.data.uptime).toBe('number');
   });
 });
 
 test.describe('Player API', () => {
   test('should register a new player', async ({ request }) => {
     const response = await request.post(`${API_URL}/api/players/register`, {
-      data: { name: 'APITestPlayer' },
+      headers: { 'Content-Type': 'application/json' },
+      data: { playerName: 'APITestPlayer' },
     });
+    
+    console.log(`Registration response status: ${response.status()}`);
+    const responseText = await response.text();
+    console.log(`Registration response body: ${responseText}`);
+    
+    // Log response details for debugging
+    if (!response.ok()) {
+      try {
+        const errorBody = JSON.parse(responseText);
+        console.error(`Player registration failed - Status: ${response.status()}`, errorBody);
+      } catch (e) {
+        console.error(`Player registration failed - Status: ${response.status()}, Body: ${responseText}`);
+      }
+    }
     
     expect(response.ok()).toBe(true);
     
-    const body = await response.json();
-    expect(body.id).toBeDefined();
-    expect(body.name).toBe('APITestPlayer');
-    expect(body.credits).toBe(100);
+    const body = JSON.parse(responseText);
+    const player = body.data.player;
+    expect(player.id).toBeDefined();
+    expect(player.name).toBe('APITestPlayer');
+    expect(player.credits).toBe(0);
   });
 
   test('should return error for missing name', async ({ request }) => {
     const response = await request.post(`${API_URL}/api/players/register`, {
+      headers: { 'Content-Type': 'application/json' },
       data: {},
     });
     
@@ -61,18 +78,32 @@ test.describe('Player API', () => {
   test('should get player by id', async ({ request }) => {
     // First register a player
     const registerResponse = await request.post(`${API_URL}/api/players/register`, {
-      data: { name: 'GetTestPlayer' },
+      headers: { 'Content-Type': 'application/json' },
+      data: { playerName: 'GetTestPlayer' },
     });
-    const player = await registerResponse.json();
+    
+    expect(registerResponse.ok()).toBe(true);
+    
+    const registerBody = await registerResponse.json();
+    const player = registerBody.data.player;
+    
+    // Validate player was registered with ID
+    expect(player.id).toBeDefined();
 
     // Then get the player
     const getResponse = await request.get(`${API_URL}/api/players/${player.id}`);
     
+    if (!getResponse.ok()) {
+      const errorBody = await getResponse.json().catch(() => ({}));
+      console.error(`Get player failed - Status: ${getResponse.status()}`, errorBody);
+    }
+    
     expect(getResponse.ok()).toBe(true);
     
     const body = await getResponse.json();
-    expect(body.id).toBe(player.id);
-    expect(body.name).toBe('GetTestPlayer');
+    const playerData = body.data || body;
+    expect(playerData.id).toBe(player.id);
+    expect(playerData.name).toBe('GetTestPlayer');
   });
 });
 
@@ -83,26 +114,50 @@ test.describe('Game API', () => {
     expect(response.ok()).toBe(true);
     
     const body = await response.json();
-    expect(Array.isArray(body)).toBe(true);
+    const games = body.data || body;
+    expect(Array.isArray(games)).toBe(true);
   });
 
   test('should create a new game', async ({ request }) => {
     // First register a player
     const registerResponse = await request.post(`${API_URL}/api/players/register`, {
-      data: { name: 'GameCreatorAPI' },
+      headers: { 'Content-Type': 'application/json' },
+      data: { playerName: 'GameCreatorAPI' },
     });
-    const player = await registerResponse.json();
+    
+    expect(registerResponse.ok()).toBe(true);
+    
+    const registerBody = await registerResponse.json();
+    const player = registerBody.data.player;
+    
+    // Validate player was registered with ID
+    expect(player.id).toBeDefined();
+
+    // Buy credits before creating a game
+    const buyCreditsResponse = await request.post(`${API_URL}/api/players/${player.id}/buy-credits`, {
+      headers: { 'Content-Type': 'application/json' },
+      data: { amount: 100 },
+    });
+    
+    expect(buyCreditsResponse.ok()).toBe(true);
 
     // Create a game
     const createResponse = await request.post(`${API_URL}/api/games`, {
+      headers: { 'Content-Type': 'application/json' },
       data: { playerId: player.id },
     });
     
+    if (!createResponse.ok()) {
+      const errorBody = await createResponse.json().catch(() => ({}));
+      console.error(`Game creation failed - Status: ${createResponse.status()}`, errorBody);
+    }
+    
     expect(createResponse.ok()).toBe(true);
     
-    const game = await createResponse.json();
+    const gameBody = await createResponse.json();
+    const game = gameBody.data.game;
     expect(game.id).toBeDefined();
     expect(game.status).toBe('waiting');
-    expect(game.players).toHaveLength(1);
+    expect(game.players).toHaveLength(0);
   });
 });

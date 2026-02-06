@@ -3,6 +3,7 @@
 ## 🎮 Game Overview
 
 ComboCard is a multiplayer Italian card game where players compete to complete card collections and win prizes from a shared pot.
+Key gameplay features include private games, configurable max players with auto-start, Jolly conversion, draw cooldown, and end-of-game prize splitting.
 
 ## 🃏 Italian Deck
 
@@ -54,26 +55,36 @@ Each player receives one Jolly card at the start of the game:
 
 ### 1. Registration
 - Player enters their name
-- Receives 100 starting credits
+- Starts with 0 credits (credits are bought via the **Cassa**)
 
 ### 2. Hall (Game List)
-- View available games waiting for players
-- Create a new game (costs 10 credits)
-- Join an existing game (costs 10 credits)
+- View available public games waiting for players
+- Create a new game (choose required credits, max players, and public/private)
+- Join a public game or use a **private code** to join a private game
+- Buy credits via **Cassa** (preset cuts + reset, max purchase 10,000)
 
 ### 3. Lobby (Pre-game)
-- Wait for other players (2-4 players per game)
+- Wait for other players (2–10 players per game)
 - Creator can start game when ready
+- **Auto-start** triggers when the max player limit is reached
 
 ### 4. Game
 - Each player gets a 5x5 grid of 25 random cards
 - One shared deck is drawn from by the game creator
 - When a card is drawn, all players who have it in their grid get it "covered"
+- **Draw cooldown**: 8 seconds between draws
 - Players race to complete collections
+
+### Real-time Multiplayer (Functional Notes)
+- Game state is synchronized in real time via WebSockets (Socket.IO).
+- If players are on the same LAN and open the game via an IP address (e.g. `http://192.168.1.42:3000`),
+  the backend must allow that origin in its CORS configuration; otherwise, the UI may load but live updates
+  (draws, covers, token changes) may not propagate correctly.
 
 ### 5. Winning
 - First to claim **Combocard Reale** wins the entire pot
 - Otherwise, collections can be claimed individually for partial prizes
+- **Remaining undistributed prizes** are split evenly among players at game end
 - Game ends when pot is empty or deck is exhausted
 
 ## 📁 Project Structure

@@ -61,7 +61,7 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
       if (missing.length === 1 && present.length === 3) {
         const missingNum = missing[0];
         const missingValore = Object.keys(VALORI_NUM).find(
-          (k) => VALORI_NUM[k] === missingNum
+          (k) => VALORI_NUM[k] === missingNum,
         );
 
         if (!cartaEsisteInCartella(cartella, jollyPos, missingValore, jollyCard.seme)) {
@@ -137,7 +137,7 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
         if (missing.length === 1 && present.length === 3) {
           const missingNum = missing[0];
           const missingValore = Object.keys(VALORI_NUM).find(
-            (k) => VALORI_NUM[k] === missingNum
+            (k) => VALORI_NUM[k] === missingNum,
           );
 
           if (!cartaEsisteInCartella(cartella, jollyPos, missingValore, seme)) {

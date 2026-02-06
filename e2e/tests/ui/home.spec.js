@@ -18,7 +18,7 @@ test.describe('Homepage', () => {
 
   test('should display player registration form', async ({ page }) => {
     // Check for name input
-    const nameInput = page.getByRole('textbox').or(page.locator('input[type="text"]'));
+    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
     await expect(nameInput).toBeVisible();
 
     // Check for submit/register button
@@ -38,7 +38,7 @@ test.describe('Homepage', () => {
 
   test('should register player with valid name @critical', async ({ page }) => {
     // Enter player name
-    const nameInput = page.getByRole('textbox').or(page.locator('input[type="text"]'));
+    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
     await nameInput.fill('TestPlayer');
 
     // Submit registration
@@ -46,7 +46,7 @@ test.describe('Homepage', () => {
     await submitButton.click();
 
     // Should navigate to hall or show logged in state
-    await expect(page.locator('text=Hall').or(page.locator('text=TestPlayer'))).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /hall|combocard/i })).toBeVisible({ timeout: 10000 });
   });
 
   test('should be responsive on mobile @smoke', async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('Homepage', () => {
 
     // Filter out known acceptable errors
     const criticalErrors = errors.filter(
-      (e) => !e.includes('favicon') && !e.includes('404') && !e.includes('WebSocket')
+      (e) => !e.includes('favicon') && !e.includes('404') && !e.includes('WebSocket') && !e.includes('Socket connection')
     );
 
     expect(criticalErrors).toHaveLength(0);

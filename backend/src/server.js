@@ -24,6 +24,9 @@ import { playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
 
+// Import CORS utility
+import { buildCorsOriginHandler } from "./utils/cors.utils.js";
+
 // Create Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
@@ -34,10 +37,12 @@ const gameState = {
   players: {},
 };
 
+const corsOriginHandler = buildCorsOriginHandler(config.corsOrigin);
+
 // Create Socket.IO server
 const io = new SocketIO(server, {
   cors: {
-    origin: config.corsOrigin,
+    origin: corsOriginHandler,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -50,7 +55,7 @@ app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for game assets
 }));
 app.use(cors({
-  origin: config.corsOrigin,
+  origin: corsOriginHandler,
   credentials: true,
 }));
 

@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Coins, Plus, Users, DollarSign } from "lucide-react";
-import { buyCredits, fetchPlayer } from "../../store/slices/playerSlice";
+import { buyCredits } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
@@ -223,17 +223,23 @@ function HallScreen() {
             min="0"
             max="10000"
           />
-          <div className="grid grid-cols-3 gap-2">
-            {[100, 500, 1000].map((amount) => (
+          <div className="grid grid-cols-4 gap-2">
+            {[5, 10, 25, 50, 100, 500, 1000].map((amount) => (
               <button
                 key={amount}
                 onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
-                className="bg-green-100 text-green-800 py-2 rounded-lg font-bold hover:bg-green-200 transition"
+                className="bg-green-100 text-green-800 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
               >
                 +{amount}
               </button>
             ))}
           </div>
+          <button
+            onClick={() => setCreditiDaAcquistare(0)}
+            className="w-full bg-red-100 text-red-800 py-2 rounded-lg font-bold hover:bg-red-200 transition"
+          >
+            🔄 Reset
+          </button>
           <Button onClick={handleAcquistaCrediti} className="w-full">
             💳 Acquista {creditiDaAcquistare} Crediti
           </Button>

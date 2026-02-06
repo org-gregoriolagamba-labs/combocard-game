@@ -15,8 +15,9 @@ export const requestLogger = (req, res, next) => {
     const duration = Date.now() - start;
     const logLevel = res.statusCode >= 400 ? "warn" : "log";
     
+    // eslint-disable-next-line no-console
     console[logLevel](
-      `${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`
+      `${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`,
     );
   });
   

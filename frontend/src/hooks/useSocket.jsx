@@ -12,10 +12,8 @@ import {
   setGame,
   setCurrentPlayer,
   setUltimaCartaEstratta,
-  setJollyMode,
   updatePlayerCards,
   updatePlayerGettoni,
-  clearGame,
 } from "../store/slices/gameSlice";
 import { setScreen, addToast } from "../store/slices/uiSlice";
 import { updateCredits } from "../store/slices/playerSlice";
@@ -146,7 +144,7 @@ export function useSocket() {
     };
 
     // Jolly used
-    const handleJollyUsato = ({ playerId: jollyPlayerId, row, col, newCard, tipo }) => {
+    const handleJollyUsato = ({ playerId: jollyPlayerId, _row, _col, _newCard, tipo }) => {
       if (jollyPlayerId !== playerId) {
         dispatch(addToast({
           message: `🃏 Un giocatore ha usato il Jolly per ${tipo.toUpperCase().replace("_", " ")}`,
@@ -156,7 +154,7 @@ export function useSocket() {
     };
 
     // Game finished
-    const handleGameFinished = ({ vincitore, vincitori }) => {
+    const handleGameFinished = ({ _vincitore, vincitori }) => {
       let message;
       if (vincitori && vincitori.length > 0) {
         const names = vincitori.map((v) => v.name).join(", ");

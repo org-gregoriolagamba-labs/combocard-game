@@ -85,9 +85,21 @@ Ogni PR deve:
 
 **Checklist consigliata:**  
  - codice testato
+ - `npm run lint` verde
+ - `npm test` verde
+ - (se tocca flussi utente o networking) `npm run test:e2e` verde
  - nessun commit inutile (fix, debug, ecc.)
  - naming coerente
  - nessun file non necessario (log, build, ecc.)
+
+### Documentazione
+Se una modifica impatta:
+- setup/avvio/test (documentazione tecnica)
+- comportamento di gioco / multiplayer / UX (documentazione funzionale)
+
+aggiorna anche:
+- README principali
+- docs/ (Deployment / Game Design) quando pertinente
 
 ---
 
