@@ -27,6 +27,7 @@ const config = {
   // Rate limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000, // 15 minutes
   rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  rateLimitDisabled: process.env.RATE_LIMIT_DISABLED === "true",
   
   // Game configuration
   defaultCredits: parseInt(process.env.DEFAULT_CREDITS, 10) || 0,

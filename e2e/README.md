@@ -40,6 +40,17 @@ npm run test:smoke
 npm run test:critical
 ```
 
+### Backend rate limiting for E2E
+E2E suites can generate many requests from the same IP. To avoid 429 responses
+when running against a real backend, start it with rate limiting disabled:
+
+```bash
+# From repo root
+npm run start:backend:e2e
+```
+
+Alternatively, set `RATE_LIMIT_DISABLED=true` in the backend environment.
+
 ## Running Specific Browsers
 
 ```bash

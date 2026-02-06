@@ -355,7 +355,7 @@ Before running E2E tests, ensure both servers are running:
 
 ```bash
 # Terminal 1: Start backend
-npm run start:backend
+npm run start:backend:e2e
 
 # Terminal 2: Start frontend (production build)
 npm run build
@@ -364,6 +364,9 @@ npx serve -s frontend/build -l 3000
 # Terminal 3: Run E2E tests
 npm run test:e2e
 ```
+
+`start:backend:e2e` runs the backend with `RATE_LIMIT_DISABLED=true` to avoid 429
+responses during high-volume test runs.
 
 ---
 
