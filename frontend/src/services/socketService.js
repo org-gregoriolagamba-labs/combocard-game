@@ -10,7 +10,24 @@ import { io } from "socket.io-client";
 const getSocketUrl = () => {
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
   if (backendUrl) {
-    return backendUrl.replace(/\/api\/?$/, "");
+    const normalized = backendUrl.replace(/\/api\/?$/, "");
+
+    if (typeof window !== "undefined") {
+      const currentHost = window.location.hostname;
+
+      try {
+        const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(new URL(normalized).hostname);
+        const isRemoteClient = !/^(localhost|127\.0\.0\.1)$/i.test(currentHost);
+
+        if (isLocalhost && isRemoteClient) {
+          return normalized.replace(/localhost|127\.0\.0\.1/i, currentHost);
+        }
+      } catch (_error) {
+        return normalized;
+      }
+    }
+
+    return normalized;
   }
   
   const defaultPort = 3001;

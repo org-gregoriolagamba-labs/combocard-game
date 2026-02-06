@@ -18,6 +18,14 @@ ComboCard is a multiplayer card game using the Italian deck (40 cards with suits
 ### Jolly System
 Each player has one Jolly card that can be converted to any card needed to complete a collection. Use it strategically!
 
+### Additional Gameplay Features
+- **Private games** with join-by-code support
+- **Max players** per game (2–10) with **auto-start** when the table is full
+- **Draw cooldown**: 8-second delay between card draws
+- **Remaining prize distribution**: undistributed prizes are split evenly at game end
+- **Cash register** with preset cuts and reset
+- **Real-time player list** and live token updates
+
 ## 🏗️ Architecture
 
 This project follows the **MVC architecture** with clear separation of concerns:
@@ -119,7 +127,7 @@ npm start
 |--------|----------|-------------|
 | POST | `/api/players/register` | Register a new player |
 | GET | `/api/players/:id` | Get player details |
-| POST | `/api/players/:id/credits` | Buy credits |
+| POST | `/api/players/:id/buy-credits` | Buy credits |
 
 ### Game Routes
 | Method | Endpoint | Description |
@@ -144,16 +152,18 @@ npm start
 ### Client → Server
 - `joinGame`: Join a game room
 - `leaveGame`: Leave a game room
-- `gameAction`: Perform a game action
 
 ### Server → Client
-- `gameUpdate`: Game state update
 - `playerJoined`: New player joined
 - `playerLeft`: Player left
 - `gameStarted`: Game started
 - `cardDrawn`: Card was drawn
-- `collectionClaimed`: Collection claimed
-- `gameEnded`: Game ended
+- `cardCovered`: Card was covered on a player grid
+- `collezioneVinta`: Collection won
+- `gettoniAggiornati`: Player tokens updated
+- `premiRimanentiDivisi`: Remaining prizes split
+- `jollyUsato`: Jolly used
+- `gameFinished`: Game ended
 
 ## 🧪 Testing
 
@@ -166,6 +176,9 @@ npm run test:backend
 
 # Run frontend tests only
 npm run test:frontend
+
+# Run E2E tests (Playwright)
+npm run test:e2e
 ```
 
 ## 🔧 Environment Variables
@@ -174,14 +187,38 @@ npm run test:frontend
 ```bash
 PORT=3001
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000
+# CORS allowlist (comma-separated). Supports wildcard patterns using '*'.
+# Examples:
+# - Allow local dev + any device in the 192.168.1.x subnet
+# - Keep this strict in production (avoid broad wildcards on public networks)
+CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 ```
 
 ### Frontend (.env)
 ```bash
+# API base URL (optional). Defaults to /api via CRA proxy
+REACT_APP_API_URL=/api
+# Socket/Backend URL (used for Socket.IO)
 REACT_APP_BACKEND_URL=http://localhost:3001
 REACT_APP_ENV=development
 ```
+
+### LAN / Multi-device note
+If you open the frontend from another device on the same network (e.g. http://192.168.1.42:3000):
+- Ensure the backend is reachable from the LAN (firewall/port forwarding as needed)
+- Ensure `CORS_ORIGIN` includes the device origin. Wildcards help avoid enumerating every IP.
+- Restart the backend after changing `.env`.
+
+### LAN verification (local simulation)
+You can simulate a LAN browser Origin from your machine:
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+  -H "Origin: http://192.168.1.42:3000" \
+  http://localhost:3001/api/health
+```
+
+Expected: `HTTP 200` if allowed; `HTTP 500` if blocked.
 
 ## 📝 Code Style
 

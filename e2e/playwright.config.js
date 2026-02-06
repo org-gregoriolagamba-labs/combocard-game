@@ -72,7 +72,7 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
-    // Desktop browsers
+    // Desktop browsers - chromium only for fast feedback
     {
       name: 'chromium',
       use: {
@@ -80,28 +80,29 @@ export default defineConfig({
       },
     },
 
+    // NOTE: Disabled other browsers for faster test feedback
     {
       name: 'firefox',
       use: {
         ...devices['Desktop Firefox'],
       },
     },
-
+    
     {
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
       },
     },
-
+    
     // Mobile browsers
     {
       name: 'mobile-chrome',
       use: {
-        ...devices['Pixel 5'],
+       ...devices['Pixel 5'],
       },
     },
-
+    
     {
       name: 'mobile-safari',
       use: {
@@ -111,10 +112,10 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting the tests (optional)
-  // webServer: {
-  //   command: 'npm run dev',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120 * 1000,
-  // },
+  //webServer: {
+  //  command: 'npm run dev',
+  //  url: 'http://localhost:3000',
+  //  reuseExistingServer: !process.env.CI,
+  //  timeout: 120 * 1000,
+  //},
 });

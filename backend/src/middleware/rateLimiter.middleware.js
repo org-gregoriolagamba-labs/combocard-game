@@ -13,6 +13,7 @@ import config from "../config/index.js";
 export const apiLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
   max: config.rateLimitMaxRequests,
+  skip: () => config.nodeEnv === "test" || config.rateLimitDisabled,
   message: {
     status: "error",
     message: "Too many requests from this IP, please try again later.",

@@ -32,6 +32,7 @@ src/
 ├── utils/               # Utility functions
 │   ├── AppError.js     # Custom error class
 │   ├── asyncHandler.js # Async route wrapper
+│   ├── cors.utils.js    # CORS origin handler (supports wildcard patterns)
 │   ├── response.utils.js # Standardized responses
 │   └── card.utils.js   # Card generation utilities
 └── server.js            # Entry point
@@ -66,12 +67,16 @@ npm test
 npm run lint
 ```
 
+### Notes about tests (ESM)
+This project uses ESM (`"type": "module"`). The backend `npm test` script already runs Jest with
+`node --experimental-vm-modules ...` so you normally don't need to pass flags manually.
+
 ## API Endpoints
 
 ### Players
 - `POST /api/players/register` - Register a new player
 - `GET /api/players/:id` - Get player details
-- `POST /api/players/:id/credits` - Buy credits
+- `POST /api/players/:id/buy-credits` - Buy credits
 
 ### Games
 - `GET /api/games/lobby` - Get available games
@@ -94,13 +99,16 @@ npm run lint
 - `leaveGame` - Leave a game room
 
 ### Server → Client
-- `gameUpdate` - Game state updated
 - `playerJoined` - Player joined game
 - `playerLeft` - Player left game
 - `gameStarted` - Game started
 - `cardDrawn` - Card was drawn
-- `collectionClaimed` - Collection claimed
-- `gameEnded` - Game ended
+- `cardCovered` - Card covered on a player grid
+- `collezioneVinta` - Collection won
+- `gettoniAggiornati` - Tokens updated
+- `premiRimanentiDivisi` - Remaining prizes split
+- `jollyUsato` - Jolly used
+- `gameFinished` - Game ended
 
 ## Environment Variables
 
@@ -109,8 +117,18 @@ Create a `.env` file based on `.env.example`:
 ```bash
 PORT=3001
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000
+# CORS allowlist (comma-separated). Supports wildcard patterns using '*'.
+# Examples:
+# - Local dev only:
+#   CORS_ORIGIN=http://localhost:3000,http://localhost:3001
+# - Local dev + any device in 192.168.1.x subnet:
+#   CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
+CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 ```
+
+### CORS implementation details
+- The origin handler is built in `src/utils/cors.utils.js` and used by both Express CORS middleware and Socket.IO.
+- Requests without an `Origin` header are allowed (useful for server-to-server calls and local `curl`).
 
 ## Game Logic
 
