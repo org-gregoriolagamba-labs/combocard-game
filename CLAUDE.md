@@ -22,6 +22,10 @@ Ogni modifica a crediti o partite in `req.gameState` va salvata anche con `req.s
 
 Il giocatore di una richiesta è `req.auth.playerId`, preso dal token: non leggerlo mai dal corpo. Le nuove route di gioco restano dietro `requireAuth`. Dettagli in `docs/AUTH.md`.
 
+## Visibilità
+
+Un client riceve solo ciò che il suo giocatore può vedere: nessuna risposta o evento contiene `mazzo` o la cartella di un altro giocatore. Invia le partite con `gameViewFor` di `game.service.js`.
+
 ## Validazione
 
 Ogni route che riceve un corpo lo valida con uno schema di `backend/src/validation/schemas.js`, applicato dal middleware `validate`.

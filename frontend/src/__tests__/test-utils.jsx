@@ -77,7 +77,7 @@ export const mockGameState = {
         jollyUsato: false,
       },
     ],
-    mazzo: [],
+    carteRimaste: 40,
     montepremi: 100,
     collezioni: {
       tris: { vinto: false },

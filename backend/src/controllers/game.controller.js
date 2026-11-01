@@ -10,6 +10,7 @@ import { AppError } from "../utils/AppError.js";
 import { generateId, generaCartella, generaMazzo, shuffleArray } from "../utils/card.utils.js";
 import {
   autoClaimCollezioni,
+  gameViewFor,
   verificaCollezione,
   finishGame,
   settleGamePlayer,
@@ -24,6 +25,17 @@ import {
 import { SEMI_EMOJI, VALORI_NUM, GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
 import { playerRoom } from "../sockets/index.js";
 import config from "../config/index.js";
+
+/**
+ * Notify each player of a started game, with their own view of it
+ * @param {Object} io - Socket.IO instance
+ * @param {Object} game - Game object
+ */
+function emitGameStarted(io, game) {
+  for (const { id } of game.players) {
+    io.to(playerRoom(id)).emit("gameStarted", { game: gameViewFor(game, id) });
+  }
+}
 
 /**
  * Get lobby list (public waiting games)
@@ -88,7 +100,7 @@ export const createGame = asyncHandler(async (req, res) => {
 
   sendCreated(res, {
     gameId,
-    game: req.gameState.games[gameId],
+    game: gameViewFor(req.gameState.games[gameId], playerId),
   }, "Game created successfully");
 });
 
@@ -110,7 +122,7 @@ export const getGame = asyncHandler(async (req, res) => {
     throw new AppError("You are not part of this game", 403);
   }
 
-  sendSuccess(res, game);
+  sendSuccess(res, gameViewFor(game, playerId));
 });
 
 /**
@@ -237,9 +249,9 @@ export const startGame = asyncHandler(async (req, res) => {
 
   await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 
-  req.io.to(req.params.gameId).emit("gameStarted", { game });
+  emitGameStarted(req.io, game);
 
-  sendSuccess(res, { success: true, game });
+  sendSuccess(res, { success: true, game: gameViewFor(game, req.auth.playerId) });
 });
 
 /**
@@ -282,7 +294,7 @@ export const drawCard = asyncHandler(async (req, res) => {
             cartaCartella.seme === cartaEstratta.seme
           ) {
             player.coperte[r][c] = true;
-            req.io.to(gameId).emit("cardCovered", {
+            req.io.to(playerRoom(player.id)).emit("cardCovered", {
               playerId: player.id,
               row: r,
               col: c,
@@ -348,7 +360,6 @@ export const claimCollection = asyncHandler(async (req, res) => {
     vincitori: [{ id: playerId, name: player.name }],
     ammontare: premio,
     divided: false,
-    players: [player],
   });
 
   req.io.to(gameId).emit("gettoniAggiornati", {
@@ -428,14 +439,8 @@ export const useJolly = asyncHandler(async (req, res) => {
   }
   player.coperte[row][col] = true;
 
-  req.io.to(gameId).emit("jollyUsato", {
-    playerId,
-    row,
-    col,
-    newCard: player.cartella[row][col],
-    tipo,
-  });
-  req.io.to(gameId).emit("cardCovered", { playerId, row, col });
+  req.io.to(gameId).emit("jollyUsato", { playerId, tipo });
+  req.io.to(playerRoom(playerId)).emit("cardCovered", { playerId, row, col });
 
   // Auto-claim after using jolly
   autoClaimCollezioni(game, gameId, req.io, req.gameState);
@@ -522,5 +527,5 @@ async function autoStartGame(game, gameId, io, gameState, store) {
 
   await saveGameSafely(store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 
-  io.to(gameId).emit("gameStarted", { game });
+  emitGameStarted(io, game);
 }

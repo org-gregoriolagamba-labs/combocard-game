@@ -167,9 +167,9 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 ### Server → Client
 - `playerJoined`: New player joined
 - `playerLeft`: Player left
-- `gameStarted`: Game started
+- `gameStarted`: Game started, sent to each player with their own view of the game
 - `cardDrawn`: Card was drawn
-- `cardCovered`: Card was covered on a player grid
+- `cardCovered`: Card was covered on the grid of the player who receives it
 - `collezioneVinta`: Collection won
 - `gettoniAggiornati`: Player tokens updated
 - `premiRimanentiDivisi`: Remaining prizes split

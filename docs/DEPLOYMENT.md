@@ -354,7 +354,6 @@ docker compose exec -T postgres pg_dump -U combocard combocard > "combocard-$(da
 
 ### Before Opening to the Public
 
-- **Visible deck:** API responses reveal the order of the deck, so a player can see the next cards. See issue #37.
 - **Free credits:** the cash desk adds credits without any payment, which is fine only as long as they have no real value.
 - **Forgotten passwords:** there is no way to recover them yet.
 

@@ -197,6 +197,29 @@ export function verificaCollezione(cartella, coperte, tipo) {
 }
 
 /**
+ * Prepare a game for a single client: without the deck, and with only the
+ * public data of the other players. The full state is what gets persisted.
+ * @param {Object} game - Game object
+ * @param {string} playerId - Player who receives the game
+ * @returns {Object} Game as that player can see it
+ */
+export function gameViewFor(game, playerId) {
+  const { mazzo, ...visible } = game;
+
+  return {
+    ...visible,
+    carteRimaste: mazzo.length,
+    players: game.players.map((player) => {
+      if (player.id === playerId) {
+        return player;
+      }
+      const { id, name, gettoni, collezioni, jollyUsato } = player;
+      return { id, name, gettoni, collezioni, jollyUsato };
+    }),
+  };
+}
+
+/**
  * Auto-claim collections for all players
  * @param {Object} game - Game object
  * @param {string} gameId - Game ID
@@ -254,7 +277,6 @@ export function autoClaimCollezioni(game, gameId, io, gameState) {
         vincitori: vincitoriInfo,
         ammontare: premioPerGiocatore,
         divided: vincitori.length > 1,
-        players: vincitori,
       });
 
       if (tipo === "combocard_reale") {

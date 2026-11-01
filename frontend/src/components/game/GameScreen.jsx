@@ -291,7 +291,7 @@ function GameScreen() {
               </button>
 
               <p className="text-xs text-green-700 mt-2 text-center">
-                Carte rimaste: {game?.mazzo?.length || 0}/40
+                Carte rimaste: {game?.carteRimaste ?? 0}/40
               </p>
 
               {drawCooldown > 0 && !isGameFinished && (
