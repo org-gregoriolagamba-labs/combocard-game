@@ -60,14 +60,13 @@ test.describe('Collection System Structure', () => {
     }
   });
 
-  test('should have deck field ready for initialization', async ({ request }) => {
+  test('should hide the deck and show how many cards are left', async ({ request }) => {
     const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
-    expect(game.mazzo).toBeDefined();
-    expect(Array.isArray(game.mazzo)).toBe(true);
+    expect(game.mazzo).toBeUndefined();
     // Deck initializes when game starts, not on creation
-    expect(game.mazzo.length).toBeGreaterThanOrEqual(0);
+    expect(game.carteRimaste).toBe(0);
   });
 
   test('should have prize pool (montepremi)', async ({ request }) => {

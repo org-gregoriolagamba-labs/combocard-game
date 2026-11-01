@@ -219,13 +219,12 @@ test.describe('Game Deck Management', () => {
     gameId = (await createRes.json()).data.gameId;
   });
 
-  test('should initialize deck on game start', async ({ request }) => {
+  test('should not expose the deck', async ({ request }) => {
     const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: creator.headers });
     const game = (await gameRes.json()).data;
     
-    // Deck should be initialized (mazzo field exists)
-    expect(game.mazzo).toBeDefined();
-    expect(Array.isArray(game.mazzo)).toBe(true);
+    expect(game.mazzo).toBeUndefined();
+    expect(game.carteRimaste).toBe(0);
   });
 
   test('should track extracted cards', async ({ request }) => {

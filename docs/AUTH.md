@@ -76,4 +76,3 @@ Senza `DATABASE_URL` anche gli account stanno in memoria e si perdono al riavvio
 
 - I ruoli sono predisposti (`role` in `user_accounts` e nel token), ma oggi nessuna route li usa.
 - Non esistono ancora il recupero della password e la verifica dell'email.
-- `GET /api/games/:gameId` restituisce a tutti i giocatori anche il mazzo e le cartelle degli altri. Un giocatore può quindi conoscere le prossime carte leggendo la risposta.
