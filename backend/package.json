@@ -13,7 +13,8 @@
     "test:coverage": "cross-env NODE_ENV=test RATE_LIMIT_DISABLED=true jest --coverage",
     "test:watch": "cross-env NODE_ENV=test RATE_LIMIT_DISABLED=true jest --watch",
     "lint": "eslint src --ext .js",
-    "lint:fix": "eslint src --ext .js --fix"
+    "lint:fix": "eslint src --ext .js --fix",
+    "db:migrate": "node src/db/migrate.cli.js"
   },
   "dependencies": {
     "compression": "^1.7.4",
@@ -24,6 +25,7 @@
     "helmet": "^7.1.0",
     "joi": "^17.12.1",
     "morgan": "^1.10.0",
+    "pg": "^8.23.1",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

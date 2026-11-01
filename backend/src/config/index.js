@@ -24,6 +24,10 @@ const config = {
   corsOrigin: corsOriginRaw || (process.env.NODE_ENV === "production" ? "http://localhost:3000" : "*"),
   corsOriginRaw,
   
+  // Database (optional: without a URL, data stays in memory)
+  databaseUrl: process.env.DATABASE_URL || null,
+  databasePoolMax: parseInt(process.env.DATABASE_POOL_MAX, 10) || 10,
+
   // Rate limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000, // 15 minutes
   rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
@@ -48,6 +52,9 @@ const config = {
 if (config.nodeEnv === "production") {
   if (!process.env.CORS_ORIGIN) {
     console.warn("⚠️ CORS_ORIGIN not set in production environment");
+  }
+  if (!process.env.DATABASE_URL) {
+    console.warn("⚠️ DATABASE_URL not set in production environment");
   }
 }
 
