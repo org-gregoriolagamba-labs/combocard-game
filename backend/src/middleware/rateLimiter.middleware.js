@@ -28,9 +28,26 @@ export const apiLimiter = rateLimit({
 export const strictLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   limit: 10,
+  skip: () => config.nodeEnv === "test" || config.rateLimitDisabled,
   message: {
     status: "error",
     message: "Too many requests, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Limit on login attempts: only failed ones count, per IP address
+ */
+export const loginLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 10,
+  skipSuccessfulRequests: true,
+  skip: () => config.nodeEnv === "test" || config.rateLimitDisabled,
+  message: {
+    status: "error",
+    message: "Too many failed login attempts, please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,

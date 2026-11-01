@@ -124,25 +124,34 @@ npm start
 
 ## 📡 API Endpoints
 
+### Auth Routes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create an account and start a session |
+| POST | `/api/auth/login` | Start a session |
+| POST | `/api/auth/refresh` | Get a new access token from the refresh cookie |
+| POST | `/api/auth/logout` | End the session on this device |
+
+All the routes below require `Authorization: Bearer <access token>`. The acting player always comes from the token. See [docs/AUTH.md](docs/AUTH.md).
+
 ### Player Routes
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/players/register` | Register a new player |
-| GET | `/api/players/:id` | Get player details |
-| POST | `/api/players/:id/buy-credits` | Buy credits |
+| GET | `/api/players/:playerId` | Get your own player |
+| POST | `/api/players/:playerId/buy-credits` | Buy credits for your own player |
 
 ### Game Routes
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/games/lobby` | Get all available games |
+| GET | `/api/games/lobby` | List public waiting games |
 | POST | `/api/games` | Create a new game |
-| GET | `/api/games/:id` | Get game details |
-| POST | `/api/games/:id/join` | Join a game |
-| POST | `/api/games/:id/start` | Start the game |
-| POST | `/api/games/:id/draw` | Draw a card |
-| POST | `/api/games/:id/claim` | Claim a collection |
-| POST | `/api/games/:id/jolly` | Use Jolly card |
-| POST | `/api/games/:id/leave` | Leave the game |
+| GET | `/api/games/:gameId` | Get a game you created or joined |
+| POST | `/api/games/:gameId/join` | Join a game |
+| POST | `/api/games/:gameId/start` | Start the game (creator only) |
+| POST | `/api/games/:gameId/draw` | Draw a card (creator only) |
+| POST | `/api/games/:gameId/claim` | Claim a collection |
+| POST | `/api/games/:gameId/jolly` | Use the jolly card |
+| POST | `/api/games/:gameId/leave` | Leave a game |
 
 ### Health Routes
 | Method | Endpoint | Description |

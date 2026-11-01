@@ -17,6 +17,7 @@ describe('playerSlice', () => {
     currentGameId: null,
     isLoading: false,
     error: null,
+    sessionChecked: false,
   };
 
   test('should return initial state', () => {
@@ -49,7 +50,7 @@ describe('playerSlice', () => {
     
     const state = playerReducer(currentState, clearPlayer());
     
-    expect(state).toEqual(initialState);
+    expect(state).toEqual({ ...initialState, sessionChecked: true });
   });
 
   test('should handle clearError', () => {

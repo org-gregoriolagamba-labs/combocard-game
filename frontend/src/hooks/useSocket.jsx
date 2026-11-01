@@ -45,21 +45,27 @@ export function useSocket() {
     }
   }, [currentGameId, playerId, dispatch]);
 
-  // Initialize socket connection
+  // The server accepts only authenticated connections: connect after the login,
+  // disconnect after the logout
   useEffect(() => {
+    if (!playerId) {
+      socketService.disconnect();
+      return undefined;
+    }
+
     const socket = socketService.connect();
 
-    // Connection events
-    socket.on("connect", () => {
+    const handleConnect = () => {
       if (currentGameId) {
         socketService.joinGame(currentGameId);
       }
-    });
+    };
+    socket.on("connect", handleConnect);
 
     return () => {
-      // Don't disconnect on unmount, just cleanup listeners
+      socket.off("connect", handleConnect);
     };
-  }, [currentGameId]);
+  }, [playerId, currentGameId]);
 
   // Join game room when gameId changes
   useEffect(() => {
@@ -70,8 +76,9 @@ export function useSocket() {
 
   // Game event handlers
   useEffect(() => {
+    if (!playerId) return undefined;
+
     const socket = socketService.getSocket();
-    if (!socket) return;
 
     // Player joined
     const handlePlayerJoined = ({ player }) => {

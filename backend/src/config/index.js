@@ -5,6 +5,7 @@
  * Uses dotenv to load environment variables from .env file.
  */
 
+import { randomBytes } from "crypto";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -14,6 +15,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env"), quiet: true });
 
 const corsOriginRaw = process.env.CORS_ORIGIN;
+const isProduction = process.env.NODE_ENV === "production";
+const MIN_JWT_SECRET_LENGTH = 32;
 
 const config = {
   // Server configuration
@@ -27,6 +30,19 @@ const config = {
   // Database (optional: without a URL, data stays in memory)
   databaseUrl: process.env.DATABASE_URL || null,
   databasePoolMax: parseInt(process.env.DATABASE_POOL_MAX, 10) || 10,
+
+  // Authentication
+  // Outside production a missing secret gets a random value: access tokens stop
+  // working at each restart, and the client silently renews them with the cookie
+  jwtSecret: process.env.JWT_SECRET || (isProduction ? null : randomBytes(48).toString("hex")),
+  accessTokenTtlSeconds: parseInt(process.env.ACCESS_TOKEN_TTL_SECONDS, 10) || 15 * 60,
+  refreshTokenTtlDays: parseInt(process.env.REFRESH_TOKEN_TTL_DAYS, 10) || 7,
+  refreshReuseGraceSeconds: parseInt(process.env.REFRESH_REUSE_GRACE_SECONDS, 10) || 10,
+  cookieSecure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : isProduction,
+  cookieSameSite: process.env.COOKIE_SAMESITE || "strict",
+
+  // Number of reverse proxies in front of the server, used to find the client IP
+  trustProxy: parseInt(process.env.TRUST_PROXY, 10) || 0,
 
   // Rate limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000, // 15 minutes
@@ -55,6 +71,20 @@ if (config.nodeEnv === "production") {
   }
   if (!process.env.DATABASE_URL) {
     console.warn("⚠️ DATABASE_URL not set in production environment");
+  }
+}
+
+/**
+ * Check the authentication settings. In production the server must not start with
+ * a weak or missing secret, because anyone could then forge valid access tokens.
+ * @throws {Error} If the configuration is not safe
+ */
+export function assertAuthConfig() {
+  if (!isProduction) {
+    return;
+  }
+  if (!config.jwtSecret || config.jwtSecret.length < MIN_JWT_SECRET_LENGTH) {
+    throw new Error(`JWT_SECRET must be set to at least ${MIN_JWT_SECRET_LENGTH} characters`);
   }
 }
 

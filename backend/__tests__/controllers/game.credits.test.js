@@ -15,9 +15,10 @@ import { finishGame } from '../../src/services/game.service.js';
 import { registerPlayer, buyCredits } from '../../src/services/player.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 
-const io = { to: () => ({ emit: () => {} }) };
+const room = { emit: () => {}, socketsJoin: () => {}, socketsLeave: () => {} };
+const io = { to: () => room, in: () => room };
 
-function call(handler, gameState, { params = {}, body = {} }) {
+function call(handler, gameState, { params = {}, body = {}, playerId }) {
   return new Promise((resolve, reject) => {
     const res = {
       status: () => res,
@@ -26,7 +27,7 @@ function call(handler, gameState, { params = {}, body = {} }) {
         return res;
       },
     };
-    handler({ params, body, gameState, io, store: createMemoryStore() }, res, reject);
+    handler({ params, body, gameState, io, store: createMemoryStore(), auth: { playerId } }, res, reject);
   });
 }
 
@@ -37,11 +38,12 @@ describe('credit settlement', () => {
 
   const newStartedGame = async (requiredCredits = 100) => {
     const { gameId } = await call(createGame, gameState, {
-      body: { playerId: anna.id, requiredCredits, maxPlayers: 5 },
+      playerId: anna.id,
+      body: { requiredCredits, maxPlayers: 5 },
     });
-    await call(joinGame, gameState, { params: { gameId }, body: { playerId: anna.id } });
-    await call(joinGame, gameState, { params: { gameId }, body: { playerId: carlo.id } });
-    await call(startGame, gameState, { params: { gameId }, body: { playerId: anna.id } });
+    await call(joinGame, gameState, { params: { gameId }, playerId: anna.id });
+    await call(joinGame, gameState, { params: { gameId }, playerId: carlo.id });
+    await call(startGame, gameState, { params: { gameId }, playerId: anna.id });
     return gameState.games[gameId];
   };
 
@@ -71,7 +73,7 @@ describe('credit settlement', () => {
 
     await call(leaveGame, gameState, {
       params: { gameId: game.id },
-      body: { playerId: anna.id },
+      playerId: anna.id,
     });
 
     expect(anna.credits).toBe(450);
@@ -83,7 +85,7 @@ describe('credit settlement', () => {
 
     await call(leaveGame, gameState, {
       params: { gameId: game.id },
-      body: { playerId: anna.id },
+      playerId: anna.id,
     });
 
     expect(anna.credits).toBe(430);
@@ -106,7 +108,7 @@ describe('credit settlement', () => {
     const game = await newStartedGame();
     const late = registerPlayer(gameState, 'Late');
     buyCredits(gameState, late.id, 200);
-    await call(joinGame, gameState, { params: { gameId: game.id }, body: { playerId: late.id } });
+    await call(joinGame, gameState, { params: { gameId: game.id }, playerId: late.id });
     game.collezioniDistribuzione = { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 };
 
     finishGame(game, game.id, io, gameState);

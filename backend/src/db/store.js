@@ -13,16 +13,99 @@
  */
 
 const DEFAULT_RETRY_DELAY_MS = 5000;
+const PG_UNIQUE_VIOLATION = "23505";
+
+export const USERNAME_TAKEN = "USERNAME_TAKEN";
+
+function usernameTakenError() {
+  return Object.assign(new Error("Username already taken"), { code: USERNAME_TAKEN });
+}
+
+/**
+ * Decide what to do with a refresh token presented for renewal.
+ * - rotate: normal case, replace it with a new token
+ * - grace: already replaced moments ago, for example by another tab at the same
+ *   time. A new token is issued, without treating it as an attack
+ * - reuse: already replaced some time ago. Someone is using an old token, which
+ *   may have been stolen, so the whole family must be revoked
+ * - invalid: unknown, expired or revoked
+ * @param {Object|undefined} record - { expiresAt, rotatedAt, revokedAt }
+ * @param {number} graceSeconds - Seconds in which an old token is still accepted
+ * @param {Date} now - Current time
+ * @returns {string} rotate, grace, reuse or invalid
+ */
+export function decideRotation(record, graceSeconds, now = new Date()) {
+  if (!record || record.revokedAt || record.expiresAt <= now) {
+    return "invalid";
+  }
+  if (!record.rotatedAt) {
+    return "rotate";
+  }
+  const age = (now.getTime() - record.rotatedAt.getTime()) / 1000;
+  return age <= graceSeconds ? "grace" : "reuse";
+}
 
 /**
  * Store used when DATABASE_URL is not set: data lives in memory only
  * @returns {Object} Store with the same interface as the PostgreSQL one
  */
 export function createMemoryStore() {
+  const accounts = new Map();
+  const refreshTokens = new Map();
+
   return {
     enabled: false,
     loadState: async () => ({ players: {}, games: {} }),
     createPlayer: async () => {},
+    async createAccount(player, { usernameKey, passwordHash }) {
+      if (accounts.has(usernameKey)) {
+        throw usernameTakenError();
+      }
+      accounts.set(usernameKey, { playerId: player.id, passwordHash, role: "player" });
+    },
+    findAccountByUsernameKey: async (usernameKey) => accounts.get(usernameKey) ?? null,
+    async findAccountById(playerId) {
+      return [...accounts.values()].find((a) => a.playerId === playerId) ?? null;
+    },
+    async createRefreshToken({ tokenHash, familyId, playerId, expiresAt }) {
+      refreshTokens.set(tokenHash, {
+        familyId, playerId, expiresAt, rotatedAt: null, revokedAt: null,
+      });
+    },
+    async rotateRefreshToken(tokenHash, { tokenHash: nextHash, expiresAt, graceSeconds }) {
+      const record = refreshTokens.get(tokenHash);
+      const decision = decideRotation(record, graceSeconds);
+      if (decision === "invalid") {
+        return null;
+      }
+      if (decision === "reuse") {
+        for (const other of refreshTokens.values()) {
+          if (other.familyId === record.familyId) {
+            other.revokedAt = new Date();
+          }
+        }
+        return null;
+      }
+      if (decision === "rotate") {
+        record.rotatedAt = new Date();
+      }
+      refreshTokens.set(nextHash, {
+        familyId: record.familyId,
+        playerId: record.playerId,
+        expiresAt,
+        rotatedAt: null,
+        revokedAt: null,
+      });
+      return record.playerId;
+    },
+    async revokeRefreshToken(tokenHash) {
+      const record = refreshTokens.get(tokenHash);
+      for (const other of refreshTokens.values()) {
+        if (record && other.familyId === record.familyId) {
+          other.revokedAt = new Date();
+        }
+      }
+    },
     recordPurchase: async () => {},
     saveGame: async () => {},
     deleteGame: async () => {},
@@ -70,6 +153,27 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
       `INSERT INTO credit_transactions (player_id, game_id, type, amount, balance_after)
        VALUES ($1, $2, $3, $4, $5)`,
       [playerId, gameId, type, amount, rows[0].credits],
+    );
+  }
+
+  async function insertPlayer(client, player) {
+    await client.query(
+      "INSERT INTO players (id, name, credits, created_at) VALUES ($1, $2, 0, $3)",
+      [player.id, player.name, player.createdAt],
+    );
+    if (player.credits !== 0) {
+      await applyMovement(client, {
+        playerId: player.id,
+        type: "initial",
+        amount: player.credits,
+      });
+    }
+  }
+
+  async function revokeFamily(client, familyId) {
+    await client.query(
+      "UPDATE refresh_tokens SET revoked_at = now() WHERE family_id = $1 AND revoked_at IS NULL",
+      [familyId],
     );
   }
 
@@ -211,19 +315,126 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
      * @param {Object} player - Player object
      */
     async createPlayer(player) {
+      await withTransaction((client) => insertPlayer(client, player));
+    },
+
+    /**
+     * Store a new player together with their account, or neither of them
+     * @param {Object} player - Player object
+     * @param {Object} account - { username, usernameKey, passwordHash }
+     * @throws {Error} With code USERNAME_TAKEN if the username is already in use
+     */
+    async createAccount(player, { username, usernameKey, passwordHash }) {
+      try {
+        await withTransaction(async (client) => {
+          await insertPlayer(client, player);
+          await client.query(
+            `INSERT INTO user_accounts (player_id, username, username_key, password_hash)
+             VALUES ($1, $2, $3, $4)`,
+            [player.id, username, usernameKey, passwordHash],
+          );
+        });
+      } catch (err) {
+        if (err.code === PG_UNIQUE_VIOLATION && err.constraint === "user_accounts_username_key_key") {
+          throw usernameTakenError();
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * Find an account by its normalized username
+     * @param {string} usernameKey - Normalized username
+     * @returns {Promise<Object|null>} { playerId, passwordHash, role }
+     */
+    async findAccountByUsernameKey(usernameKey) {
+      const { rows } = await pool.query(
+        `SELECT player_id AS "playerId", password_hash AS "passwordHash", role
+         FROM user_accounts WHERE username_key = $1`,
+        [usernameKey],
+      );
+      return rows[0] ?? null;
+    },
+
+    /**
+     * Find an account by its player
+     * @param {string} playerId - Player ID
+     * @returns {Promise<Object|null>} { playerId, role }
+     */
+    async findAccountById(playerId) {
+      const { rows } = await pool.query(
+        `SELECT player_id AS "playerId", role FROM user_accounts WHERE player_id = $1`,
+        [playerId],
+      );
+      return rows[0] ?? null;
+    },
+
+    /**
+     * Store the refresh token of a new session and remove the player's expired ones
+     * @param {Object} token - { tokenHash, familyId, playerId, expiresAt }
+     */
+    async createRefreshToken({ tokenHash, familyId, playerId, expiresAt }) {
       await withTransaction(async (client) => {
         await client.query(
-          "INSERT INTO players (id, name, credits, created_at) VALUES ($1, $2, 0, $3)",
-          [player.id, player.name, player.createdAt],
+          "DELETE FROM refresh_tokens WHERE player_id = $1 AND expires_at < now()",
+          [playerId],
         );
-        if (player.credits !== 0) {
-          await applyMovement(client, {
-            playerId: player.id,
-            type: "initial",
-            amount: player.credits,
-          });
-        }
+        await client.query(
+          `INSERT INTO refresh_tokens (token_hash, family_id, player_id, expires_at)
+           VALUES ($1, $2, $3, $4)`,
+          [tokenHash, familyId, playerId, expiresAt],
+        );
       });
+    },
+
+    /**
+     * Replace a refresh token with a new one. The row lock makes sure that two
+     * requests with the same token are decided one at a time.
+     * @param {string} tokenHash - Hash of the presented token
+     * @param {Object} next - { tokenHash, expiresAt, graceSeconds }
+     * @returns {Promise<string|null>} Player ID, or null if the session is not valid
+     */
+    async rotateRefreshToken(tokenHash, { tokenHash: nextHash, expiresAt, graceSeconds }) {
+      return withTransaction(async (client) => {
+        const { rows } = await client.query(
+          `SELECT id, family_id AS "familyId", player_id AS "playerId", expires_at AS "expiresAt",
+                  rotated_at AS "rotatedAt", revoked_at AS "revokedAt"
+           FROM refresh_tokens WHERE token_hash = $1 FOR UPDATE`,
+          [tokenHash],
+        );
+        const record = rows[0];
+        const decision = decideRotation(record, graceSeconds);
+
+        if (decision === "invalid") {
+          return null;
+        }
+        if (decision === "reuse") {
+          await revokeFamily(client, record.familyId);
+          return null;
+        }
+        if (decision === "rotate") {
+          await client.query("UPDATE refresh_tokens SET rotated_at = now() WHERE id = $1", [record.id]);
+        }
+        await client.query(
+          `INSERT INTO refresh_tokens (token_hash, family_id, player_id, expires_at)
+           VALUES ($1, $2, $3, $4)`,
+          [nextHash, record.familyId, record.playerId, expiresAt],
+        );
+        return record.playerId;
+      });
+    },
+
+    /**
+     * End a session by revoking the whole family of its token
+     * @param {string} tokenHash - Hash of the presented token
+     */
+    async revokeRefreshToken(tokenHash) {
+      await pool.query(
+        `UPDATE refresh_tokens SET revoked_at = now()
+         WHERE revoked_at IS NULL
+           AND family_id = (SELECT family_id FROM refresh_tokens WHERE token_hash = $1)`,
+        [tokenHash],
+      );
     },
 
     /**

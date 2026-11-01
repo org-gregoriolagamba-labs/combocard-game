@@ -6,7 +6,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { createMemoryStore, createPostgresStore } from '../../src/db/store.js';
+import { createMemoryStore, createPostgresStore, decideRotation } from '../../src/db/store.js';
 
 function createFakePool({ onQuery = () => {} } = {}) {
   const log = [];
@@ -187,6 +187,24 @@ describe('createPostgresStore', () => {
     expect(players.p1.currentGameId).toBe('g1');
     expect(players.p1.createdAt).toBe('2026-01-01T00:00:00.000Z');
     expect(games.g1.id).toBe('g1');
+  });
+});
+
+describe('decideRotation', () => {
+  const now = new Date('2026-01-01T12:00:00Z');
+  const secondsAgo = (s) => new Date(now.getTime() - s * 1000);
+  const valid = { expiresAt: new Date(now.getTime() + 60000), rotatedAt: null, revokedAt: null };
+
+  test.each([
+    ['unknown token', undefined, 'invalid'],
+    ['expired token', { ...valid, expiresAt: secondsAgo(1) }, 'invalid'],
+    ['revoked token', { ...valid, revokedAt: secondsAgo(1) }, 'invalid'],
+    ['revoked token, even if just rotated', { ...valid, rotatedAt: secondsAgo(1), revokedAt: secondsAgo(1) }, 'invalid'],
+    ['current token', valid, 'rotate'],
+    ['token rotated moments ago', { ...valid, rotatedAt: secondsAgo(5) }, 'grace'],
+    ['token rotated long ago', { ...valid, rotatedAt: secondsAgo(11) }, 'reuse'],
+  ])('%s', (_name, record, expected) => {
+    expect(decideRotation(record, 10, now)).toBe(expected);
   });
 });
 

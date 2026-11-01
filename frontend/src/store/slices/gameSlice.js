@@ -34,9 +34,9 @@ export const createGame = createAsyncThunk(
 
 export const joinGame = createAsyncThunk(
   "game/join",
-  async ({ gameId, playerId }, { rejectWithValue }) => {
+  async ({ gameId }, { rejectWithValue }) => {
     try {
-      const result = await gameService.joinGame(gameId, playerId);
+      const result = await gameService.joinGame(gameId);
       return { ...result, gameId };
     } catch (error) {
       return rejectWithValue(error.message);
@@ -46,9 +46,9 @@ export const joinGame = createAsyncThunk(
 
 export const startGame = createAsyncThunk(
   "game/start",
-  async ({ gameId, playerId }, { rejectWithValue }) => {
+  async ({ gameId }, { rejectWithValue }) => {
     try {
-      const result = await gameService.startGame(gameId, playerId);
+      const result = await gameService.startGame(gameId);
       return result;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -58,9 +58,9 @@ export const startGame = createAsyncThunk(
 
 export const drawCard = createAsyncThunk(
   "game/draw",
-  async ({ gameId, playerId }, { rejectWithValue }) => {
+  async ({ gameId }, { rejectWithValue }) => {
     try {
-      const result = await gameService.drawCard(gameId, playerId);
+      const result = await gameService.drawCard(gameId);
       return result;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -70,9 +70,9 @@ export const drawCard = createAsyncThunk(
 
 export const claimCollection = createAsyncThunk(
   "game/claim",
-  async ({ gameId, playerId, tipo }, { rejectWithValue }) => {
+  async ({ gameId, tipo }, { rejectWithValue }) => {
     try {
-      const result = await gameService.claimCollection(gameId, playerId, tipo);
+      const result = await gameService.claimCollection(gameId, tipo);
       return { ...result, tipo };
     } catch (error) {
       return rejectWithValue(error.message);
@@ -82,9 +82,9 @@ export const claimCollection = createAsyncThunk(
 
 export const playJolly = createAsyncThunk(
   "game/useJolly",
-  async ({ gameId, playerId, row, col, tipo }, { rejectWithValue }) => {
+  async ({ gameId, row, col, tipo }, { rejectWithValue }) => {
     try {
-      const result = await gameService.useJolly(gameId, { playerId, row, col, tipo });
+      const result = await gameService.useJolly(gameId, { row, col, tipo });
       return { ...result, row, col };
     } catch (error) {
       return rejectWithValue(error.message);
@@ -94,9 +94,9 @@ export const playJolly = createAsyncThunk(
 
 export const leaveGame = createAsyncThunk(
   "game/leave",
-  async ({ gameId, playerId }, { rejectWithValue }) => {
+  async ({ gameId }, { rejectWithValue }) => {
     try {
-      const result = await gameService.leaveGame(gameId, playerId);
+      const result = await gameService.leaveGame(gameId);
       return result;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -136,6 +136,12 @@ const gameSlice = createSlice({
     },
     setCurrentPlayer: (state, action) => {
       state.currentPlayer = action.payload;
+    },
+    resumeGame: (state, action) => {
+      const { game, currentPlayer } = action.payload;
+      state.currentGameId = game.id;
+      state.game = game;
+      state.currentPlayer = currentPlayer;
     },
     setUltimaCartaEstratta: (state, action) => {
       state.ultimaCartaEstratta = action.payload;
@@ -237,6 +243,7 @@ const gameSlice = createSlice({
 export const {
   setGame,
   setCurrentPlayer,
+  resumeGame,
   setUltimaCartaEstratta,
   setJollyMode,
   setDrawCooldown,

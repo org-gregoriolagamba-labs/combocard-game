@@ -417,6 +417,11 @@ PORT=3001
 #   CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 
+# Authentication: required in production, at least 32 characters (openssl rand -hex 48)
+JWT_SECRET=change-me
+# Number of reverse proxies in front of the server, for example 1 with Nginx
+TRUST_PROXY=0
+
 # Database (without it, data is kept in memory and lost on restart)
 DATABASE_URL=postgresql://user:password@localhost:5432/combocard
 DATABASE_POOL_MAX=10

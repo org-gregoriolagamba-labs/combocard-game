@@ -18,6 +18,10 @@ Per un solo pacchetto usa `npm --prefix <pacchetto> <script>`.
 
 Ogni modifica a crediti o partite in `req.gameState` va salvata anche con `req.store`: i controller non devono lasciare modifiche solo in memoria. Dettagli in `docs/DATABASE.md`.
 
+## Autenticazione
+
+Il giocatore di una richiesta è `req.auth.playerId`, preso dal token: non leggerlo mai dal corpo. Le nuove route di gioco restano dietro `requireAuth`. Dettagli in `docs/AUTH.md`.
+
 ## Validazione
 
 Ogni route che riceve un corpo lo valida con uno schema di `backend/src/validation/schemas.js`, applicato dal middleware `validate`.

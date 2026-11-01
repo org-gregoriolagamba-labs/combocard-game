@@ -1,10 +1,24 @@
 /**
- * Homepage Tests
- * 
+ * Homepage and Session Tests
+ *
  * @tags @smoke @critical
  */
 
 import { test, expect } from '@playwright/test';
+import { PASSWORD, uniqueUsername } from '../helpers/auth.js';
+
+const usernameInput = (page) => page.getByLabel(/nome utente/i);
+const passwordInput = (page) => page.getByLabel(/password/i);
+const hallHeading = (page) => page.getByRole('heading', { name: /hall/i });
+
+async function signUp(page, username = uniqueUsername('Ui')) {
+  await page.getByRole('button', { name: /crea un account/i }).click();
+  await usernameInput(page).fill(username);
+  await passwordInput(page).fill(PASSWORD);
+  await page.getByRole('button', { name: /registrati/i }).click();
+  await expect(hallHeading(page)).toBeVisible({ timeout: 10000 });
+  return username;
+}
 
 test.describe('Homepage', () => {
   test.beforeEach(async ({ page }) => {
@@ -16,37 +30,80 @@ test.describe('Homepage', () => {
     await expect(page.getByRole('heading', { name: /combocard/i })).toBeVisible();
   });
 
-  test('should display player registration form', async ({ page }) => {
-    // Check for name input
-    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
-    await expect(nameInput).toBeVisible();
-
-    // Check for submit/register button
-    const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
-    await expect(submitButton).toBeVisible();
+  test('should display the login form', async ({ page }) => {
+    await expect(usernameInput(page)).toBeVisible();
+    await expect(passwordInput(page)).toHaveAttribute('type', 'password');
+    await expect(page.getByRole('button', { name: /accedi/i })).toBeVisible();
   });
 
-  test('should show validation error for empty name', async ({ page }) => {
-    // Try to submit without entering a name
-    const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
-    await submitButton.click();
+  test('should stay on the page with empty fields', async ({ page }) => {
+    await page.getByRole('button', { name: /accedi/i }).click();
 
-    // Should show some validation feedback
-    // Either the form doesn't submit or shows an error
-    await expect(page).toHaveURL('/'); // Still on homepage
+    await expect(usernameInput(page)).toBeVisible();
+    await expect(hallHeading(page)).not.toBeVisible();
   });
 
-  test('should register player with valid name @critical', async ({ page }) => {
-    // Enter player name
-    const nameInput = page.getByPlaceholder(/nome|name/i).or(page.locator('input[type="text"]'));
-    await nameInput.fill('TestPlayer');
+  test('should show an error for wrong credentials', async ({ page }) => {
+    await usernameInput(page).fill(uniqueUsername('Nobody'));
+    await passwordInput(page).fill('not-the-password');
+    await page.getByRole('button', { name: /accedi/i }).click();
 
-    // Submit registration
-    const submitButton = page.getByRole('button', { name: /registra|inizia|gioca|entra/i });
-    await submitButton.click();
+    await expect(page.getByText('Nome utente o password non corretti').first()).toBeVisible();
+    await expect(hallHeading(page)).not.toBeVisible();
+  });
 
-    // Should navigate to hall or show logged in state
-    await expect(page.getByRole('heading', { name: /hall|combocard/i })).toBeVisible({ timeout: 10000 });
+  test('should register and enter the hall @critical', async ({ page }) => {
+    const username = await signUp(page);
+
+    await expect(page.getByText(`Benvenuto, ${username}!`)).toBeVisible();
+  });
+
+  test('should refuse a username already taken @critical', async ({ page, context }) => {
+    const username = await signUp(page);
+    await context.clearCookies();
+    await page.reload();
+
+    await page.getByRole('button', { name: /crea un account/i }).click();
+    await usernameInput(page).fill(username);
+    await passwordInput(page).fill(PASSWORD);
+    await page.getByRole('button', { name: /registrati/i }).click();
+
+    await expect(page.getByText('Questo nome utente è già in uso').first()).toBeVisible();
+  });
+
+  test('should stay logged in after reloading the page @critical', async ({ page }) => {
+    const username = await signUp(page);
+
+    await page.reload();
+
+    await expect(hallHeading(page)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(`Benvenuto, ${username}!`)).toBeVisible();
+  });
+
+  test('should keep the access token out of the browser storage @critical', async ({ page }) => {
+    await signUp(page);
+
+    const storage = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
+    const visibleCookies = await page.evaluate(() => document.cookie);
+
+    expect(storage).not.toMatch(/eyJ/);
+    expect(visibleCookies).not.toContain('combocard_refresh');
+  });
+
+  test('should log out and log back in as the same player @critical', async ({ page }) => {
+    const username = await signUp(page);
+
+    await page.getByRole('button', { name: 'Esci', exact: true }).click();
+    await expect(usernameInput(page)).toBeVisible();
+
+    await page.reload();
+    await expect(usernameInput(page)).toBeVisible();
+
+    await usernameInput(page).fill(username);
+    await passwordInput(page).fill(PASSWORD);
+    await page.getByRole('button', { name: /accedi/i }).click();
+
+    await expect(page.getByText(`Benvenuto, ${username}!`)).toBeVisible({ timeout: 10000 });
   });
 
   test('should be responsive on mobile @smoke', async ({ page }) => {

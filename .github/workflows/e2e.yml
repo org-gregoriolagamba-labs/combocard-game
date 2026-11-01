@@ -50,6 +50,8 @@ jobs:
           echo "Backend PID: $(cat /tmp/backend.pid)"
         env:
           NODE_ENV: production
+          JWT_SECRET: e2e-only-secret-not-used-anywhere-else-0123456789
+          COOKIE_SECURE: 'false'
           PORT: 3001
           CORS_ORIGIN: http://localhost:3000
           RATE_LIMIT_DISABLED: 'true'
@@ -168,6 +170,8 @@ jobs:
           echo $! > /tmp/frontend.pid
         env:
           NODE_ENV: production
+          JWT_SECRET: e2e-only-secret-not-used-anywhere-else-0123456789
+          COOKIE_SECURE: 'false'
           PORT: 3001
           CORS_ORIGIN: http://localhost:3000
           RATE_LIMIT_DISABLED: 'true'

@@ -8,44 +8,47 @@
 import Joi from "joi";
 import { COLLECTION_TYPES, GAME_DEFAULTS } from "../config/constants.js";
 
-const playerId = Joi.string().max(64);
 const integer = Joi.number().integer().strict();
 const collectionType = Joi.string().valid(...Object.values(COLLECTION_TYPES));
 const gridIndex = integer.min(0).max(GAME_DEFAULTS.GRID_SIZE - 1);
 
-// Player routes
-export const registerPlayerSchema = Joi.object({
-  playerName: Joi.string().trim().min(1).max(50).required(),
+// Auth routes
+export const registerSchema = Joi.object({
+  username: Joi.string()
+    .trim()
+    .min(3)
+    .max(30)
+    .pattern(/^[\p{L}\p{N}][\p{L}\p{N} _.-]*$/u)
+    .required()
+    .messages({
+      "string.pattern.base": "Username can contain only letters, numbers, spaces and _ . -",
+    }),
+  password: Joi.string().min(8).max(128).required(),
 });
 
+// No length rules at login: they would only reveal the password policy
+export const loginSchema = Joi.object({
+  username: Joi.string().max(100).required(),
+  password: Joi.string().max(128).required(),
+});
+
+// Player routes
 export const buyCreditsSchema = Joi.object({
   amount: integer.min(1).required(),
 });
 
 // Game routes
 export const createGameSchema = Joi.object({
-  playerId: playerId.required(),
   requiredCredits: integer.min(0),
   isPrivate: Joi.boolean().strict(),
   maxPlayers: integer.min(GAME_DEFAULTS.MIN_PLAYERS).max(GAME_DEFAULTS.MAX_PLAYERS),
 });
 
-export const playerActionSchema = Joi.object({
-  playerId: playerId.required(),
-});
-
-// The creator check is applied only when a player is given
-export const optionalPlayerActionSchema = Joi.object({
-  playerId: playerId.allow(null),
-});
-
 export const claimCollectionSchema = Joi.object({
-  playerId: playerId.required(),
   tipo: collectionType.required(),
 });
 
 export const useJollySchema = Joi.object({
-  playerId: playerId.required(),
   tipo: collectionType.required(),
   row: gridIndex.required(),
   col: gridIndex.required(),

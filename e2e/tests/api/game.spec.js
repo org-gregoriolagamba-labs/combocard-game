@@ -6,6 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { registerPlayer } from '../helpers/auth.js';
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:3001';
 
@@ -14,29 +15,25 @@ test.describe('Game Creation and Lobby', () => {
 
   test.beforeEach(async ({ request }) => {
     // Register two players
-    const res1 = await request.post(`${API_URL}/api/players/register`, {
-      data: { playerName: `Creator${Date.now()}` },
-    });
-    const res2 = await request.post(`${API_URL}/api/players/register`, {
-      data: { playerName: `Joiner${Date.now()}` },
-    });
     
-    player1 = (await res1.json()).data.player;
-    player2 = (await res2.json()).data.player;
+    player1 = await registerPlayer(request, API_URL, `Creator${Date.now()}`);
+    player2 = await registerPlayer(request, API_URL, `Joiner${Date.now()}`);
     
     // Buy credits for both
     await request.post(`${API_URL}/api/players/${player1.id}/buy-credits`, {
+      headers: player1.headers,
       data: { amount: 1000 },
     });
     await request.post(`${API_URL}/api/players/${player2.id}/buy-credits`, {
+      headers: player2.headers,
       data: { amount: 1000 },
     });
   });
 
   test('should create a game with custom required credits', async ({ request }) => {
     const response = await request.post(`${API_URL}/api/games`, {
+      headers: player1.headers,
       data: {
-        playerId: player1.id,
         requiredCredits: 50,
         maxPlayers: 4,
       },
@@ -53,8 +50,8 @@ test.describe('Game Creation and Lobby', () => {
 
   test('should create a private game', async ({ request }) => {
     const response = await request.post(`${API_URL}/api/games`, {
+      headers: player1.headers,
       data: {
-        playerId: player1.id,
         requiredCredits: 100,
         isPrivate: true,
         maxPlayers: 3,
@@ -68,7 +65,7 @@ test.describe('Game Creation and Lobby', () => {
     expect(game.isPrivate).toBe(true);
     
     // Private games should not appear in lobby
-    const lobbyRes = await request.get(`${API_URL}/api/games/lobby`);
+    const lobbyRes = await request.get(`${API_URL}/api/games/lobby`, { headers: player1.headers });
     const lobby = (await lobbyRes.json()).data;
     expect(lobby.find(g => g.id === game.id)).toBeUndefined();
   });
@@ -76,24 +73,25 @@ test.describe('Game Creation and Lobby', () => {
   test('should join a game successfully', async ({ request }) => {
     // Create game
     const createRes = await request.post(`${API_URL}/api/games`, {
-      data: { playerId: player1.id, requiredCredits: 100, maxPlayers: 4 },
+      headers: player1.headers,
+      data: { requiredCredits: 100, maxPlayers: 4 },
     });
     const gameId = (await createRes.json()).data.gameId;
     
     // Creator joins first
     await request.post(`${API_URL}/api/games/${gameId}/join`, {
-      data: { playerId: player1.id },
+      headers: player1.headers,
     });
     
     // Second player joins
     const joinRes = await request.post(`${API_URL}/api/games/${gameId}/join`, {
-      data: { playerId: player2.id },
+      headers: player2.headers,
     });
     
     expect(joinRes.ok()).toBe(true);
     
     // Check both players are in game
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);    const game = (await gameRes.json()).data;
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player2.headers });    const game = (await gameRes.json()).data;
     
     expect(game.players.length).toBe(2);
     expect(game.players.some(p => p.id === player1.id)).toBe(true);
@@ -103,20 +101,21 @@ test.describe('Game Creation and Lobby', () => {
   test('should show game in lobby with correct player count', async ({ request }) => {
     // Create game
     const createRes = await request.post(`${API_URL}/api/games`, {
-      data: { playerId: player1.id, requiredCredits: 100, maxPlayers: 4 },
+      headers: player1.headers,
+      data: { requiredCredits: 100, maxPlayers: 4 },
     });
     const gameId = (await createRes.json()).data.gameId;
     
     // Both players join
     await request.post(`${API_URL}/api/games/${gameId}/join`, {
-      data: { playerId: player1.id },
+      headers: player1.headers,
     });
     await request.post(`${API_URL}/api/games/${gameId}/join`, {
-      data: { playerId: player2.id },
+      headers: player2.headers,
     });
     
     // Check lobby shows correct data
-    const lobbyRes = await request.get(`${API_URL}/api/games/lobby`);
+    const lobbyRes = await request.get(`${API_URL}/api/games/lobby`, { headers: player2.headers });
     const lobby = (await lobbyRes.json()).data;
     const gameInLobby = lobby.find(g => g.id === gameId);
     
@@ -128,7 +127,8 @@ test.describe('Game Creation and Lobby', () => {
   test('should reject creation with insufficient credits', async ({ request }) => {
     // Try to create game with credits player doesn't have
     const createRes = await request.post(`${API_URL}/api/games`, {
-      data: { playerId: player1.id, requiredCredits: 5000, maxPlayers: 4 },
+      headers: player1.headers,
+      data: { requiredCredits: 5000, maxPlayers: 4 },
     });
     
     // Creation should fail due to insufficient credits
@@ -138,9 +138,7 @@ test.describe('Game Creation and Lobby', () => {
 
   test('should reject join to non-existent game', async ({ request }) => {
     const response = await request.post(`${API_URL}/api/games/nonexistent123/join`, {
-      data: {
-        playerId: player1.id,
-      },
+      headers: player1.headers,
     });
     
     expect(response.ok()).toBe(false);
@@ -150,19 +148,17 @@ test.describe('Game Creation and Lobby', () => {
 test.describe('Game Lobby Visibility', () => {
   test('should only show public games in lobby', async ({ request }) => {
     // Register creator
-    const creatorRes = await request.post(`${API_URL}/api/players/register`, {
-      data: { playerName: `LobbyCreator${Date.now()}` },
-    });
-    const creator = (await creatorRes.json()).data.player;
+    const creator = await registerPlayer(request, API_URL, `LobbyCreator${Date.now()}`);
     
     await request.post(`${API_URL}/api/players/${creator.id}/buy-credits`, {
+      headers: creator.headers,
       data: { amount: 1000 },
     });
     
     // Create public game
     const publicRes = await request.post(`${API_URL}/api/games`, {
+      headers: creator.headers,
       data: {
-        playerId: creator.id,
         requiredCredits: 100,
         isPrivate: false,
       },
@@ -171,8 +167,8 @@ test.describe('Game Lobby Visibility', () => {
     
     // Create private game
     const privateRes = await request.post(`${API_URL}/api/games`, {
+      headers: creator.headers,
       data: {
-        playerId: creator.id,
         requiredCredits: 100,
         isPrivate: true,
       },
@@ -180,7 +176,7 @@ test.describe('Game Lobby Visibility', () => {
     const privateGameId = (await privateRes.json()).data.gameId;
     
     // Check lobby
-    const lobbyRes = await request.get(`${API_URL}/api/games/lobby`);
+    const lobbyRes = await request.get(`${API_URL}/api/games/lobby`, { headers: creator.headers });
     const lobby = (await lobbyRes.json()).data;
     
     // Public game should be in lobby
@@ -197,25 +193,24 @@ test.describe('Game Collection System', () => {
 
   test.beforeEach(async ({ request }) => {
     // Register player
-    const res = await request.post(`${API_URL}/api/players/register`, {
-      data: { playerName: `CollectionPlayer${Date.now()}` },
-    });
-    player1 = (await res.json()).data.player;
+    player1 = await registerPlayer(request, API_URL, `CollectionPlayer${Date.now()}`);
     
     // Buy credits
     await request.post(`${API_URL}/api/players/${player1.id}/buy-credits`, {
+      headers: player1.headers,
       data: { amount: 1000 },
     });
     
     // Create game
     const createRes = await request.post(`${API_URL}/api/games`, {
-      data: { playerId: player1.id, requiredCredits: 100, maxPlayers: 4 },
+      headers: player1.headers,
+      data: { requiredCredits: 100, maxPlayers: 4 },
     });
     gameId = (await createRes.json()).data.gameId;
   });
 
   test('should initialize collections on game creation', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player1.headers });
     const game = (await gameRes.json()).data;
     
     expect(game.collezioni).toBeDefined();
@@ -227,7 +222,7 @@ test.describe('Game Collection System', () => {
   });
 
   test('should track montepremi (prize pool)', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player1.headers });
     const game = (await gameRes.json()).data;
     
     expect(game.montepremi).toBeDefined();
