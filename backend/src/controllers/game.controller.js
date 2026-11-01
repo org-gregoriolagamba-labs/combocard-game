@@ -8,7 +8,12 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendCreated } from "../utils/response.utils.js";
 import { AppError } from "../utils/AppError.js";
 import { generateId, generaCartella, generaMazzo, shuffleArray } from "../utils/card.utils.js";
-import { autoClaimCollezioni, verificaCollezione, finishGame } from "../services/game.service.js";
+import {
+  autoClaimCollezioni,
+  verificaCollezione,
+  finishGame,
+  settleGamePlayer,
+} from "../services/game.service.js";
 import { trovaMiglioreConversioneJolly } from "../services/jolly.service.js";
 import {
   CREDIT_MOVEMENT,
@@ -158,6 +163,7 @@ export const joinGame = asyncHandler(async (req, res) => {
     cartella,
     coperte,
     gettoni: 0,
+    gettoniSaldati: 0,
     collezioni: [],
     jollyUsato: false,
     jollyPos: null,
@@ -211,6 +217,7 @@ export const startGame = asyncHandler(async (req, res) => {
     if (player) {
       player.credits -= game.requiredCredits;
       gamePlayer.gettoni = player.credits;
+      gamePlayer.gettoniSaldati = player.credits;
       montepremi += game.requiredCredits;
     }
   }
@@ -459,7 +466,7 @@ export const leaveGame = asyncHandler(async (req, res) => {
     const gamePlayer = game.players.find((p) => p.id === playerId);
 
     if (gamePlayer && game.status === GAME_STATUS.PLAYING) {
-      player.credits = gamePlayer.gettoni;
+      settleGamePlayer(gamePlayer, player);
     }
 
     game.players = game.players.filter((p) => p.id !== playerId);
@@ -491,6 +498,7 @@ async function autoStartGame(game, gameId, io, gameState, store) {
     if (player) {
       player.credits -= game.requiredCredits;
       gamePlayer.gettoni = player.credits;
+      gamePlayer.gettoniSaldati = player.credits;
       montepremi += game.requiredCredits;
     }
   }
