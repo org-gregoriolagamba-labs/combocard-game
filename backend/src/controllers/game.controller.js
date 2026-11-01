@@ -10,6 +10,12 @@ import { AppError } from "../utils/AppError.js";
 import { generateId, generaCartella, generaMazzo, shuffleArray } from "../utils/card.utils.js";
 import { autoClaimCollezioni, verificaCollezione, finishGame } from "../services/game.service.js";
 import { trovaMiglioreConversioneJolly } from "../services/jolly.service.js";
+import {
+  CREDIT_MOVEMENT,
+  trackCredits,
+  saveGameSafely,
+  deleteGameSafely,
+} from "../services/persistence.service.js";
 import { SEMI_EMOJI, VALORI_NUM, GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
 import config from "../config/index.js";
 
@@ -44,6 +50,15 @@ export const createGame = asyncHandler(async (req, res) => {
   }
 
   const credits = requiredCredits || GAME_DEFAULTS.REQUIRED_CREDITS;
+  if (!Number.isInteger(credits) || credits < 0) {
+    throw new AppError("Required credits must be a non-negative integer", 400);
+  }
+
+  const playersLimit = maxPlayers || GAME_DEFAULTS.MAX_PLAYERS;
+  if (!Number.isInteger(playersLimit) || playersLimit < 1) {
+    throw new AppError("Max players must be a positive integer", 400);
+  }
+
   if (player.credits < credits) {
     throw new AppError("Insufficient credits", 400);
   }
@@ -55,7 +70,7 @@ export const createGame = asyncHandler(async (req, res) => {
     players: [],
     requiredCredits: credits,
     isPrivate: isPrivate || false,
-    maxPlayers: maxPlayers || GAME_DEFAULTS.MAX_PLAYERS,
+    maxPlayers: playersLimit,
     status: GAME_STATUS.WAITING,
     mazzo: [],
     carteEstratte: [],
@@ -70,6 +85,8 @@ export const createGame = asyncHandler(async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
+  await saveGameSafely(req.store, req.gameState.games[gameId]);
+
   sendCreated(res, {
     gameId,
     game: req.gameState.games[gameId],
@@ -81,7 +98,9 @@ export const createGame = asyncHandler(async (req, res) => {
  * GET /api/games/:gameId
  */
 export const getGame = asyncHandler(async (req, res) => {
-  const game = req.gameState.games[req.params.gameId];
+  // Finished games are not reloaded into memory after a restart
+  const game = req.gameState.games[req.params.gameId]
+    ?? await req.store.findGame(req.params.gameId);
   if (!game) {
     throw new AppError("Game not found", 404);
   }
@@ -148,6 +167,8 @@ export const joinGame = asyncHandler(async (req, res) => {
   game.players.push(gamePlayer);
   player.currentGameId = gameId;
 
+  await saveGameSafely(req.store, game);
+
   req.io.to(gameId).emit("playerJoined", { player: { id: playerId, name: player.name } });
 
   // Respond BEFORE auto-start to avoid race condition
@@ -156,7 +177,7 @@ export const joinGame = asyncHandler(async (req, res) => {
 
   // Auto-start AFTER responding
   if (willAutoStart) {
-    setTimeout(() => autoStartGame(game, gameId, req.io, req.gameState), 100);
+    setTimeout(() => autoStartGame(game, gameId, req.io, req.gameState, req.store), 100);
   }
 });
 
@@ -181,6 +202,8 @@ export const startGame = asyncHandler(async (req, res) => {
     throw new AppError(`At least ${GAME_DEFAULTS.MIN_PLAYERS} players required`, 400);
   }
 
+  const creditMovements = trackCredits(req.gameState, game);
+
   // Subtract credits and form prize pool
   let montepremi = 0;
   for (const gamePlayer of game.players) {
@@ -203,6 +226,8 @@ export const startGame = asyncHandler(async (req, res) => {
     napola: Math.floor(montepremi * config.prizeDistribution.napola),
     combocard_reale: Math.floor(montepremi * config.prizeDistribution.combocard_reale),
   };
+
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 
   req.io.to(req.params.gameId).emit("gameStarted", { game });
 
@@ -237,6 +262,8 @@ export const drawCard = asyncHandler(async (req, res) => {
     }
   }
 
+  const creditMovements = trackCredits(req.gameState, game);
+
   const cartaEstratta = game.mazzo.pop();
   game.carteEstratte.push(cartaEstratta);
 
@@ -264,6 +291,8 @@ export const drawCard = asyncHandler(async (req, res) => {
 
   autoClaimCollezioni(game, gameId, req.io, req.gameState);
   req.io.to(gameId).emit("cardDrawn", { carta: cartaEstratta });
+
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
 
   sendSuccess(res, { carta: cartaEstratta });
 });
@@ -296,6 +325,7 @@ export const claimCollection = asyncHandler(async (req, res) => {
     throw new AppError("Collection not complete", 400);
   }
 
+  const creditMovements = trackCredits(req.gameState, game);
   const premio = game.collezioniDistribuzione[tipo];
 
   game.collezioni[tipo].vinto = true;
@@ -324,6 +354,8 @@ export const claimCollection = asyncHandler(async (req, res) => {
   if (tipo === "combocard_reale") {
     finishGame(game, gameId, req.io, req.gameState);
   }
+
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
 
   sendSuccess(res, { success: true, premio });
 });
@@ -357,6 +389,8 @@ export const useJolly = asyncHandler(async (req, res) => {
   if (game.collezioni[tipo].vinto) {
     throw new AppError("Collection already won", 400);
   }
+
+  const creditMovements = trackCredits(req.gameState, game);
 
   const jollyPosTemp = { row, col };
   const conversione = trovaMiglioreConversioneJolly(
@@ -400,6 +434,8 @@ export const useJolly = asyncHandler(async (req, res) => {
   // Auto-claim after using jolly
   autoClaimCollezioni(game, gameId, req.io, req.gameState);
 
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
+
   sendSuccess(res, {
     success: true,
     convertedTo: conversione,
@@ -419,6 +455,7 @@ export const leaveGame = asyncHandler(async (req, res) => {
   const player = req.gameState.players[playerId];
 
   if (game && player) {
+    const creditMovements = trackCredits(req.gameState, game);
     const gamePlayer = game.players.find((p) => p.id === playerId);
 
     if (gamePlayer && game.status === GAME_STATUS.PLAYING) {
@@ -433,6 +470,9 @@ export const leaveGame = asyncHandler(async (req, res) => {
     // Delete game if waiting and no players left
     if (game.status === GAME_STATUS.WAITING && game.players.length === 0) {
       delete req.gameState.games[gameId];
+      await deleteGameSafely(req.store, gameId);
+    } else {
+      await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
     }
   }
 
@@ -442,7 +482,9 @@ export const leaveGame = asyncHandler(async (req, res) => {
 /**
  * Helper function to auto-start a game when max players reached
  */
-function autoStartGame(game, gameId, io, gameState) {
+async function autoStartGame(game, gameId, io, gameState, store) {
+  const creditMovements = trackCredits(gameState, game);
+
   let montepremi = 0;
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
@@ -464,6 +506,8 @@ function autoStartGame(game, gameId, io, gameState) {
     napola: Math.floor(montepremi * config.prizeDistribution.napola),
     combocard_reale: Math.floor(montepremi * config.prizeDistribution.combocard_reale),
   };
+
+  await saveGameSafely(store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 
   io.to(gameId).emit("gameStarted", { game });
 }

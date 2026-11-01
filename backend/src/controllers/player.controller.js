@@ -6,7 +6,10 @@
 
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendCreated } from "../utils/response.utils.js";
+import { AppError } from "../utils/AppError.js";
 import * as playerService from "../services/player.service.js";
+
+const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
 
 /**
  * Register a new player
@@ -15,7 +18,15 @@ import * as playerService from "../services/player.service.js";
 export const register = asyncHandler(async (req, res) => {
   const { playerName } = req.body;
   const player = playerService.registerPlayer(req.gameState, playerName);
-  
+
+  try {
+    await req.store.createPlayer(player);
+  } catch (err) {
+    console.error(`❌ Could not save player ${player.id}: ${err.message}`);
+    delete req.gameState.players[player.id];
+    throw new AppError(STORAGE_UNAVAILABLE, 503);
+  }
+
   sendCreated(res, {
     playerId: player.id,
     player,
@@ -38,7 +49,15 @@ export const getPlayer = asyncHandler(async (req, res) => {
 export const buyCredits = asyncHandler(async (req, res) => {
   const { amount } = req.body;
   const player = playerService.buyCredits(req.gameState, req.params.playerId, amount);
-  
+
+  try {
+    await req.store.recordPurchase(player.id, amount);
+  } catch (err) {
+    console.error(`❌ Could not save purchase for player ${player.id}: ${err.message}`);
+    player.credits -= amount;
+    throw new AppError(STORAGE_UNAVAILABLE, 503);
+  }
+
   sendSuccess(res, {
     success: true,
     credits: player.credits,

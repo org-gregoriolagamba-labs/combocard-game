@@ -14,6 +14,10 @@ Gioco di carte italiano multiplayer in tempo reale. Monorepo con tre pacchetti:
 
 Per un solo pacchetto usa `npm --prefix <pacchetto> <script>`.
 
+## Persistenza
+
+Ogni modifica a crediti o partite in `req.gameState` va salvata anche con `req.store`: i controller non devono lasciare modifiche solo in memoria. Dettagli in `docs/DATABASE.md`.
+
 ## Requisiti
 
 - Playwright richiede Node.js 20 o superiore. Il campo `engines` dice `>=18`, ma con Node 18 i test e2e non partono.

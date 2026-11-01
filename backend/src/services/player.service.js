@@ -56,7 +56,7 @@ export function getPlayer(gameState, playerId) {
 export function buyCredits(gameState, playerId, amount) {
   const player = getPlayer(gameState, playerId);
 
-  if (!amount || amount <= 0) {
+  if (!Number.isInteger(amount) || amount <= 0) {
     throw new AppError("Invalid amount", 400);
   }
 
