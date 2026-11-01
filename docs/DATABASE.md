@@ -34,6 +34,8 @@ Se `DATABASE_URL` è impostata e il database non è raggiungibile all'avvio, il 
 | `players` | Identità e saldo di ogni giocatore. |
 | `games` | Stato completo della partita in `state`, più le colonne per filtrare (`status`, `is_private`). |
 | `credit_transactions` | Un movimento per ogni variazione di crediti, con il saldo risultante. |
+| `user_accounts` | Nome utente, hash della password e ruolo di ogni account. Vedi [AUTH.md](AUTH.md). |
+| `refresh_tokens` | Hash dei refresh token attivi. Vedi [AUTH.md](AUTH.md). |
 | `schema_migrations` | Migrazioni già applicate. |
 
 `players.credits` è sempre la somma dei movimenti del giocatore. Questa query deve restituire zero righe:
@@ -64,12 +66,11 @@ La logica di gioco continua a lavorare su `gameState` in memoria. All'avvio il s
 
 - Il server deve essere uno solo: lo stato attivo vive nella memoria del processo.
 - Se il processo si interrompe di colpo mentre il database è irraggiungibile, le scritture in attesa vanno perse.
-- Una partita a cui si accede dopo un riavvio riprende dall'ultimo stato salvato, ma l'identità del giocatore nel browser si perde ricaricando la pagina: la gestiranno gli account dell'issue #29.
 
 ## Verifica manuale
 
 1. Avvia il server con `DATABASE_URL` impostata.
-2. Registra due giocatori, acquista crediti, crea una partita con `maxPlayers: 2` e fai entrare entrambi.
+2. Registra due account con `POST /api/auth/register`, acquista crediti, crea una partita con `maxPlayers: 2` e fai entrare entrambi.
 3. Estrai qualche carta con `POST /api/games/:gameId/draw`.
 4. Ferma il server con `kill -9`, poi riavvialo.
 5. Controlla che `GET /api/players/:playerId` e `GET /api/games/:gameId` restituiscano gli stessi dati, compreso il numero di carte estratte.

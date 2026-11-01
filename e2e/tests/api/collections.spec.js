@@ -6,6 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { registerPlayer } from '../helpers/auth.js';
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:3001';
 
@@ -14,28 +15,27 @@ test.describe('Collection System Structure', () => {
 
   test.beforeEach(async ({ request }) => {
     // Setup player and game
-    const res = await request.post(`${API_URL}/api/players/register`, {
-      data: { playerName: `CollectionTester${Date.now()}` },
-    });
-    player = (await res.json()).data.player;
+    player = await registerPlayer(request, API_URL, `CollectionTester${Date.now()}`);
     
     await request.post(`${API_URL}/api/players/${player.id}/buy-credits`, {
+      headers: player.headers,
       data: { amount: 1000 },
     });
     
     const createRes = await request.post(`${API_URL}/api/games`, {
-      data: { playerId: player.id, requiredCredits: 100, maxPlayers: 2 },
+      headers: player.headers,
+      data: { requiredCredits: 100, maxPlayers: 2 },
     });
     gameId = (await createRes.json()).data.gameId;
     
     // Join game to get full player data
     await request.post(`${API_URL}/api/games/${gameId}/join`, {
-      data: { playerId: player.id },
+      headers: player.headers,
     });
   });
 
   test('should have all 5 collection types defined', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     expect(game.collezioni).toBeDefined();
@@ -47,7 +47,7 @@ test.describe('Collection System Structure', () => {
   });
 
   test('should initialize collections with correct structure', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     const collections = ['tris', 'sequenza', 'scopa', 'napola', 'combocard_reale'];
@@ -61,7 +61,7 @@ test.describe('Collection System Structure', () => {
   });
 
   test('should have deck field ready for initialization', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     expect(game.mazzo).toBeDefined();
@@ -71,7 +71,7 @@ test.describe('Collection System Structure', () => {
   });
 
   test('should have prize pool (montepremi)', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     expect(game.montepremi).toBeDefined();
@@ -80,7 +80,7 @@ test.describe('Collection System Structure', () => {
   });
 
   test('should track extracted cards (carteEstratte)', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     expect(game.carteEstratte).toBeDefined();
@@ -92,27 +92,26 @@ test.describe('Player Grid System', () => {
   let player, gameId;
 
   test.beforeEach(async ({ request }) => {
-    const res = await request.post(`${API_URL}/api/players/register`, {
-      data: { playerName: `GridTester${Date.now()}` },
-    });
-    player = (await res.json()).data.player;
+    player = await registerPlayer(request, API_URL, `GridTester${Date.now()}`);
     
     await request.post(`${API_URL}/api/players/${player.id}/buy-credits`, {
+      headers: player.headers,
       data: { amount: 1000 },
     });
     
     const createRes = await request.post(`${API_URL}/api/games`, {
-      data: { playerId: player.id, requiredCredits: 100, maxPlayers: 2 },
+      headers: player.headers,
+      data: { requiredCredits: 100, maxPlayers: 2 },
     });
     gameId = (await createRes.json()).data.gameId;
     
     await request.post(`${API_URL}/api/games/${gameId}/join`, {
-      data: { playerId: player.id },
+      headers: player.headers,
     });
   });
 
   test('should initialize player with cartella grid', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     const playerInGame = game.players.find(p => p.id === player.id);
@@ -127,7 +126,7 @@ test.describe('Player Grid System', () => {
   });
 
   test('should have cards in player grid with position info', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     const playerInGame = game.players.find(p => p.id === player.id);
@@ -146,7 +145,7 @@ test.describe('Player Grid System', () => {
   });
 
   test('should use Italian suits in grid', async ({ request }) => {
-    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`);
+    const gameRes = await request.get(`${API_URL}/api/games/${gameId}`, { headers: player.headers });
     const game = (await gameRes.json()).data;
     
     const playerInGame = game.players.find(p => p.id === player.id);

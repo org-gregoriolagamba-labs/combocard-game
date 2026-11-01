@@ -5,6 +5,7 @@
  */
 
 import { io } from "socket.io-client";
+import { getAccessToken, refreshAccessToken } from "./api";
 
 // Socket.IO server URL
 const getSocketUrl = () => {
@@ -41,13 +42,14 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.listeners = new Map();
+    this.renewing = false;
   }
 
   /**
    * Connect to Socket.IO server
    */
   connect() {
-    if (this.socket?.connected) {
+    if (this.socket) {
       return this.socket;
     }
 
@@ -58,6 +60,8 @@ class SocketService {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      // A function, so that each new attempt sends the current token
+      auth: (cb) => cb({ token: getAccessToken() }),
     });
 
     this.socket.on("connect", () => {
@@ -71,10 +75,37 @@ class SocketService {
     });
 
     this.socket.on("connect_error", (error) => {
+      if (error.message === "Unauthorized") {
+        this.reconnectWithNewToken();
+        return;
+      }
       console.error("Socket connection error:", error.message);
     });
 
     return this.socket;
+  }
+
+  /**
+   * The server refuses a connection with an expired token and does not retry on
+   * its own: renew the token once, then connect again.
+   */
+  async reconnectWithNewToken() {
+    const socket = this.socket;
+    if (this.renewing || !socket) {
+      return;
+    }
+
+    this.renewing = true;
+    try {
+      const token = await refreshAccessToken();
+      if (token && this.socket === socket) {
+        socket.connect();
+      }
+    } catch (error) {
+      console.error("Socket connection error:", error.message);
+    } finally {
+      this.renewing = false;
+    }
   }
 
   /**

@@ -7,7 +7,7 @@
 
 import pg from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
-import { createPostgresStore } from '../../src/db/store.js';
+import { createPostgresStore, USERNAME_TAKEN } from '../../src/db/store.js';
 
 const url = process.env.TEST_DATABASE_URL;
 const describeWithDb = url ? describe : describe.skip;
@@ -47,7 +47,7 @@ describeWithDb('PostgreSQL store', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'DROP TABLE IF EXISTS credit_transactions, games, players, schema_migrations',
+      'DROP TABLE IF EXISTS refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
     );
     await runMigrations(pool);
     store = createPostgresStore(pool);
@@ -125,6 +125,99 @@ describeWithDb('PostgreSQL store', () => {
     expect(games.g1).toBeUndefined();
     expect(players.p1.currentGameId).toBeNull();
     await expect(store.findGame('g1')).resolves.toMatchObject({ status: 'finished' });
+  });
+
+  describe('accounts', () => {
+    const account = { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' };
+
+    test('are stored together with the player', async () => {
+      await store.createAccount(player, account);
+
+      await expect(store.findAccountByUsernameKey('anna')).resolves.toEqual({
+        playerId: 'p1',
+        passwordHash: 'hash',
+        role: 'player',
+      });
+      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'player' });
+      const { players } = await createPostgresStore(pool).loadState();
+      expect(players.p1.name).toBe('Anna');
+    });
+
+    test('with a taken username leave no player behind', async () => {
+      await store.createAccount(player, account);
+
+      await expect(store.createAccount({ ...player, id: 'p2' }, account))
+        .rejects.toMatchObject({ code: USERNAME_TAKEN });
+
+      const { rows } = await pool.query('SELECT count(*)::int AS n FROM players');
+      expect(rows[0].n).toBe(1);
+    });
+
+    test('are not required for existing players with duplicate names', async () => {
+      await store.createPlayer(player);
+      await store.createPlayer({ ...player, id: 'p2' });
+
+      await expect(store.createAccount({ ...player, id: 'p3' }, account)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('refresh tokens', () => {
+    const inOneHour = () => new Date(Date.now() + 3600 * 1000);
+    const rotate = (from, to, graceSeconds = 10) =>
+      store.rotateRefreshToken(from, { tokenHash: to, expiresAt: inOneHour(), graceSeconds });
+
+    beforeEach(async () => {
+      await store.createAccount(player, { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' });
+      await store.createRefreshToken({ tokenHash: 't1', familyId: 'f1', playerId: 'p1', expiresAt: inOneHour() });
+    });
+
+    test('rotate and return the player', async () => {
+      await expect(rotate('t1', 't2')).resolves.toBe('p1');
+      await expect(rotate('t2', 't3')).resolves.toBe('p1');
+    });
+
+    test('are rejected when unknown', async () => {
+      await expect(rotate('nope', 't2')).resolves.toBeNull();
+    });
+
+    test('are rejected when expired, and removed at the next login', async () => {
+      await store.createRefreshToken({
+        tokenHash: 'old', familyId: 'f2', playerId: 'p1', expiresAt: new Date(Date.now() - 1000),
+      });
+      await expect(rotate('old', 't2')).resolves.toBeNull();
+
+      await store.createRefreshToken({ tokenHash: 't3', familyId: 'f3', playerId: 'p1', expiresAt: inOneHour() });
+      const { rows } = await pool.query("SELECT 1 FROM refresh_tokens WHERE token_hash = 'old'");
+      expect(rows).toHaveLength(0);
+    });
+
+    test('accept concurrent renewals of the same token in the grace period', async () => {
+      const results = await Promise.all([rotate('t1', 'a'), rotate('t1', 'b'), rotate('t1', 'c')]);
+      expect(results).toEqual(['p1', 'p1', 'p1']);
+    });
+
+    test('reused after the grace period revoke the whole family', async () => {
+      await rotate('t1', 't2');
+
+      await expect(rotate('t1', 't3', 0)).resolves.toBeNull();
+
+      await expect(rotate('t2', 't4')).resolves.toBeNull();
+    });
+
+    test('revoked at logout stop the whole family, but not other sessions', async () => {
+      await store.createRefreshToken({ tokenHash: 'other', familyId: 'f2', playerId: 'p1', expiresAt: inOneHour() });
+      await rotate('t1', 't2');
+
+      await store.revokeRefreshToken('t1');
+
+      await expect(rotate('t2', 't3')).resolves.toBeNull();
+      await expect(rotate('other', 'other2')).resolves.toBe('p1');
+    });
+
+    test('are stored only with the given hash', async () => {
+      const { rows } = await pool.query('SELECT token_hash FROM refresh_tokens');
+      expect(rows).toEqual([{ token_hash: 't1' }]);
+    });
   });
 
   test('a deleted game disappears and its movements are kept', async () => {

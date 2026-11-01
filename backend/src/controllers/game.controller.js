@@ -22,6 +22,7 @@ import {
   deleteGameSafely,
 } from "../services/persistence.service.js";
 import { SEMI_EMOJI, VALORI_NUM, GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
+import { playerRoom } from "../sockets/index.js";
 import config from "../config/index.js";
 
 /**
@@ -47,7 +48,8 @@ export const getLobby = asyncHandler(async (req, res) => {
  * POST /api/games
  */
 export const createGame = asyncHandler(async (req, res) => {
-  const { playerId, requiredCredits, isPrivate, maxPlayers } = req.body;
+  const { playerId } = req.auth;
+  const { requiredCredits, isPrivate, maxPlayers } = req.body;
 
   const player = req.gameState.players[playerId];
   if (!player) {
@@ -63,6 +65,7 @@ export const createGame = asyncHandler(async (req, res) => {
 
   req.gameState.games[gameId] = {
     id: gameId,
+    createdBy: playerId,
     players: [],
     requiredCredits: credits,
     isPrivate: isPrivate || false,
@@ -95,11 +98,18 @@ export const createGame = asyncHandler(async (req, res) => {
  */
 export const getGame = asyncHandler(async (req, res) => {
   // Finished games are not reloaded into memory after a restart
-  const game = req.gameState.games[req.params.gameId]
-    ?? await req.store.findGame(req.params.gameId);
+  const { gameId } = req.params;
+  const game = (Object.hasOwn(req.gameState.games, gameId) ? req.gameState.games[gameId] : null)
+    ?? await req.store.findGame(gameId);
   if (!game) {
     throw new AppError("Game not found", 404);
   }
+
+  const { playerId } = req.auth;
+  if (game.createdBy !== playerId && !game.players.some((p) => p.id === playerId)) {
+    throw new AppError("You are not part of this game", 403);
+  }
+
   sendSuccess(res, game);
 });
 
@@ -109,7 +119,7 @@ export const getGame = asyncHandler(async (req, res) => {
  */
 export const joinGame = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId } = req.body;
+  const { playerId } = req.auth;
 
   const game = req.gameState.games[gameId];
   if (!game) {
@@ -117,9 +127,6 @@ export const joinGame = asyncHandler(async (req, res) => {
   }
 
   const player = req.gameState.players[playerId];
-  if (!player) {
-    throw new AppError("Player not found", 404);
-  }
 
   // Allow joining if status is waiting or just auto-started
   if (game.status !== GAME_STATUS.WAITING && game.status !== GAME_STATUS.PLAYING) {
@@ -167,6 +174,7 @@ export const joinGame = asyncHandler(async (req, res) => {
   await saveGameSafely(req.store, game);
 
   req.io.to(gameId).emit("playerJoined", { player: { id: playerId, name: player.name } });
+  req.io.in(playerRoom(playerId)).socketsJoin(gameId);
 
   // Respond BEFORE auto-start to avoid race condition
   const willAutoStart = game.players.length === game.maxPlayers;
@@ -188,11 +196,13 @@ export const startGame = asyncHandler(async (req, res) => {
     throw new AppError("Game not found", 404);
   }
 
-  const { playerId } = req.body || {};
-  const ownerId = game.players[0]?.id;
-
-  if (playerId && ownerId && playerId !== ownerId) {
+  if (req.auth.playerId !== game.players[0]?.id) {
     throw new AppError("Only the game creator can start the game", 403);
+  }
+
+  // Starting twice would charge the entry fee twice
+  if (game.status !== GAME_STATUS.WAITING) {
+    throw new AppError("Game already started", 400);
   }
 
   if (game.players.length < GAME_DEFAULTS.MIN_PLAYERS) {
@@ -252,12 +262,8 @@ export const drawCard = asyncHandler(async (req, res) => {
     throw new AppError("Deck exhausted", 400);
   }
 
-  const { playerId } = req.body || {};
-  if (playerId) {
-    const ownerId = game.players[0]?.id;
-    if (!ownerId || playerId !== ownerId) {
-      throw new AppError("Only the game creator can draw cards", 403);
-    }
+  if (req.auth.playerId !== game.players[0]?.id) {
+    throw new AppError("Only the game creator can draw cards", 403);
   }
 
   const creditMovements = trackCredits(req.gameState, game);
@@ -301,7 +307,8 @@ export const drawCard = asyncHandler(async (req, res) => {
  */
 export const claimCollection = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId, tipo } = req.body;
+  const { playerId } = req.auth;
+  const { tipo } = req.body;
 
   const game = req.gameState.games[gameId];
   if (!game) {
@@ -364,7 +371,8 @@ export const claimCollection = asyncHandler(async (req, res) => {
  */
 export const useJolly = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId, row, col, tipo } = req.body;
+  const { playerId } = req.auth;
+  const { row, col, tipo } = req.body;
 
   const game = req.gameState.games[gameId];
   if (!game) {
@@ -447,7 +455,7 @@ export const useJolly = asyncHandler(async (req, res) => {
  */
 export const leaveGame = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId } = req.body;
+  const { playerId } = req.auth;
 
   const game = req.gameState.games[gameId];
   const player = req.gameState.players[playerId];
@@ -464,6 +472,7 @@ export const leaveGame = asyncHandler(async (req, res) => {
     player.currentGameId = null;
 
     req.io.to(gameId).emit("playerLeft", { playerId, playerName: player.name });
+    req.io.in(playerRoom(playerId)).socketsLeave(gameId);
 
     // Delete game if waiting and no players left
     if (game.status === GAME_STATUS.WAITING && game.players.length === 0) {
@@ -481,6 +490,11 @@ export const leaveGame = asyncHandler(async (req, res) => {
  * Helper function to auto-start a game when max players reached
  */
 async function autoStartGame(game, gameId, io, gameState, store) {
+  // The creator may have started the game in the meantime
+  if (game.status !== GAME_STATUS.WAITING) {
+    return;
+  }
+
   const creditMovements = trackCredits(gameState, game);
 
   let montepremi = 0;

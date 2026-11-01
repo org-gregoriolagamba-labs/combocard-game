@@ -13,15 +13,16 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import { Server as SocketIO } from "socket.io";
 
-import config from "./config/index.js";
+import config, { assertAuthConfig } from "./config/index.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
 
 // Import routes
-import { playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
+import { authRoutes, playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
 
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
@@ -35,6 +36,7 @@ import { buildCorsOriginHandler } from "./utils/cors.utils.js";
 
 // Create Express app and HTTP server
 const app = express();
+app.set("trust proxy", config.trustProxy);
 const server = http.createServer(app);
 
 // Game state - working copy of players and games, written through to the store
@@ -74,6 +76,7 @@ app.use(cors({
 app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser());
 // Express 5 leaves req.body undefined when no body is sent; controllers read fields from it
 app.use((req, res, next) => {
   req.body ??= {};
@@ -109,6 +112,7 @@ app.use((req, res, next) => {
 // API Routes
 // ========================
 app.use("/api/health", healthRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/games", gameRoutes);
 
@@ -142,12 +146,19 @@ app.use(errorHandler);
 // ========================
 // Socket.IO Handlers
 // ========================
-initializeSocketHandlers(io);
+initializeSocketHandlers(io, gameState);
 
 // ========================
 // Server Startup
 // ========================
 const startServer = async () => {
+  try {
+    assertAuthConfig();
+  } catch (err) {
+    console.error(`❌ Invalid configuration: ${err.message}`);
+    process.exit(1);
+  }
+
   try {
     store = await initializePersistence(gameState);
   } catch (err) {

@@ -6,6 +6,7 @@
 
 import { test as base } from '@playwright/test';
 import { faker } from '@faker-js/faker';
+import { registerPlayer } from '../helpers/auth.js';
 
 /**
  * Extended test with custom fixtures
@@ -28,39 +29,20 @@ export const test = base.extend({
   },
 
   /**
-   * Register a new player and provide their data
+   * Register a new account and provide its data
    */
   registeredPlayer: async ({ page, apiUrl, playerName }, use) => {
-    try {
-      // Register player via API
-      const response = await page.request.post(`${apiUrl}/api/players/register`, {
-        data: { name: playerName },
-      });
-
-      if (!response.ok()) {
-        const errorBody = await response.text();
-        throw new Error(`Failed to register player: ${response.status()} - ${errorBody}`);
-      }
-
-      const player = await response.json();
-      await use(player);
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
+    await use(await registerPlayer(page.request, apiUrl, playerName));
   },
 
   /**
-   * Page with player already registered
+   * Page with a player already logged in: the refresh cookie brings back the session
    */
   authenticatedPage: async ({ page, registeredPlayer }, use) => {
-    // Store player ID in localStorage
-    await page.addInitScript((player) => {
-      localStorage.setItem('playerId', player.id);
-      localStorage.setItem('playerName', player.name);
-    }, registeredPlayer);
-
     await page.goto('/');
+    await page.getByRole('heading', { name: new RegExp(registeredPlayer.name.slice(0, 3), 'i') }).or(
+      page.getByRole('heading', { name: /hall/i }),
+    ).first().waitFor();
     await use(page);
   },
 });
