@@ -6,6 +6,8 @@
 
 import { Router } from "express";
 import * as playerController from "../controllers/player.controller.js";
+import { validate } from "../middleware/validation.middleware.js";
+import { registerPlayerSchema, buyCreditsSchema } from "../validation/schemas.js";
 
 const router = Router();
 
@@ -14,7 +16,7 @@ const router = Router();
  * @desc    Register a new player
  * @access  Public
  */
-router.post("/register", playerController.register);
+router.post("/register", validate(registerPlayerSchema), playerController.register);
 
 /**
  * @route   GET /api/players
@@ -35,6 +37,6 @@ router.get("/:playerId", playerController.getPlayer);
  * @desc    Buy credits for a player
  * @access  Public
  */
-router.post("/:playerId/buy-credits", playerController.buyCredits);
+router.post("/:playerId/buy-credits", validate(buyCreditsSchema), playerController.buyCredits);
 
 export default router;
