@@ -243,10 +243,12 @@ chmod 600 backend/.env
 | Setting | Why it matters |
 |---------|----------------|
 | `CORS_ORIGIN` | Without it, the server refuses requests coming from your own site |
-| `TRUST_PROXY=1` | Without it, every user appears to have the IP of Nginx and they all share the same login attempt limit |
+| `TRUST_PROXY=1` | Without it, every user appears to have the IP of Nginx and they all share the same request and login attempt limits |
 | `COOKIE_SECURE` | Not needed: it is already on in production |
 
 Migrations run automatically at startup.
+
+The default request limits fit normal play, so you do not need to set them. See [Rate Limits](#rate-limits).
 
 ### 3. Build the Frontend
 
@@ -336,6 +338,20 @@ Run a single instance: the state of the active games lives in the memory of one 
 - [ ] With two browsers, drawn cards appear on both: this confirms that the WebSockets work
 - [ ] `https://game.example.com/api/health` answers `success`
 - [ ] `https://game.example.com/api/health/detailed` shows `database.enabled: true` and `pendingWrites: 0`
+
+### Rate Limits
+
+The limits apply per IP address, in production only. Players behind the same public IP address, for example at home or in an office, share them.
+
+| Limit | Default | Setting |
+|-------|---------|---------|
+| All `/api/` requests | 3000 every 15 minutes | `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS` |
+| Registration | 10 per minute | Fixed |
+| Failed logins | 10 per minute | Fixed |
+
+The client polls the server while waiting: every 3 seconds in the hall and every 2 seconds in a lobby, so up to 450 requests every 15 minutes per player. The default covers about 6 players on the same IP address. If players get HTTP 429 in normal use, raise `RATE_LIMIT_MAX_REQUESTS` by 450 for each additional player.
+
+A `backend/.env` copied from an older example may still contain `RATE_LIMIT_MAX_REQUESTS=100`, which blocks a player after a few minutes: remove that line or update the value.
 
 ### Updates and Backups
 
@@ -555,8 +571,8 @@ DATABASE_URL=postgresql://user:password@localhost:5432/combocard
 DATABASE_POOL_MAX=10
 
 # Rate Limiting
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=3000
 
 # Logging
 LOG_LEVEL=info
@@ -675,7 +691,11 @@ The browser is discarding the refresh cookie. The site must use HTTPS. To try a 
 
 Set `TRUST_PROXY` to the number of reverse proxies in front of the server, usually `1`.
 
-#### 9. Requests Fail With HTTP 500 and "CORS blocked" in the Logs
+#### 9. Players Get HTTP 429 During Normal Use
+
+Check `RATE_LIMIT_MAX_REQUESTS` and `TRUST_PROXY`. See [Rate Limits](#rate-limits).
+
+#### 10. Requests Fail With HTTP 500 and "CORS blocked" in the Logs
 
 The address in the browser must be listed in `CORS_ORIGIN`, with the same protocol and port.
 
@@ -718,6 +738,7 @@ The address in the browser must be listed in `CORS_ORIGIN`, with the same protoc
 - [ ] Set a private `JWT_SECRET`, at least 32 characters
 - [ ] Set `DATABASE_URL`, with a strong password
 - [ ] Set `TRUST_PROXY` when behind Nginx
+- [ ] Check that `RATE_LIMIT_MAX_REQUESTS` is not set to an old low value
 - [ ] Build the frontend with `REACT_APP_BACKEND_URL`
 - [ ] Keep ports 3001 and 5432 closed from the outside
 - [ ] Enable HTTPS/TLS
