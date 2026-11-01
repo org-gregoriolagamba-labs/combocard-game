@@ -16,7 +16,7 @@ const COLLEZIONI_ICONS = {
   combocard_reale: "👑",
 };
 
-function PlayersList({ game, currentPlayerId }) {
+function PlayersList({ game = null, currentPlayerId = null }) {
   return (
     <div className="bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
       <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-green-900">
@@ -85,11 +85,6 @@ PlayersList.propTypes = {
     ),
   }),
   currentPlayerId: PropTypes.string,
-};
-
-PlayersList.defaultProps = {
-  game: null,
-  currentPlayerId: null,
 };
 
 export default PlayersList;

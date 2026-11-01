@@ -74,7 +74,7 @@ combocard-game/
 - **Development**: Nodemon, ESLint, Jest
 
 ### Frontend
-- **Framework**: React 18
+- **Framework**: React 19
 - **State Management**: Redux Toolkit
 - **Routing**: React Router v6
 - **Styling**: Tailwind CSS 3
