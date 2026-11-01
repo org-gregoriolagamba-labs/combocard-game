@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 
 // Load environment variables from .env file
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env"), quiet: true });
 
 const corsOriginRaw = process.env.CORS_ORIGIN;
 

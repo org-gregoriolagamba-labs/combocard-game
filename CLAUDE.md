@@ -24,7 +24,7 @@ Ogni route che riceve un corpo lo valida con uno schema di `backend/src/validati
 
 ## Requisiti
 
-- Playwright richiede Node.js 20 o superiore. Il campo `engines` dice `>=18`, ma con Node 18 i test e2e non partono.
+- Node.js 20.19 o superiore.
 
 ## Regole di repository
 
