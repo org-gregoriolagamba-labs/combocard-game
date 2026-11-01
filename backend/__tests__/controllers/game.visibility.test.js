@@ -241,7 +241,7 @@ describe('game visibility', () => {
       player.cartella[0][2] = card('Re', 'Spade');
       // The jolly cannot become a card that is already in the grid
       player.cartella.forEach((row, r) => row.forEach((c, col) => {
-        if (r > 0 && c.valore === 'Asso' && c.seme === 'Spade') {
+        if (c.valore === 'Asso' && c.seme === 'Spade') {
           player.cartella[r][col] = card('Fante', 'Coppe');
         }
       }));
