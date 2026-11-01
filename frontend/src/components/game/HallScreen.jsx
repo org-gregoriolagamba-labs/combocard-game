@@ -37,12 +37,10 @@ function HallScreen() {
     return () => clearInterval(interval);
   }, [dispatch]);
 
-  // Reset amount when opening cash register
-  useEffect(() => {
-    if (showCassa) {
-      setCreditiDaAcquistare(0);
-    }
-  }, [showCassa]);
+  const handleApriCassa = () => {
+    setCreditiDaAcquistare(0);
+    setShowCassa(true);
+  };
 
   const handleAcquistaCrediti = async () => {
     if (creditiDaAcquistare <= 0) {
@@ -140,7 +138,7 @@ function HallScreen() {
                 </p>
               </div>
               <button
-                onClick={() => setShowCassa(true)}
+                onClick={handleApriCassa}
                 className="bg-gradient-to-r from-yellow-500 to-yellow-700 text-white px-6 py-3 rounded-xl font-bold hover:from-yellow-600 hover:to-yellow-800 transition shadow-lg flex items-center gap-2"
               >
                 <DollarSign size={20} />

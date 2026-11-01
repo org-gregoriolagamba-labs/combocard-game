@@ -18,8 +18,8 @@ const COLLEZIONI = [
 ];
 
 function CollezioniPanel({
-  game,
-  currentPlayer,
+  game = null,
+  currentPlayer = null,
   onClaim,
   onJollyMode,
   isGameFinished = false,
@@ -148,12 +148,6 @@ CollezioniPanel.propTypes = {
   onClaim: PropTypes.func.isRequired,
   onJollyMode: PropTypes.func.isRequired,
   isGameFinished: PropTypes.bool,
-};
-
-CollezioniPanel.defaultProps = {
-  game: null,
-  currentPlayer: null,
-  isGameFinished: false,
 };
 
 export default CollezioniPanel;

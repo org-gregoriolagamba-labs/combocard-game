@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { config } from 'dotenv';
 
 // Load environment variables
-config();
+config({ quiet: true });
 
 /**
  * Playwright Configuration for ComboCard E2E Tests
