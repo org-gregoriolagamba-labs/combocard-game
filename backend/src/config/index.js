@@ -7,6 +7,7 @@
 
 import { randomBytes } from "crypto";
 import dotenv from "dotenv";
+import { RATE_LIMIT_DEFAULTS } from "./constants.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -45,8 +46,8 @@ const config = {
   trustProxy: parseInt(process.env.TRUST_PROXY, 10) || 0,
 
   // Rate limiting
-  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000, // 15 minutes
-  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || RATE_LIMIT_DEFAULTS.WINDOW_MS,
+  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || RATE_LIMIT_DEFAULTS.MAX_REQUESTS,
   rateLimitDisabled: process.env.RATE_LIMIT_DISABLED === "true",
   
   // Game configuration

@@ -8,12 +8,18 @@ import rateLimit from "express-rate-limit";
 import config from "../config/index.js";
 
 /**
- * Create a rate limiter middleware
+ * Create the general limit on the requests of an IP address
+ * @param {Object} [options] - Values to use instead of the configured ones
+ * @returns {Function} Express middleware
  */
-export const apiLimiter = rateLimit({
-  windowMs: config.rateLimitWindowMs,
-  limit: config.rateLimitMaxRequests,
-  skip: () => config.nodeEnv === "test" || config.rateLimitDisabled,
+export const createApiLimiter = ({
+  windowMs = config.rateLimitWindowMs,
+  limit = config.rateLimitMaxRequests,
+  skip = () => config.nodeEnv === "test" || config.rateLimitDisabled,
+} = {}) => rateLimit({
+  windowMs,
+  limit,
+  skip,
   message: {
     status: "error",
     message: "Too many requests from this IP, please try again later.",
@@ -21,6 +27,8 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const apiLimiter = createApiLimiter();
 
 /**
  * Strict rate limiter for sensitive endpoints
