@@ -1,12 +1,14 @@
 /**
  * PlayersList Component
- * 
+ *
  * Displays the list of players in the current game.
+ * On a phone it starts collapsed: the players matter less than the grid.
  */
 
 import React from "react";
 import PropTypes from "prop-types";
 import { Users, Coins } from "lucide-react";
+import { Disclosure } from "../common";
 
 const COLLEZIONI_ICONS = {
   tris: "🎯",
@@ -18,13 +20,17 @@ const COLLEZIONI_ICONS = {
 
 function PlayersList({ game = null, currentPlayerId = null }) {
   return (
-    <div className="bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
-      <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-green-900">
-        <Users size={24} />
-        Giocatori ({game?.players?.length || 0})
-      </h3>
-
-      <div className="space-y-2">
+    <div className="bg-amber-50 rounded-2xl shadow-2xl px-3 py-1 lg:px-6 lg:py-3 border-2 lg:border-4 border-amber-600">
+      <Disclosure
+        openOnDesktop
+        title={
+          <span className="flex items-center gap-2 text-base lg:text-lg">
+            <Users size={24} aria-hidden="true" />
+            Giocatori ({game?.players?.length || 0})
+          </span>
+        }
+      >
+      <div className="space-y-2 pb-3">
         {game?.players?.map((player) => (
           <div
             key={player.id}
@@ -68,6 +74,7 @@ function PlayersList({ game = null, currentPlayerId = null }) {
           </div>
         ))}
       </div>
+      </Disclosure>
     </div>
   );
 }

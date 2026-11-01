@@ -37,7 +37,7 @@ function Toast() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 space-y-2">
+    <div className="fixed inset-x-4 bottom-40 z-50 flex flex-col items-center space-y-2 lg:inset-x-auto lg:bottom-4 lg:right-4 lg:items-end">
       {toasts.map((toast) => (
         <div
           key={toast.id}

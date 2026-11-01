@@ -1,7 +1,13 @@
 /**
  * GameScreen Component
- * 
+ *
  * Main game interface where the actual card game is played.
+ *
+ * On a phone the screen is one column in reading order: header, last drawn
+ * card, the player's grid, collections, players. The main action lives in a
+ * bar fixed at the bottom, within thumb reach. On wide screens the grid sits
+ * on the left and the last card with its action, the collections and the
+ * players on the right.
  */
 
 import React, { useEffect } from "react";
@@ -21,6 +27,7 @@ import { fetchPlayer } from "../../store/slices/playerSlice";
 import Cartella from "./Cartella";
 import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
+import BarraAzione from "./BarraAzione";
 
 // Card colors for different suits
 const SEMI_COLORS = {
@@ -29,6 +36,9 @@ const SEMI_COLORS = {
   Denari: "from-yellow-500 to-yellow-700",
   Bastoni: "from-amber-700 to-amber-900",
 };
+
+// Panels: thin border and tight padding on a phone, the full frame on wide screens
+const PANEL = "bg-amber-50 rounded-2xl shadow-2xl p-3 lg:p-6 border-2 lg:border-4 border-amber-600";
 
 function GameScreen() {
   const dispatch = useDispatch();
@@ -44,6 +54,7 @@ function GameScreen() {
 
   const montepremi = game?.montepremi || 0;
   const isCreator = game?.players?.[0]?.id === playerId;
+  const creatorName = game?.players?.[0]?.name || "";
   const isGameFinished = game?.status === "finished";
 
   // Handle draw cooldown timer
@@ -148,7 +159,7 @@ function GameScreen() {
         "I tuoi gettoni attuali verranno salvati.\n\n" +
         "Sei sicuro di voler uscire?"
       );
-      
+
       if (!confirmed) {
         return;
       }
@@ -173,146 +184,116 @@ function GameScreen() {
     );
   }
 
+  const azione = (variant) => (
+    <BarraAzione
+      variant={variant}
+      isCreator={isCreator}
+      creatorName={creatorName}
+      status={game?.status}
+      drawCooldown={drawCooldown}
+      jollyMode={isGameFinished ? null : jollyMode}
+      onDraw={handleEstraiCarta}
+      onCancelJolly={() => dispatch(setJollyMode(null))}
+      onLeave={handleTornaAllaHall}
+    />
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-4">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-3 pb-28 lg:p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Game finished banner */}
-        {isGameFinished && (
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-xl shadow-2xl z-50 font-bold text-center">
-            <p className="text-lg">🏆 PARTITA TERMINATA!</p>
-            <p className="text-sm">Torna alla Hall per iniziare una nuova partita</p>
-          </div>
-        )}
-
-        {/* Jolly mode banner */}
-        {jollyMode && !isGameFinished && (
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-xl shadow-2xl z-50 font-bold text-center">
-            <p>🎯 Modalità Jolly attivata per {jollyMode.toUpperCase().replace("_", " ")}</p>
-            <p className="text-sm">Clicca su una carta non coperta</p>
-            <button
-              onClick={() => dispatch(setJollyMode(null))}
-              className="mt-2 bg-red-500 text-white px-4 py-1 rounded-lg text-xs hover:bg-red-600"
-            >
-              Annulla
-            </button>
-          </div>
-        )}
-
         {/* Header */}
-        <div className="bg-amber-50 rounded-2xl shadow-2xl p-4 mb-4 border-4 border-amber-600">
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-green-900 flex items-center gap-2">
+        <header className={`${PANEL} mb-3 lg:mb-4 lg:p-4`}>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="order-1 min-w-0 flex-1">
+              <h2 className="truncate text-lg lg:text-2xl font-bold text-green-900">
                 🎴 COMBOCARD - {playerName}
               </h2>
-              <p className="text-sm text-green-700">Codice: {gameId}</p>
+              <p className="text-xs lg:text-sm text-green-700">Codice: {gameId}</p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-green-700">Montepremi</p>
-                <p className="text-2xl font-bold text-amber-600 flex items-center gap-1">
-                  <Coins size={24} />
+            <button
+              onClick={handleTornaAllaHall}
+              className="order-2 lg:order-3 min-h-[44px] bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-bold hover:bg-gray-400 transition flex items-center gap-2"
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              Hall
+            </button>
+
+            <div className="order-3 lg:order-2 flex w-full items-center gap-5 lg:w-auto lg:gap-4">
+              <div className="flex items-center gap-1.5 lg:block">
+                <p className="text-xs lg:text-sm text-green-700">Montepremi</p>
+                <p className="text-lg lg:text-2xl font-bold text-amber-600 flex items-center gap-1">
+                  <Coins size={20} aria-hidden="true" />
                   {montepremi}
                 </p>
               </div>
 
-              <div className="text-right">
-                <p className="text-sm text-green-700">Tuoi Gettoni</p>
-                <p className="text-2xl font-bold text-green-600 flex items-center gap-1">
-                  <Coins size={24} />
+              <div className="flex items-center gap-1.5 lg:block">
+                <p className="text-xs lg:text-sm text-green-700">Tuoi Gettoni</p>
+                <p className="text-lg lg:text-2xl font-bold text-green-600 flex items-center gap-1">
+                  <Coins size={20} aria-hidden="true" />
                   {currentPlayer.gettoni}
                 </p>
               </div>
-
-              <button
-                onClick={handleTornaAllaHall}
-                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-bold hover:bg-gray-400 transition flex items-center gap-2"
-              >
-                <ArrowLeft size={18} />
-                Hall
-              </button>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Main game area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Player's card grid */}
-          <div className="lg:col-span-2 bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
-            <h3 className="text-xl font-bold mb-4 text-green-900">🎴 La Tua Cartella</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
+          {/* Last drawn card: leads on a phone, top of the sidebar on wide screens */}
+          <section className={`${PANEL} lg:col-start-3`}>
+            <div className="mb-2 lg:mb-4 flex items-baseline justify-between gap-2">
+              <h3 className="text-base lg:text-lg font-bold text-green-900">🎴 Ultima Carta</h3>
+              <p className="text-xs lg:text-sm text-green-800">
+                Carte rimaste: {game?.carteRimaste ?? 0}/40
+              </p>
+            </div>
 
-            <Cartella
-              cartella={currentPlayer.cartella}
-              coperte={currentPlayer.coperte}
-              jollyPos={currentPlayer.jollyPos}
-              jollyMode={jollyMode}
-              jollyUsato={currentPlayer.jollyUsato}
-              onCardClick={isGameFinished ? () => {} : handleUsaJolly}
-            />
+            {ultimaCartaEstratta ? (
+              <div
+                className={`bg-gradient-to-br ${SEMI_COLORS[ultimaCartaEstratta.seme]} border-2 lg:border-4 border-white rounded-xl lg:rounded-2xl p-2 lg:p-8 shadow-xl flex items-center gap-3 lg:block lg:text-center`}
+              >
+                <div className="text-3xl lg:text-7xl lg:mb-3" aria-hidden="true">{ultimaCartaEstratta.emoji}</div>
+                <div>
+                  <span className="text-2xl lg:block lg:text-3xl font-bold text-white lg:mb-1">{ultimaCartaEstratta.valore}</span>{" "}
+                  <span className="text-sm lg:block text-white opacity-90">di {ultimaCartaEstratta.seme}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-100 rounded-xl lg:rounded-2xl p-3 lg:p-8 text-center text-green-700 border-2 border-green-300">
+                Nessuna carta estratta
+              </div>
+            )}
+
+            {/* On wide screens the action sits under the card; a phone has the bar below */}
+            <div className="hidden lg:block mt-4">{azione("panel")}</div>
+          </section>
+
+          {/* Player's card grid */}
+          <section className={`${PANEL} lg:col-start-1 lg:col-span-2 lg:row-start-1 lg:row-span-3`}>
+            <h3 className="text-base lg:text-xl font-bold mb-2 lg:mb-4 text-green-900">🎴 La Tua Cartella</h3>
+
+            <div className="mx-auto w-full max-w-sm lg:max-w-none">
+              <Cartella
+                cartella={currentPlayer.cartella}
+                coperte={currentPlayer.coperte}
+                jollyPos={currentPlayer.jollyPos}
+                jollyMode={jollyMode}
+                jollyUsato={currentPlayer.jollyUsato}
+                onCardClick={isGameFinished ? () => {} : handleUsaJolly}
+              />
+            </div>
 
             {!currentPlayer.jollyUsato && !jollyMode && !isGameFinished && (
               <p className="text-xs text-green-700 mt-3 text-center">
                 💡 Seleziona una collezione e poi clicca &quot;Usa Jolly&quot; per attivare la modalità Jolly
               </p>
             )}
-          </div>
+          </section>
 
-          {/* Right sidebar */}
-          <div className="space-y-4">
-            {/* Last drawn card */}
-            <div className="bg-amber-50 rounded-2xl shadow-2xl p-6 border-4 border-amber-600">
-              <h3 className="text-lg font-bold mb-4 text-green-900">🎴 Ultima Carta</h3>
-
-              {ultimaCartaEstratta ? (
-                <div
-                  className={`bg-gradient-to-br ${SEMI_COLORS[ultimaCartaEstratta.seme]} border-4 border-white rounded-2xl p-8 text-center shadow-2xl`}
-                >
-                  <div className="text-7xl mb-3">{ultimaCartaEstratta.emoji}</div>
-                  <div className="text-3xl font-bold text-white mb-1">{ultimaCartaEstratta.valore}</div>
-                  <div className="text-sm text-white opacity-90">di {ultimaCartaEstratta.seme}</div>
-                </div>
-              ) : (
-                <div className="bg-green-100 rounded-2xl p-8 text-center text-green-700 border-2 border-green-300">
-                  Nessuna carta estratta
-                </div>
-              )}
-
-              <button
-                onClick={handleEstraiCarta}
-                disabled={isGameFinished || game?.status !== "playing" || !isCreator || drawCooldown > 0}
-                className="w-full mt-4 bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGameFinished
-                  ? "🏆 Partita Terminata"
-                  : drawCooldown > 0
-                  ? `⏱️ Attendi ${drawCooldown}s`
-                  : "🎲 Estrai Carta"}
-              </button>
-
-              <p className="text-xs text-green-700 mt-2 text-center">
-                Carte rimaste: {game?.carteRimaste ?? 0}/40
-              </p>
-
-              {drawCooldown > 0 && !isGameFinished && (
-                <div className="mt-2 bg-yellow-100 rounded-lg p-2 text-center">
-                  <div className="text-xs text-yellow-800 font-bold">
-                    💡 Usa questo tempo per valutare il Jolly
-                  </div>
-                  <div className="w-full bg-yellow-200 rounded-full h-2 mt-2 overflow-hidden">
-                    <div
-                      className="bg-yellow-600 h-full transition-all duration-1000"
-                      style={{ width: `${(drawCooldown / 8) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Players list */}
-            <PlayersList game={game} currentPlayerId={playerId} />
-
-            {/* Collections panel */}
+          {/* Collections panel */}
+          <div className="lg:col-start-3">
             <CollezioniPanel
               game={game}
               currentPlayer={currentPlayer}
@@ -321,7 +302,17 @@ function GameScreen() {
               isGameFinished={isGameFinished}
             />
           </div>
+
+          {/* Players list */}
+          <div className="lg:col-start-3">
+            <PlayersList game={game} currentPlayerId={playerId} />
+          </div>
         </div>
+      </div>
+
+      {/* Main action, fixed at the bottom of a phone screen */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-amber-600 bg-amber-50 px-3 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] lg:hidden">
+        <div className="mx-auto max-w-md">{azione("bar")}</div>
       </div>
     </div>
   );

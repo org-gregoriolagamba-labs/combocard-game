@@ -17,7 +17,7 @@ function Cartella({
   onCardClick = () => {},
 }) {
   return (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
       {cartella.map((row, r) =>
         row.map((carta, c) => {
           const coperta = coperte[r][c];
@@ -30,13 +30,13 @@ function Cartella({
             <div
               key={`${r}-${c}`}
               onClick={() => isClickable && onCardClick(r, c)}
-              className={`aspect-square rounded-xl relative flex flex-col items-center justify-center text-center p-2 transition-all duration-300 bg-gradient-to-br ${gradientClass} border-2 border-amber-200 shadow-md ${
+              className={`aspect-square rounded-xl relative flex flex-col items-center justify-center text-center p-1 sm:p-2 transition-all duration-300 bg-gradient-to-br ${gradientClass} border-2 border-amber-200 shadow-md ${
                 isClickable
                   ? "cursor-pointer hover:scale-105 ring-4 ring-yellow-400"
                   : ""
               }`}
             >
-              <div className="text-3xl mb-1 select-none" aria-hidden="true">
+              <div className="text-2xl sm:text-3xl mb-0.5 sm:mb-1 select-none" aria-hidden="true">
                 {carta.emoji}
               </div>
               <div className="text-xs font-bold text-white">{carta.valore}</div>
