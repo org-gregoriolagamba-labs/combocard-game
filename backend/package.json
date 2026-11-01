@@ -32,8 +32,7 @@
     "eslint": "^10.14.0",
     "globals": "^17.13.0",
     "jest": "^30.5.2",
-    "nodemon": "^3.0.3",
-    "supertest": "^7.3.1"
+    "nodemon": "^3.0.3"
   },
   "engines": {
     "node": ">=20.19.0"
