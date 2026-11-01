@@ -20,9 +20,8 @@ export const getLobby = async () => {
  * @param {Object} options - Game options
  * @returns {Promise} Game data
  */
-export const createGame = async ({ playerId, requiredCredits, isPrivate, maxPlayers }) => {
+export const createGame = async ({ requiredCredits, isPrivate, maxPlayers }) => {
   const response = await api.post("/games", {
-    playerId,
     requiredCredits,
     isPrivate,
     maxPlayers,
@@ -43,45 +42,41 @@ export const getGame = async (gameId) => {
 /**
  * Join a game
  * @param {string} gameId - Game ID
- * @param {string} playerId - Player ID
  * @returns {Promise} Join result
  */
-export const joinGame = async (gameId, playerId) => {
-  const response = await api.post(`/games/${gameId}/join`, { playerId });
+export const joinGame = async (gameId) => {
+  const response = await api.post(`/games/${gameId}/join`);
   return response.data;
 };
 
 /**
  * Start a game
  * @param {string} gameId - Game ID
- * @param {string} playerId - Player ID
  * @returns {Promise} Start result
  */
-export const startGame = async (gameId, playerId) => {
-  const response = await api.post(`/games/${gameId}/start`, { playerId });
+export const startGame = async (gameId) => {
+  const response = await api.post(`/games/${gameId}/start`);
   return response.data;
 };
 
 /**
  * Draw a card
  * @param {string} gameId - Game ID
- * @param {string} playerId - Player ID
  * @returns {Promise} Drawn card
  */
-export const drawCard = async (gameId, playerId) => {
-  const response = await api.post(`/games/${gameId}/draw`, { playerId });
+export const drawCard = async (gameId) => {
+  const response = await api.post(`/games/${gameId}/draw`);
   return response.data;
 };
 
 /**
  * Claim a collection
  * @param {string} gameId - Game ID
- * @param {string} playerId - Player ID
  * @param {string} tipo - Collection type
  * @returns {Promise} Claim result
  */
-export const claimCollection = async (gameId, playerId, tipo) => {
-  const response = await api.post(`/games/${gameId}/claim`, { playerId, tipo });
+export const claimCollection = async (gameId, tipo) => {
+  const response = await api.post(`/games/${gameId}/claim`, { tipo });
   return response.data;
 };
 
@@ -91,9 +86,8 @@ export const claimCollection = async (gameId, playerId, tipo) => {
  * @param {Object} options - Jolly options
  * @returns {Promise} Jolly result
  */
-export const useJolly = async (gameId, { playerId, row, col, tipo }) => {
+export const useJolly = async (gameId, { row, col, tipo }) => {
   const response = await api.post(`/games/${gameId}/jolly`, {
-    playerId,
     row,
     col,
     tipo,
@@ -104,10 +98,9 @@ export const useJolly = async (gameId, { playerId, row, col, tipo }) => {
 /**
  * Leave a game
  * @param {string} gameId - Game ID
- * @param {string} playerId - Player ID
  * @returns {Promise} Leave result
  */
-export const leaveGame = async (gameId, playerId) => {
-  const response = await api.post(`/games/${gameId}/leave`, { playerId });
+export const leaveGame = async (gameId) => {
+  const response = await api.post(`/games/${gameId}/leave`);
   return response.data;
 };

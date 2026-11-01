@@ -6,35 +6,30 @@
 
 import { Router } from "express";
 import * as playerController from "../controllers/player.controller.js";
+import { validate } from "../middleware/validation.middleware.js";
+import { requireAuth, requireSelf } from "../middleware/auth.middleware.js";
+import { buyCreditsSchema } from "../validation/schemas.js";
 
 const router = Router();
 
 /**
- * @route   POST /api/players/register
- * @desc    Register a new player
- * @access  Public
- */
-router.post("/register", playerController.register);
-
-/**
- * @route   GET /api/players
- * @desc    Get all players (debug)
- * @access  Public
- */
-router.get("/", playerController.getAllPlayers);
-
-/**
  * @route   GET /api/players/:playerId
- * @desc    Get player by ID
- * @access  Public
+ * @desc    Get your own player
+ * @access  Authenticated, self only
  */
-router.get("/:playerId", playerController.getPlayer);
+router.get("/:playerId", requireAuth, requireSelf, playerController.getPlayer);
 
 /**
  * @route   POST /api/players/:playerId/buy-credits
  * @desc    Buy credits for a player
- * @access  Public
+ * @access  Authenticated, self only
  */
-router.post("/:playerId/buy-credits", playerController.buyCredits);
+router.post(
+  "/:playerId/buy-credits",
+  requireAuth,
+  requireSelf,
+  validate(buyCreditsSchema),
+  playerController.buyCredits,
+);
 
 export default router;

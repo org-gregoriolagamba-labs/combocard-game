@@ -34,6 +34,7 @@ export const detailedHealthCheck = (req, res) => {
       heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + " MB",
       rss: Math.round(memoryUsage.rss / 1024 / 1024) + " MB",
     },
+    database: req.store?.status() ?? null,
     gameState: {
       activeGames: Object.keys(req.gameState?.games || {}).length,
       registeredPlayers: Object.keys(req.gameState?.players || {}).length,

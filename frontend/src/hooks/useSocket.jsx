@@ -45,21 +45,27 @@ export function useSocket() {
     }
   }, [currentGameId, playerId, dispatch]);
 
-  // Initialize socket connection
+  // The server accepts only authenticated connections: connect after the login,
+  // disconnect after the logout
   useEffect(() => {
+    if (!playerId) {
+      socketService.disconnect();
+      return undefined;
+    }
+
     const socket = socketService.connect();
 
-    // Connection events
-    socket.on("connect", () => {
+    const handleConnect = () => {
       if (currentGameId) {
         socketService.joinGame(currentGameId);
       }
-    });
+    };
+    socket.on("connect", handleConnect);
 
     return () => {
-      // Don't disconnect on unmount, just cleanup listeners
+      socket.off("connect", handleConnect);
     };
-  }, [currentGameId]);
+  }, [playerId, currentGameId]);
 
   // Join game room when gameId changes
   useEffect(() => {
@@ -70,8 +76,9 @@ export function useSocket() {
 
   // Game event handlers
   useEffect(() => {
+    if (!playerId) return undefined;
+
     const socket = socketService.getSocket();
-    if (!socket) return;
 
     // Player joined
     const handlePlayerJoined = ({ player }) => {
@@ -105,14 +112,12 @@ export function useSocket() {
     const handleCardDrawn = ({ carta }) => {
       if (!carta) return;
       dispatch(setUltimaCartaEstratta(carta));
+      refreshGameState();
     };
 
-    // Card covered
-    const handleCardCovered = ({ playerId: coveredPlayerId, row, col }) => {
-      if (coveredPlayerId === playerId) {
-        dispatch(updatePlayerCards({ row, col, covered: true }));
-      }
-      refreshGameState();
+    // Card covered: the server notifies only the owner of the grid
+    const handleCardCovered = ({ row, col }) => {
+      dispatch(updatePlayerCards({ row, col, covered: true }));
     };
 
     // Collection won
@@ -144,7 +149,7 @@ export function useSocket() {
     };
 
     // Jolly used
-    const handleJollyUsato = ({ playerId: jollyPlayerId, _row, _col, _newCard, tipo }) => {
+    const handleJollyUsato = ({ playerId: jollyPlayerId, tipo }) => {
       if (jollyPlayerId !== playerId) {
         dispatch(addToast({
           message: `🃏 Un giocatore ha usato il Jolly per ${tipo.toUpperCase().replace("_", " ")}`,

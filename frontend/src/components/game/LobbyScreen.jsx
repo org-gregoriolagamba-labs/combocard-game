@@ -47,7 +47,7 @@ function LobbyScreen() {
 
   const handleIniziaPartita = async () => {
     try {
-      const result = await dispatch(startGame({ gameId, playerId })).unwrap();
+      const result = await dispatch(startGame({ gameId })).unwrap();
       dispatch(setGame(result.game));
       
       const cp = result.game.players.find((p) => p.id === playerId);
@@ -62,7 +62,7 @@ function LobbyScreen() {
 
   const handleTornaAllaHall = async () => {
     try {
-      await dispatch(leaveGame({ gameId, playerId })).unwrap();
+      await dispatch(leaveGame({ gameId })).unwrap();
       await dispatch(fetchPlayer(playerId));
       dispatch(setScreen("hall"));
     } catch (error) {

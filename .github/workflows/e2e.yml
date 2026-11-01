@@ -20,19 +20,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install root dependencies
-        run: npm install
+        run: npm ci
 
       - name: Install backend dependencies
-        run: npm --prefix backend install
+        run: npm --prefix backend ci
 
       - name: Install frontend dependencies
-        run: npm --prefix frontend install
+        run: npm --prefix frontend ci
 
       - name: Install E2E dependencies
-        run: npm --prefix e2e install
+        run: npm --prefix e2e ci
 
       - name: Install Playwright Browsers
         run: npx --prefix e2e playwright install --with-deps
@@ -50,6 +50,8 @@ jobs:
           echo "Backend PID: $(cat /tmp/backend.pid)"
         env:
           NODE_ENV: production
+          JWT_SECRET: e2e-only-secret-not-used-anywhere-else-0123456789
+          COOKIE_SECURE: 'false'
           PORT: 3001
           CORS_ORIGIN: http://localhost:3000
           RATE_LIMIT_DISABLED: 'true'
@@ -142,14 +144,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: |
-          npm install
-          npm --prefix backend install
-          npm --prefix frontend install
-          npm --prefix e2e install
+          npm ci
+          npm --prefix backend ci
+          npm --prefix frontend ci
+          npm --prefix e2e ci
 
       - name: Install Playwright Browsers (Chromium only)
         run: npx --prefix e2e playwright install chromium --with-deps
@@ -168,6 +170,8 @@ jobs:
           echo $! > /tmp/frontend.pid
         env:
           NODE_ENV: production
+          JWT_SECRET: e2e-only-secret-not-used-anywhere-else-0123456789
+          COOKIE_SECURE: 'false'
           PORT: 3001
           CORS_ORIGIN: http://localhost:3000
           RATE_LIMIT_DISABLED: 'true'

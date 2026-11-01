@@ -11,7 +11,7 @@ import { chromium } from '@playwright/test';
 import { config } from 'dotenv';
 
 // Load environment variables
-config();
+config({ quiet: true });
 
 async function globalSetup() {
   console.log('🚀 Running global setup...');

@@ -8,10 +8,34 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, sendCreated } from "../utils/response.utils.js";
 import { AppError } from "../utils/AppError.js";
 import { generateId, generaCartella, generaMazzo, shuffleArray } from "../utils/card.utils.js";
-import { autoClaimCollezioni, verificaCollezione, finishGame } from "../services/game.service.js";
+import {
+  autoClaimCollezioni,
+  gameViewFor,
+  verificaCollezione,
+  finishGame,
+  settleGamePlayer,
+} from "../services/game.service.js";
 import { trovaMiglioreConversioneJolly } from "../services/jolly.service.js";
+import {
+  CREDIT_MOVEMENT,
+  trackCredits,
+  saveGameSafely,
+  deleteGameSafely,
+} from "../services/persistence.service.js";
 import { SEMI_EMOJI, VALORI_NUM, GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
+import { playerRoom } from "../sockets/index.js";
 import config from "../config/index.js";
+
+/**
+ * Notify each player of a started game, with their own view of it
+ * @param {Object} io - Socket.IO instance
+ * @param {Object} game - Game object
+ */
+function emitGameStarted(io, game) {
+  for (const { id } of game.players) {
+    io.to(playerRoom(id)).emit("gameStarted", { game: gameViewFor(game, id) });
+  }
+}
 
 /**
  * Get lobby list (public waiting games)
@@ -36,7 +60,8 @@ export const getLobby = asyncHandler(async (req, res) => {
  * POST /api/games
  */
 export const createGame = asyncHandler(async (req, res) => {
-  const { playerId, requiredCredits, isPrivate, maxPlayers } = req.body;
+  const { playerId } = req.auth;
+  const { requiredCredits, isPrivate, maxPlayers } = req.body;
 
   const player = req.gameState.players[playerId];
   if (!player) {
@@ -52,6 +77,7 @@ export const createGame = asyncHandler(async (req, res) => {
 
   req.gameState.games[gameId] = {
     id: gameId,
+    createdBy: playerId,
     players: [],
     requiredCredits: credits,
     isPrivate: isPrivate || false,
@@ -70,9 +96,11 @@ export const createGame = asyncHandler(async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
+  await saveGameSafely(req.store, req.gameState.games[gameId]);
+
   sendCreated(res, {
     gameId,
-    game: req.gameState.games[gameId],
+    game: gameViewFor(req.gameState.games[gameId], playerId),
   }, "Game created successfully");
 });
 
@@ -81,11 +109,20 @@ export const createGame = asyncHandler(async (req, res) => {
  * GET /api/games/:gameId
  */
 export const getGame = asyncHandler(async (req, res) => {
-  const game = req.gameState.games[req.params.gameId];
+  // Finished games are not reloaded into memory after a restart
+  const { gameId } = req.params;
+  const game = (Object.hasOwn(req.gameState.games, gameId) ? req.gameState.games[gameId] : null)
+    ?? await req.store.findGame(gameId);
   if (!game) {
     throw new AppError("Game not found", 404);
   }
-  sendSuccess(res, game);
+
+  const { playerId } = req.auth;
+  if (game.createdBy !== playerId && !game.players.some((p) => p.id === playerId)) {
+    throw new AppError("You are not part of this game", 403);
+  }
+
+  sendSuccess(res, gameViewFor(game, playerId));
 });
 
 /**
@@ -94,7 +131,7 @@ export const getGame = asyncHandler(async (req, res) => {
  */
 export const joinGame = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId } = req.body;
+  const { playerId } = req.auth;
 
   const game = req.gameState.games[gameId];
   if (!game) {
@@ -102,9 +139,6 @@ export const joinGame = asyncHandler(async (req, res) => {
   }
 
   const player = req.gameState.players[playerId];
-  if (!player) {
-    throw new AppError("Player not found", 404);
-  }
 
   // Allow joining if status is waiting or just auto-started
   if (game.status !== GAME_STATUS.WAITING && game.status !== GAME_STATUS.PLAYING) {
@@ -139,6 +173,7 @@ export const joinGame = asyncHandler(async (req, res) => {
     cartella,
     coperte,
     gettoni: 0,
+    gettoniSaldati: 0,
     collezioni: [],
     jollyUsato: false,
     jollyPos: null,
@@ -148,7 +183,10 @@ export const joinGame = asyncHandler(async (req, res) => {
   game.players.push(gamePlayer);
   player.currentGameId = gameId;
 
+  await saveGameSafely(req.store, game);
+
   req.io.to(gameId).emit("playerJoined", { player: { id: playerId, name: player.name } });
+  req.io.in(playerRoom(playerId)).socketsJoin(gameId);
 
   // Respond BEFORE auto-start to avoid race condition
   const willAutoStart = game.players.length === game.maxPlayers;
@@ -156,7 +194,7 @@ export const joinGame = asyncHandler(async (req, res) => {
 
   // Auto-start AFTER responding
   if (willAutoStart) {
-    setTimeout(() => autoStartGame(game, gameId, req.io, req.gameState), 100);
+    setTimeout(() => autoStartGame(game, gameId, req.io, req.gameState, req.store), 100);
   }
 });
 
@@ -170,16 +208,20 @@ export const startGame = asyncHandler(async (req, res) => {
     throw new AppError("Game not found", 404);
   }
 
-  const { playerId } = req.body || {};
-  const ownerId = game.players[0]?.id;
-
-  if (playerId && ownerId && playerId !== ownerId) {
+  if (req.auth.playerId !== game.players[0]?.id) {
     throw new AppError("Only the game creator can start the game", 403);
+  }
+
+  // Starting twice would charge the entry fee twice
+  if (game.status !== GAME_STATUS.WAITING) {
+    throw new AppError("Game already started", 400);
   }
 
   if (game.players.length < GAME_DEFAULTS.MIN_PLAYERS) {
     throw new AppError(`At least ${GAME_DEFAULTS.MIN_PLAYERS} players required`, 400);
   }
+
+  const creditMovements = trackCredits(req.gameState, game);
 
   // Subtract credits and form prize pool
   let montepremi = 0;
@@ -188,6 +230,7 @@ export const startGame = asyncHandler(async (req, res) => {
     if (player) {
       player.credits -= game.requiredCredits;
       gamePlayer.gettoni = player.credits;
+      gamePlayer.gettoniSaldati = player.credits;
       montepremi += game.requiredCredits;
     }
   }
@@ -204,9 +247,11 @@ export const startGame = asyncHandler(async (req, res) => {
     combocard_reale: Math.floor(montepremi * config.prizeDistribution.combocard_reale),
   };
 
-  req.io.to(req.params.gameId).emit("gameStarted", { game });
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 
-  sendSuccess(res, { success: true, game });
+  emitGameStarted(req.io, game);
+
+  sendSuccess(res, { success: true, game: gameViewFor(game, req.auth.playerId) });
 });
 
 /**
@@ -229,13 +274,11 @@ export const drawCard = asyncHandler(async (req, res) => {
     throw new AppError("Deck exhausted", 400);
   }
 
-  const { playerId } = req.body || {};
-  if (playerId) {
-    const ownerId = game.players[0]?.id;
-    if (!ownerId || playerId !== ownerId) {
-      throw new AppError("Only the game creator can draw cards", 403);
-    }
+  if (req.auth.playerId !== game.players[0]?.id) {
+    throw new AppError("Only the game creator can draw cards", 403);
   }
+
+  const creditMovements = trackCredits(req.gameState, game);
 
   const cartaEstratta = game.mazzo.pop();
   game.carteEstratte.push(cartaEstratta);
@@ -251,7 +294,7 @@ export const drawCard = asyncHandler(async (req, res) => {
             cartaCartella.seme === cartaEstratta.seme
           ) {
             player.coperte[r][c] = true;
-            req.io.to(gameId).emit("cardCovered", {
+            req.io.to(playerRoom(player.id)).emit("cardCovered", {
               playerId: player.id,
               row: r,
               col: c,
@@ -265,6 +308,8 @@ export const drawCard = asyncHandler(async (req, res) => {
   autoClaimCollezioni(game, gameId, req.io, req.gameState);
   req.io.to(gameId).emit("cardDrawn", { carta: cartaEstratta });
 
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
+
   sendSuccess(res, { carta: cartaEstratta });
 });
 
@@ -274,7 +319,8 @@ export const drawCard = asyncHandler(async (req, res) => {
  */
 export const claimCollection = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId, tipo } = req.body;
+  const { playerId } = req.auth;
+  const { tipo } = req.body;
 
   const game = req.gameState.games[gameId];
   if (!game) {
@@ -296,6 +342,7 @@ export const claimCollection = asyncHandler(async (req, res) => {
     throw new AppError("Collection not complete", 400);
   }
 
+  const creditMovements = trackCredits(req.gameState, game);
   const premio = game.collezioniDistribuzione[tipo];
 
   game.collezioni[tipo].vinto = true;
@@ -313,7 +360,6 @@ export const claimCollection = asyncHandler(async (req, res) => {
     vincitori: [{ id: playerId, name: player.name }],
     ammontare: premio,
     divided: false,
-    players: [player],
   });
 
   req.io.to(gameId).emit("gettoniAggiornati", {
@@ -325,6 +371,8 @@ export const claimCollection = asyncHandler(async (req, res) => {
     finishGame(game, gameId, req.io, req.gameState);
   }
 
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
+
   sendSuccess(res, { success: true, premio });
 });
 
@@ -334,7 +382,8 @@ export const claimCollection = asyncHandler(async (req, res) => {
  */
 export const useJolly = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId, row, col, tipo } = req.body;
+  const { playerId } = req.auth;
+  const { row, col, tipo } = req.body;
 
   const game = req.gameState.games[gameId];
   if (!game) {
@@ -357,6 +406,8 @@ export const useJolly = asyncHandler(async (req, res) => {
   if (game.collezioni[tipo].vinto) {
     throw new AppError("Collection already won", 400);
   }
+
+  const creditMovements = trackCredits(req.gameState, game);
 
   const jollyPosTemp = { row, col };
   const conversione = trovaMiglioreConversioneJolly(
@@ -388,17 +439,13 @@ export const useJolly = asyncHandler(async (req, res) => {
   }
   player.coperte[row][col] = true;
 
-  req.io.to(gameId).emit("jollyUsato", {
-    playerId,
-    row,
-    col,
-    newCard: player.cartella[row][col],
-    tipo,
-  });
-  req.io.to(gameId).emit("cardCovered", { playerId, row, col });
+  req.io.to(gameId).emit("jollyUsato", { playerId, tipo });
+  req.io.to(playerRoom(playerId)).emit("cardCovered", { playerId, row, col });
 
   // Auto-claim after using jolly
   autoClaimCollezioni(game, gameId, req.io, req.gameState);
+
+  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
 
   sendSuccess(res, {
     success: true,
@@ -413,26 +460,31 @@ export const useJolly = asyncHandler(async (req, res) => {
  */
 export const leaveGame = asyncHandler(async (req, res) => {
   const { gameId } = req.params;
-  const { playerId } = req.body;
+  const { playerId } = req.auth;
 
   const game = req.gameState.games[gameId];
   const player = req.gameState.players[playerId];
 
   if (game && player) {
+    const creditMovements = trackCredits(req.gameState, game);
     const gamePlayer = game.players.find((p) => p.id === playerId);
 
     if (gamePlayer && game.status === GAME_STATUS.PLAYING) {
-      player.credits = gamePlayer.gettoni;
+      settleGamePlayer(gamePlayer, player);
     }
 
     game.players = game.players.filter((p) => p.id !== playerId);
     player.currentGameId = null;
 
     req.io.to(gameId).emit("playerLeft", { playerId, playerName: player.name });
+    req.io.in(playerRoom(playerId)).socketsLeave(gameId);
 
     // Delete game if waiting and no players left
     if (game.status === GAME_STATUS.WAITING && game.players.length === 0) {
       delete req.gameState.games[gameId];
+      await deleteGameSafely(req.store, gameId);
+    } else {
+      await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
     }
   }
 
@@ -442,13 +494,21 @@ export const leaveGame = asyncHandler(async (req, res) => {
 /**
  * Helper function to auto-start a game when max players reached
  */
-function autoStartGame(game, gameId, io, gameState) {
+async function autoStartGame(game, gameId, io, gameState, store) {
+  // The creator may have started the game in the meantime
+  if (game.status !== GAME_STATUS.WAITING) {
+    return;
+  }
+
+  const creditMovements = trackCredits(gameState, game);
+
   let montepremi = 0;
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
     if (player) {
       player.credits -= game.requiredCredits;
       gamePlayer.gettoni = player.credits;
+      gamePlayer.gettoniSaldati = player.credits;
       montepremi += game.requiredCredits;
     }
   }
@@ -465,5 +525,7 @@ function autoStartGame(game, gameId, io, gameState) {
     combocard_reale: Math.floor(montepremi * config.prizeDistribution.combocard_reale),
   };
 
-  io.to(gameId).emit("gameStarted", { game });
+  await saveGameSafely(store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
+
+  emitGameStarted(io, game);
 }

@@ -7,35 +7,46 @@
 
 import express from "express";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import { Server as SocketIO } from "socket.io";
 
-import config from "./config/index.js";
+import config, { assertAuthConfig } from "./config/index.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
 
 // Import routes
-import { playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
+import { authRoutes, playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
 
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
+
+// Import persistence
+import { initializePersistence } from "./db/index.js";
+import { createMemoryStore } from "./db/store.js";
 
 // Import CORS utility
 import { buildCorsOriginHandler } from "./utils/cors.utils.js";
 
 // Create Express app and HTTP server
 const app = express();
+app.set("trust proxy", config.trustProxy);
 const server = http.createServer(app);
 
-// Game state - in-memory storage for players and games
+// Game state - working copy of players and games, written through to the store
 const gameState = {
   games: {},
   players: {},
 };
+
+// Replaced at startup by the store selected from the configuration
+let store = createMemoryStore();
 
 const corsOriginHandler = buildCorsOriginHandler(config.corsOrigin);
 
@@ -65,6 +76,12 @@ app.use(cors({
 app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser());
+// Express 5 leaves req.body undefined when no body is sent; controllers read fields from it
+app.use((req, res, next) => {
+  req.body ??= {};
+  next();
+});
 
 // ========================
 // Logging
@@ -86,6 +103,7 @@ if (config.nodeEnv === "production") {
 // ========================
 app.use((req, res, next) => {
   req.gameState = gameState;
+  req.store = store;
   req.io = io;
   next();
 });
@@ -94,6 +112,7 @@ app.use((req, res, next) => {
 // API Routes
 // ========================
 app.use("/api/health", healthRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/games", gameRoutes);
 
@@ -105,20 +124,16 @@ app.use("/api/game", gameRoutes);
 // Static Files (Production)
 // ========================
 if (config.nodeEnv === "production") {
-  import("path").then(({ default: path }) => {
-    import("url").then(({ fileURLToPath }) => {
-      const __dirname = path.dirname(fileURLToPath(import.meta.url));
-      const staticPath = path.resolve(__dirname, "../../frontend/build");
-      
-      app.use(express.static(staticPath));
-      
-      app.get("*", (req, res, next) => {
-        if (req.path.startsWith("/api/")) {
-          return next();
-        }
-        res.sendFile(path.join(staticPath, "index.html"));
-      });
-    });
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const staticPath = path.resolve(__dirname, "../../frontend/build");
+
+  app.use(express.static(staticPath));
+
+  app.get("/{*splat}", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      return next();
+    }
+    res.sendFile(path.join(staticPath, "index.html"));
   });
 }
 
@@ -136,7 +151,21 @@ initializeSocketHandlers(io, gameState);
 // ========================
 // Server Startup
 // ========================
-const startServer = () => {
+const startServer = async () => {
+  try {
+    assertAuthConfig();
+  } catch (err) {
+    console.error(`❌ Invalid configuration: ${err.message}`);
+    process.exit(1);
+  }
+
+  try {
+    store = await initializePersistence(gameState);
+  } catch (err) {
+    console.error(`❌ Could not initialize the database: ${err.message}`);
+    process.exit(1);
+  }
+
   server.listen(config.port, () => {
     console.log(`🎴 COMBOCARD Server running in ${config.nodeEnv} mode on port ${config.port}`);
     console.log(`📡 API available at http://localhost:${config.port}/api`);
@@ -159,12 +188,24 @@ process.on("unhandledRejection", (err) => {
 });
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("👋 SIGTERM received. Shutting down gracefully...");
-  server.close(() => {
-    console.log("💤 Process terminated");
-  });
-});
+let shuttingDown = false;
+const shutdown = async (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  console.log(`👋 ${signal} received. Shutting down gracefully...`);
+
+  // Closes the Socket.IO clients and the HTTP server, then saves what is pending
+  await io.close();
+  await store.close();
+
+  console.log("💤 Process terminated");
+  process.exit(0);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Start the server
 startServer();

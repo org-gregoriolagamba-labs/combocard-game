@@ -7,8 +7,8 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Coins, Plus, Users, DollarSign } from "lucide-react";
-import { buyCredits } from "../../store/slices/playerSlice";
-import { fetchLobby, createGame, joinGame, setGame } from "../../store/slices/gameSlice";
+import { buyCredits, logout } from "../../store/slices/playerSlice";
+import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
 import { Modal, Button, Input } from "../common";
@@ -37,12 +37,16 @@ function HallScreen() {
     return () => clearInterval(interval);
   }, [dispatch]);
 
-  // Reset amount when opening cash register
-  useEffect(() => {
-    if (showCassa) {
-      setCreditiDaAcquistare(0);
-    }
-  }, [showCassa]);
+  const handleEsci = async () => {
+    await dispatch(logout());
+    dispatch(clearGame());
+    dispatch(setScreen("home"));
+  };
+
+  const handleApriCassa = () => {
+    setCreditiDaAcquistare(0);
+    setShowCassa(true);
+  };
 
   const handleAcquistaCrediti = async () => {
     if (creditiDaAcquistare <= 0) {
@@ -72,7 +76,6 @@ function HallScreen() {
 
     try {
       const result = await dispatch(createGame({
-        playerId,
         requiredCredits: creditiRichiesti,
         isPrivate,
         maxPlayers,
@@ -101,7 +104,7 @@ function HallScreen() {
     }
 
     try {
-      await dispatch(joinGame({ gameId: targetGameId, playerId })).unwrap();
+      await dispatch(joinGame({ gameId: targetGameId })).unwrap();
       const gameData = await gameService.getGame(targetGameId);
       dispatch(setGame(gameData));
       dispatch(setScreen("lobby"));
@@ -140,7 +143,13 @@ function HallScreen() {
                 </p>
               </div>
               <button
-                onClick={() => setShowCassa(true)}
+                onClick={handleEsci}
+                className="bg-gray-200 text-gray-800 px-4 py-3 rounded-xl font-bold hover:bg-gray-300 transition"
+              >
+                Esci
+              </button>
+              <button
+                onClick={handleApriCassa}
                 className="bg-gradient-to-r from-yellow-500 to-yellow-700 text-white px-6 py-3 rounded-xl font-bold hover:from-yellow-600 hover:to-yellow-800 transition shadow-lg flex items-center gap-2"
               >
                 <DollarSign size={20} />

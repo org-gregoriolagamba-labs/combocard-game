@@ -1,6 +1,6 @@
 {
   "name": "combocard-e2e",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "End-to-end tests for ComboCard Game using Playwright",
   "type": "module",
   "scripts": {
@@ -18,9 +18,9 @@
     "install-browsers": "playwright install --with-deps"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
-    "@faker-js/faker": "^8.3.1",
-    "dotenv": "^16.3.1"
+    "@faker-js/faker": "^10.6.0",
+    "@playwright/test": "^1.64.1",
+    "dotenv": "^18.0.9"
   },
   "keywords": [
     "playwright",

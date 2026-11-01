@@ -8,6 +8,7 @@ This guide provides comprehensive instructions for deploying the ComboCard game 
 - [Quick Start](#quick-start)
 - [Development Setup](#development-setup)
 - [Production Deployment](#production-deployment)
+- [Going Live on the Internet](#going-live-on-the-internet)
 - [Docker Deployment](#docker-deployment)
 - [Testing](#testing)
 - [CI/CD Pipeline](#cicd-pipeline)
@@ -20,9 +21,10 @@ This guide provides comprehensive instructions for deploying the ComboCard game 
 
 ### System Requirements
 
-- **Node.js**: 18.x or later (LTS recommended)
+- **Node.js**: 20.19 or later (LTS recommended)
 - **npm**: 8.x or later (bundled with Node.js)
 - **Git**: For version control
+- **PostgreSQL**: 17 recommended. Required to keep data across restarts, see [DATABASE.md](DATABASE.md)
 - **Optional**: Docker and Docker Compose for containerized deployment
 
 ### Recommended Tools
@@ -143,7 +145,12 @@ npm run build
 ```bash
 export NODE_ENV=production
 export PORT=3001
+export JWT_SECRET="$(openssl rand -hex 48)"   # keep it stable: see the note below
+export CORS_ORIGIN=https://game.example.com
+export DATABASE_URL=postgresql://user:password@localhost:5432/combocard
 ```
+
+In production the server refuses to start without a `JWT_SECRET` of at least 32 characters. Generate it once and store it in `backend/.env`: a new value at each start would invalidate every access token. See [AUTH.md](AUTH.md).
 
 3. **Start the Backend:**
 
@@ -174,7 +181,7 @@ pm2 save
 ```bash
 cd backend
 npm install --production
-NODE_ENV=production PORT=3001 node src/server.js
+NODE_ENV=production PORT=3001 JWT_SECRET=<secret> CORS_ORIGIN=https://game.example.com node src/server.js
 ```
 
 2. **Deploy Frontend:**
@@ -185,50 +192,186 @@ npm run build
 # Serve using nginx, Apache, or a static hosting service
 ```
 
-### Option 3: Reverse Proxy with Nginx
+If frontend and backend are on different domains, build the frontend with `REACT_APP_API_URL` and `REACT_APP_BACKEND_URL`, and set `COOKIE_SAMESITE=none` on the backend, otherwise the browser does not send the refresh cookie.
 
-1. **Configure Nginx:**
+### Option 3: Reverse Proxy with Nginx (Recommended on the Internet)
+
+Follow [Going Live on the Internet](#going-live-on-the-internet).
+
+---
+
+## Going Live on the Internet
+
+Browsers talk HTTPS only to Nginx. Nginx forwards everything to Node on `127.0.0.1:3001`, and Node serves both the API and the frontend. The database stays closed inside the server.
+
+```text
+Browser --HTTPS--> Nginx :443 --> Node 127.0.0.1:3001 --> PostgreSQL 127.0.0.1:5432
+```
+
+> These steps have not been run on a real server yet. Replace `game.example.com` with your domain.
+
+### 1. Prerequisites
+
+- A Linux server (these commands are for Ubuntu) with a public IP address
+- A domain, with a DNS `A` record pointing to that IP
+- Node.js 20.19 or later
+- PostgreSQL 17. To use the `docker-compose.yml` of the repository, **change `POSTGRES_PASSWORD` first**: it applies only when the volume is created, so changing it later has no effect
+
+### 2. Configure the Backend
+
+Generate the secret that signs the access tokens. Anyone who knows it can impersonate any player, so never commit it or reuse it between environments:
+
+```bash
+openssl rand -hex 48
+```
+
+Create `backend/.env` on the server:
+
+```env
+NODE_ENV=production
+PORT=3001
+JWT_SECRET=<generated value>
+DATABASE_URL=postgresql://combocard:<strong-password>@localhost:5432/combocard
+CORS_ORIGIN=https://game.example.com
+TRUST_PROXY=1
+```
+
+```bash
+chmod 600 backend/.env
+```
+
+| Setting | Why it matters |
+|---------|----------------|
+| `CORS_ORIGIN` | Without it, the server refuses requests coming from your own site |
+| `TRUST_PROXY=1` | Without it, every user appears to have the IP of Nginx and they all share the same request and login attempt limits |
+| `COOKIE_SECURE` | Not needed: it is already on in production |
+
+Migrations run automatically at startup.
+
+The default request limits fit normal play, so you do not need to set them. See [Rate Limits](#rate-limits).
+
+### 3. Build the Frontend
+
+`REACT_APP_BACKEND_URL` is required. Without it the frontend opens the socket on port 3001, which is closed, and the game stops receiving real-time updates.
+
+```bash
+npm run install:all
+REACT_APP_BACKEND_URL=https://game.example.com npm run build
+```
+
+### 4. Configure Nginx
+
+```bash
+sudo apt install nginx
+sudo nano /etc/nginx/sites-available/combocard
+```
 
 ```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
 server {
     listen 80;
-    server_name yourdomain.com;
+    server_name game.example.com;
 
-    # Serve static frontend files
     location / {
-        root /var/www/combocard/frontend/build;
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Proxy API requests to backend
-    location /api {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
 
-    # Proxy WebSocket connections
-    location /socket.io {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
+        # Required by the Socket.IO WebSockets
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection $connection_upgrade;
+
+        # Tell the backend who the real client is
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-2. **Enable and Restart Nginx:**
-
 ```bash
 sudo ln -s /etc/nginx/sites-available/combocard /etc/nginx/sites-enabled/
 sudo nginx -t
-sudo systemctl restart nginx
+sudo systemctl reload nginx
 ```
+
+### 5. Enable HTTPS
+
+Certbot gets a free Let's Encrypt certificate, updates the Nginx configuration and renews the certificate automatically. The DNS record must already work, and ports 80 and 443 must be open.
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d game.example.com
+sudo certbot renew --dry-run
+```
+
+HTTPS is required for the session too: over plain HTTP the browser discards the `Secure` refresh cookie, and reloading the page asks for the login again.
+
+### 6. Close Everything Else
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+Ports 3001 and 5432 stay closed from the outside. Docker can bypass `ufw`, so keep the database port bound to `127.0.0.1`, as `docker-compose.yml` already does.
+
+### 7. Keep the Server Running
+
+```bash
+sudo npm install -g pm2
+pm2 start backend/src/server.js --name combocard
+pm2 save
+pm2 startup   # prints a command to copy and run
+```
+
+Run a single instance: the state of the active games lives in the memory of one process.
+
+### 8. Verify
+
+- [ ] `https://game.example.com` opens with the padlock
+- [ ] After the login, reloading the page keeps you logged in
+- [ ] With two browsers, drawn cards appear on both: this confirms that the WebSockets work
+- [ ] `https://game.example.com/api/health` answers `success`
+- [ ] `https://game.example.com/api/health/detailed` shows `database.enabled: true` and `pendingWrites: 0`
+
+### Rate Limits
+
+The limits apply per IP address, in production only. Players behind the same public IP address, for example at home or in an office, share them.
+
+| Limit | Default | Setting |
+|-------|---------|---------|
+| All `/api/` requests | 3000 every 15 minutes | `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS` |
+| Registration | 10 per minute | Fixed |
+| Failed logins | 10 per minute | Fixed |
+
+The client polls the server while waiting: every 3 seconds in the hall and every 2 seconds in a lobby, so up to 450 requests every 15 minutes per player. The default covers about 6 players on the same IP address. If players get HTTP 429 in normal use, raise `RATE_LIMIT_MAX_REQUESTS` by 450 for each additional player.
+
+A `backend/.env` copied from an older example may still contain `RATE_LIMIT_MAX_REQUESTS=100`, which blocks a player after a few minutes: remove that line or update the value.
+
+### Updates and Backups
+
+```bash
+git pull
+npm run install:all
+REACT_APP_BACKEND_URL=https://game.example.com npm run build
+pm2 restart combocard
+```
+
+Nothing backs up the database automatically. As a start, schedule a daily dump and copy it off the server:
+
+```bash
+docker compose exec -T postgres pg_dump -U combocard combocard > "combocard-$(date +%F).sql"
+```
+
+### Before Opening to the Public
+
+- **Free credits:** the cash desk adds credits without any payment, which is fine only as long as they have no real value.
+- **Forgotten passwords:** there is no way to recover them yet.
 
 ---
 
@@ -236,7 +379,9 @@ sudo systemctl restart nginx
 
 ### Using Docker Compose
 
-1. **Create `docker-compose.yml`:**
+> The `docker-compose.yml` in the repository only starts PostgreSQL for local development, and the repository has no Dockerfiles. The steps below are a template to containerize the whole application: they have not been tested, and they use a separate file so that the existing one is not overwritten. These services also need `JWT_SECRET`, `CORS_ORIGIN` and `DATABASE_URL`.
+
+1. **Create `docker-compose.prod.yml`:**
 
 ```yaml
 version: '3.8'
@@ -267,7 +412,7 @@ services:
 2. **Create Backend Dockerfile (`backend/Dockerfile`):**
 
 ```dockerfile
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -284,7 +429,7 @@ CMD ["node", "src/server.js"]
 3. **Create Frontend Dockerfile (`frontend/Dockerfile`):**
 
 ```dockerfile
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -307,7 +452,7 @@ CMD ["nginx", "-g", "daemon off;"]
 4. **Run with Docker Compose:**
 
 ```bash
-docker-compose up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ---
@@ -416,9 +561,18 @@ PORT=3001
 #   CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 
+# Authentication: required in production, at least 32 characters (openssl rand -hex 48)
+JWT_SECRET=change-me
+# Number of reverse proxies in front of the server, for example 1 with Nginx
+TRUST_PROXY=0
+
+# Database (without it, data is kept in memory and lost on restart)
+DATABASE_URL=postgresql://user:password@localhost:5432/combocard
+DATABASE_POOL_MAX=10
+
 # Rate Limiting
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=3000
 
 # Logging
 LOG_LEVEL=info
@@ -515,7 +669,7 @@ curl http://localhost:3001/api/health
 
 ```bash
 # Check Node version
-node --version  # Should be >= 18
+node --version  # Should be >= 20.19
 
 # Try with clean cache
 cd frontend
@@ -523,6 +677,27 @@ rm -rf node_modules build
 npm install
 npm run build
 ```
+
+#### 6. Server Exits at Startup
+
+- `JWT_SECRET must be set`: set a value of at least 32 characters in `backend/.env`.
+- `Could not initialize the database`: check `DATABASE_URL` and that PostgreSQL is running.
+
+#### 7. Login Is Lost When Reloading the Page
+
+The browser is discarding the refresh cookie. The site must use HTTPS. To try a production build over plain HTTP, for example on a local network, set `COOKIE_SECURE=false`.
+
+#### 8. All Users Get "Too Many Failed Login Attempts"
+
+Set `TRUST_PROXY` to the number of reverse proxies in front of the server, usually `1`.
+
+#### 9. Players Get HTTP 429 During Normal Use
+
+Check `RATE_LIMIT_MAX_REQUESTS` and `TRUST_PROXY`. See [Rate Limits](#rate-limits).
+
+#### 10. Requests Fail With HTTP 500 and "CORS blocked" in the Logs
+
+The address in the browser must be listed in `CORS_ORIGIN`, with the same protocol and port.
 
 ### Getting Help
 
@@ -539,6 +714,7 @@ npm run build
 3. **Keep dependencies updated** - Run `npm audit` regularly
 4. **Use rate limiting** - Already configured in backend middleware
 5. **Validate all input** - Use the validation middleware
+6. **Keep `JWT_SECRET` private** - Anyone who knows it can impersonate any player. Changing it invalidates all access tokens, while refresh tokens keep working
 
 ---
 
@@ -559,6 +735,12 @@ npm run build
 ### Production Checklist
 
 - [ ] Set `NODE_ENV=production`
+- [ ] Set a private `JWT_SECRET`, at least 32 characters
+- [ ] Set `DATABASE_URL`, with a strong password
+- [ ] Set `TRUST_PROXY` when behind Nginx
+- [ ] Check that `RATE_LIMIT_MAX_REQUESTS` is not set to an old low value
+- [ ] Build the frontend with `REACT_APP_BACKEND_URL`
+- [ ] Keep ports 3001 and 5432 closed from the outside
 - [ ] Enable HTTPS/TLS
 - [ ] Configure proper CORS origins
 - [ ] Set up monitoring (PM2, logging)

@@ -11,10 +11,10 @@ import { SEMI_COLORS } from "../../config";
 function Cartella({
   cartella,
   coperte,
-  jollyPos,
-  jollyMode,
-  jollyUsato,
-  onCardClick,
+  jollyPos = null,
+  jollyMode = null,
+  jollyUsato = false,
+  onCardClick = () => {},
 }) {
   return (
     <div className="grid grid-cols-5 gap-2">
@@ -81,13 +81,6 @@ Cartella.propTypes = {
   jollyMode: PropTypes.string,
   jollyUsato: PropTypes.bool,
   onCardClick: PropTypes.func,
-};
-
-Cartella.defaultProps = {
-  jollyPos: null,
-  jollyMode: null,
-  jollyUsato: false,
-  onCardClick: () => {},
 };
 
 export default Cartella;

@@ -66,7 +66,7 @@ function GameScreen() {
     }
 
     try {
-      await dispatch(drawCard({ gameId, playerId })).unwrap();
+      await dispatch(drawCard({ gameId })).unwrap();
     } catch (error) {
       dispatch(addToast({ message: error || "Errore estrazione carta", type: "error" }));
     }
@@ -74,7 +74,7 @@ function GameScreen() {
 
   const handleRivendicaCollezione = async (tipo) => {
     try {
-      const result = await dispatch(claimCollection({ gameId, playerId, tipo })).unwrap();
+      const result = await dispatch(claimCollection({ gameId, tipo })).unwrap();
       dispatch(addToast({
         message: `🎉 Hai vinto ${tipo.toUpperCase().replace("_", " ")}!\nPremio: ${result.premio} gettoni!`,
         type: "success",
@@ -128,7 +128,7 @@ function GameScreen() {
     }
 
     try {
-      const result = await dispatch(playJolly({ gameId, playerId, row, col, tipo: jollyMode })).unwrap();
+      const result = await dispatch(playJolly({ gameId, row, col, tipo: jollyMode })).unwrap();
       dispatch(addToast({
         message: `✨ Jolly attivato! Carta convertita in ${result.convertedTo.valore} di ${result.convertedTo.seme}`,
         type: "success",
@@ -155,7 +155,7 @@ function GameScreen() {
     }
 
     try {
-      await dispatch(leaveGame({ gameId, playerId })).unwrap();
+      await dispatch(leaveGame({ gameId })).unwrap();
       await dispatch(fetchPlayer(playerId));
       dispatch(clearGame());
       dispatch(setScreen("hall"));
@@ -291,7 +291,7 @@ function GameScreen() {
               </button>
 
               <p className="text-xs text-green-700 mt-2 text-center">
-                Carte rimaste: {game?.mazzo?.length || 0}/40
+                Carte rimaste: {game?.carteRimaste ?? 0}/40
               </p>
 
               {drawCooldown > 0 && !isGameFinished && (

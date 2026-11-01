@@ -52,6 +52,13 @@ export const GAME_STATUS = {
 };
 
 // Default game settings
+export const RATE_LIMIT_DEFAULTS = {
+  WINDOW_MS: 15 * 60 * 1000,
+  // A player waiting in a lobby sends 450 automatic requests per window, and
+  // players in the same home or office share one IP address
+  MAX_REQUESTS: 3000,
+};
+
 export const GAME_DEFAULTS = {
   MIN_PLAYERS: 2,
   MAX_PLAYERS: 10,

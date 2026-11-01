@@ -18,16 +18,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       
       - name: Install root dependencies
-        run: npm install
+        run: npm ci
       
       - name: Install backend dependencies
-        run: npm --prefix backend install
+        run: npm --prefix backend ci
       
       - name: Install frontend dependencies
-        run: npm --prefix frontend install
+        run: npm --prefix frontend ci
       
       - name: Run backend linting
         run: npm --prefix backend run lint
@@ -39,6 +39,21 @@ jobs:
     name: Backend Tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: combocard
+          POSTGRES_PASSWORD: combocard
+          POSTGRES_DB: combocard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U combocard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,16 +61,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       
       - name: Install backend dependencies
-        run: npm --prefix backend install
+        run: npm --prefix backend ci
       
       - name: Run backend tests
         run: npm --prefix backend test -- --coverage
         env:
           NODE_ENV: test
           PORT: 3001
+          TEST_DATABASE_URL: postgresql://combocard:combocard@localhost:5432/combocard_test
       
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -76,10 +92,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       
       - name: Install frontend dependencies
-        run: npm --prefix frontend install
+        run: npm --prefix frontend ci
       
       - name: Run frontend tests
         run: npm --prefix frontend test -- --coverage --watchAll=false
@@ -106,16 +122,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       
       - name: Install root dependencies
-        run: npm install
+        run: npm ci
       
       - name: Install backend dependencies
-        run: npm --prefix backend install
+        run: npm --prefix backend ci
       
       - name: Install frontend dependencies
-        run: npm --prefix frontend install
+        run: npm --prefix frontend ci
       
       - name: Build frontend
         run: npm --prefix frontend run build
@@ -143,13 +159,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       
       - name: Install dependencies
         run: |
-          npm install
-          npm --prefix backend install
-          npm --prefix frontend install
+          npm ci
+          npm --prefix backend ci
+          npm --prefix frontend ci
       
       - name: Run npm audit (backend)
         run: npm --prefix backend audit --audit-level=high
