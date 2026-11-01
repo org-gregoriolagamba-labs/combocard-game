@@ -13,9 +13,7 @@
     "test:coverage": "cross-env NODE_ENV=test RATE_LIMIT_DISABLED=true jest --coverage",
     "test:watch": "cross-env NODE_ENV=test RATE_LIMIT_DISABLED=true jest --watch",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
-    "lint": "eslint src --ext .js",
-    "lint:fix": "eslint src --ext .js --fix",
+    "lint:fix": "eslint src --fix",
     "db:migrate": "node src/db/migrate.cli.js"
   },
   "dependencies": {
