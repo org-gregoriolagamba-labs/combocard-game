@@ -12,7 +12,7 @@ import config from "../config/index.js";
  */
 export const apiLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMaxRequests,
+  limit: config.rateLimitMaxRequests,
   skip: () => config.nodeEnv === "test" || config.rateLimitDisabled,
   message: {
     status: "error",
@@ -27,7 +27,7 @@ export const apiLimiter = rateLimit({
  */
 export const strictLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10,
+  limit: 10,
   message: {
     status: "error",
     message: "Too many requests, please try again later.",

@@ -21,4 +21,3 @@ Esegue solo le suite che coprono le modifiche correnti, per evitare di lanciare 
 ## Regole
 
 - Non correggere i test falliti senza che l'utente lo chieda: riporta e basta.
-- Playwright (e2e) richiede Node.js 20 o superiore. Se la versione è inferiore, fermati e segnalalo.

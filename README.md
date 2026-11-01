@@ -65,9 +65,9 @@ combocard-game/
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Runtime**: Node.js 18+
-- **Framework**: Express.js 4.19
-- **Real-time**: Socket.IO 4.7
+- **Runtime**: Node.js 20.19+
+- **Framework**: Express.js 5
+- **Real-time**: Socket.IO 4.8
 - **Security**: Helmet, CORS, Rate Limiting
 - **Validation**: Joi
 - **Logging**: Morgan
@@ -85,7 +85,7 @@ combocard-game/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18.0.0 or higher
+- Node.js 20.19.0 or higher
 - npm 9.0.0 or higher
 
 ### Installation

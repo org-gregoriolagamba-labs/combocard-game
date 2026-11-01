@@ -20,7 +20,7 @@ This guide provides comprehensive instructions for deploying the ComboCard game 
 
 ### System Requirements
 
-- **Node.js**: 18.x or later (LTS recommended)
+- **Node.js**: 20.19 or later (LTS recommended)
 - **npm**: 8.x or later (bundled with Node.js)
 - **Git**: For version control
 - **Optional**: Docker and Docker Compose for containerized deployment
@@ -267,7 +267,7 @@ services:
 2. **Create Backend Dockerfile (`backend/Dockerfile`):**
 
 ```dockerfile
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -284,7 +284,7 @@ CMD ["node", "src/server.js"]
 3. **Create Frontend Dockerfile (`frontend/Dockerfile`):**
 
 ```dockerfile
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -515,7 +515,7 @@ curl http://localhost:3001/api/health
 
 ```bash
 # Check Node version
-node --version  # Should be >= 18
+node --version  # Should be >= 20.19
 
 # Try with clean cache
 cd frontend
