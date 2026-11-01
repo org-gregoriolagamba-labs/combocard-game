@@ -265,6 +265,18 @@ export function autoClaimCollezioni(game, gameId, io, gameState) {
 }
 
 /**
+ * Credit a player with what they gained in a game since the last settlement.
+ * Only the difference is applied, so credits changed outside this game
+ * (a purchase, another game) are kept.
+ * @param {Object} gamePlayer - Player inside the game
+ * @param {Object} player - Global player
+ */
+export function settleGamePlayer(gamePlayer, player) {
+  player.credits += gamePlayer.gettoni - gamePlayer.gettoniSaldati;
+  gamePlayer.gettoniSaldati = gamePlayer.gettoni;
+}
+
+/**
  * Finish the game and distribute remaining prizes
  * @param {Object} game - Game object
  * @param {string} gameId - Game ID
@@ -292,11 +304,6 @@ export function finishGame(game, gameId, io, gameState) {
     if (premioPerGiocatore > 0) {
       for (const gamePlayer of game.players) {
         gamePlayer.gettoni += premioPerGiocatore;
-
-        const player = gameState.players[gamePlayer.id];
-        if (player) {
-          player.credits = gamePlayer.gettoni;
-        }
       }
 
       io.to(gameId).emit("premiRimanentiDivisi", {
@@ -311,7 +318,7 @@ export function finishGame(game, gameId, io, gameState) {
   for (const gamePlayer of game.players) {
     const player = gameState.players[gamePlayer.id];
     if (player) {
-      player.credits = gamePlayer.gettoni;
+      settleGamePlayer(gamePlayer, player);
       player.currentGameId = null;
     }
   }

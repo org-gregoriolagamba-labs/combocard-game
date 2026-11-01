@@ -23,6 +23,7 @@ This guide provides comprehensive instructions for deploying the ComboCard game 
 - **Node.js**: 20.19 or later (LTS recommended)
 - **npm**: 8.x or later (bundled with Node.js)
 - **Git**: For version control
+- **PostgreSQL**: 17 recommended. Required to keep data across restarts, see [DATABASE.md](DATABASE.md)
 - **Optional**: Docker and Docker Compose for containerized deployment
 
 ### Recommended Tools
@@ -415,6 +416,10 @@ PORT=3001
 # - Local dev + any device in 192.168.1.x subnet:
 #   CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
+
+# Database (without it, data is kept in memory and lost on restart)
+DATABASE_URL=postgresql://user:password@localhost:5432/combocard
+DATABASE_POOL_MAX=10
 
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=60000

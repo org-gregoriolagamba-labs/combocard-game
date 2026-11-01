@@ -1,31 +1,59 @@
 #!/usr/bin/env bash
 # PreToolUse (Bash): blocca il push diretto su main e develop (vedi CONTRIBUTING.md).
+# Analizza solo il sottocomando "git push", così altre parti dello stesso comando
+# (per esempio "gh pr create --base develop") non causano falsi positivi.
 input=$(cat)
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // ""')
 
-# Solo i comandi git push interessano questo controllo.
-if ! printf '%s' "$cmd" | grep -Eq '(^|[;&|[:space:]])git[[:space:]]+push([[:space:]]|$)'; then
-  exit 0
-fi
+is_protected() {
+  case "$1" in
+    main|develop|refs/heads/main|refs/heads/develop) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
-current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-protected_current=0
-[ "$current" = "main" ] || [ "$current" = "develop" ] && protected_current=1
-
-# Caso 1: il comando nomina esplicitamente main o develop come destinazione.
-if printf '%s' "$cmd" | grep -Eq '(^|[[:space:]:])(main|develop)([[:space:]]|$)'; then
-  blocked=1
-fi
-
-# Caso 2: push senza destinazione esplicita (solo opzioni) mentre si è su main o develop.
-args=$(printf '%s' "$cmd" | sed -E 's/.*git[[:space:]]+push//' | tr ' ' '\n' | grep -v '^-' | grep -v '^$' | grep -v '^;\|^&\|^|' || true)
-if [ "$protected_current" = "1" ] && [ -z "$args" ]; then
-  blocked=1
-fi
-
-if [ "${blocked:-0}" = "1" ]; then
+block() {
   echo "Push diretto su main o develop vietato (vedi CONTRIBUTING.md). Crea un branch feature/, bugfix/ o hotfix/ e apri una PR." >&2
   exit 2
-fi
+}
+
+current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Un sottocomando per riga: separa su newline, ;, &&, || e |.
+segments=$(printf '%s\n' "$cmd" | sed -E 's/&&|\|\||;|\|/\n/g')
+
+while IFS= read -r segment; do
+  if ! printf '%s' "$segment" | grep -Eq '^[[:space:]]*git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+push([[:space:]]|$)'; then
+    continue
+  fi
+
+  # Argomenti dopo "push", senza le opzioni.
+  args=$(printf '%s' "$segment" | sed -E 's/^.*[[:space:]]push([[:space:]]|$)//')
+  read -ra words <<< "$args"
+  positional=()
+  for word in "${words[@]}"; do
+    case "$word" in
+      --all|--mirror) block ;;
+      -*) ;;
+      *) positional+=("$word") ;;
+    esac
+  done
+
+  # Senza branch esplicito (git push, git push origin) vale il branch corrente.
+  if [ "${#positional[@]}" -le 1 ]; then
+    is_protected "$current" && block
+    continue
+  fi
+
+  # Il primo argomento è il remote, gli altri sono refspec: conta la destinazione.
+  for refspec in "${positional[@]:1}"; do
+    destination=${refspec#+}
+    destination=${destination##*:}
+    if [ "$destination" = "HEAD" ]; then
+      destination=$current
+    fi
+    is_protected "$destination" && block
+  done
+done <<< "$segments"
 
 exit 0

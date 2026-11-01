@@ -26,6 +26,10 @@ import { playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
 
+// Import persistence
+import { initializePersistence } from "./db/index.js";
+import { createMemoryStore } from "./db/store.js";
+
 // Import CORS utility
 import { buildCorsOriginHandler } from "./utils/cors.utils.js";
 
@@ -33,11 +37,14 @@ import { buildCorsOriginHandler } from "./utils/cors.utils.js";
 const app = express();
 const server = http.createServer(app);
 
-// Game state - in-memory storage for players and games
+// Game state - working copy of players and games, written through to the store
 const gameState = {
   games: {},
   players: {},
 };
+
+// Replaced at startup by the store selected from the configuration
+let store = createMemoryStore();
 
 const corsOriginHandler = buildCorsOriginHandler(config.corsOrigin);
 
@@ -93,6 +100,7 @@ if (config.nodeEnv === "production") {
 // ========================
 app.use((req, res, next) => {
   req.gameState = gameState;
+  req.store = store;
   req.io = io;
   next();
 });
@@ -134,12 +142,19 @@ app.use(errorHandler);
 // ========================
 // Socket.IO Handlers
 // ========================
-initializeSocketHandlers(io, gameState);
+initializeSocketHandlers(io);
 
 // ========================
 // Server Startup
 // ========================
-const startServer = () => {
+const startServer = async () => {
+  try {
+    store = await initializePersistence(gameState);
+  } catch (err) {
+    console.error(`❌ Could not initialize the database: ${err.message}`);
+    process.exit(1);
+  }
+
   server.listen(config.port, () => {
     console.log(`🎴 COMBOCARD Server running in ${config.nodeEnv} mode on port ${config.port}`);
     console.log(`📡 API available at http://localhost:${config.port}/api`);
@@ -162,12 +177,24 @@ process.on("unhandledRejection", (err) => {
 });
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("👋 SIGTERM received. Shutting down gracefully...");
-  server.close(() => {
-    console.log("💤 Process terminated");
-  });
-});
+let shuttingDown = false;
+const shutdown = async (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  console.log(`👋 ${signal} received. Shutting down gracefully...`);
+
+  // Closes the Socket.IO clients and the HTTP server, then saves what is pending
+  await io.close();
+  await store.close();
+
+  console.log("💤 Process terminated");
+  process.exit(0);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Start the server
 startServer();
