@@ -70,6 +70,7 @@ combocard-game/
 - **Real-time**: Socket.IO 4.8
 - **Security**: Helmet, CORS, Rate Limiting
 - **Validation**: Joi
+- **Database**: PostgreSQL (`pg`), see [docs/DATABASE.md](docs/DATABASE.md)
 - **Logging**: Morgan
 - **Development**: Nodemon, ESLint, Jest
 
@@ -87,6 +88,7 @@ combocard-game/
 ### Prerequisites
 - Node.js 20.19.0 or higher
 - npm 9.0.0 or higher
+- PostgreSQL 17 (optional): without `DATABASE_URL`, data stays in memory and is lost on restart
 
 ### Installation
 
@@ -179,6 +181,9 @@ npm run test:frontend
 
 # Run E2E tests (Playwright)
 npm run test:e2e
+
+# Run the database integration tests too (they drop the tables: use a dedicated database)
+TEST_DATABASE_URL=postgresql://user:password@localhost:5432/combocard_test npm run test:backend
 ```
 
 ## 🔧 Environment Variables

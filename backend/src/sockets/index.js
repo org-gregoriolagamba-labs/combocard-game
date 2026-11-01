@@ -7,9 +7,8 @@
 /**
  * Initialize Socket.IO handlers
  * @param {Server} io - Socket.IO server instance
- * @param {Object} gameState - Global game state
  */
-export const initializeSocketHandlers = (io, gameState) => {
+export const initializeSocketHandlers = (io) => {
   io.on("connection", (socket) => {
     console.log(`🔌 Client connected: ${socket.id}`);
 
@@ -31,24 +30,6 @@ export const initializeSocketHandlers = (io, gameState) => {
     socket.on("leaveGame", (gameId) => {
       socket.leave(gameId);
       console.log(`Socket ${socket.id} left game ${gameId}`);
-    });
-
-    // ========================
-    // Card Events
-    // ========================
-
-    /**
-     * Cover a card (legacy support - now handled via REST API)
-     */
-    socket.on("coverCard", ({ gameId, playerId, row, col }) => {
-      const game = gameState.games[gameId];
-      if (game) {
-        const player = game.players.find((p) => p.id === playerId);
-        if (player) {
-          player.coperte[row][col] = true;
-          io.to(gameId).emit("cardCovered", { playerId, row, col });
-        }
-      }
     });
 
     // ========================
