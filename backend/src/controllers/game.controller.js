@@ -55,15 +55,6 @@ export const createGame = asyncHandler(async (req, res) => {
   }
 
   const credits = requiredCredits || GAME_DEFAULTS.REQUIRED_CREDITS;
-  if (!Number.isInteger(credits) || credits < 0) {
-    throw new AppError("Required credits must be a non-negative integer", 400);
-  }
-
-  const playersLimit = maxPlayers || GAME_DEFAULTS.MAX_PLAYERS;
-  if (!Number.isInteger(playersLimit) || playersLimit < 1) {
-    throw new AppError("Max players must be a positive integer", 400);
-  }
-
   if (player.credits < credits) {
     throw new AppError("Insufficient credits", 400);
   }
@@ -75,7 +66,7 @@ export const createGame = asyncHandler(async (req, res) => {
     players: [],
     requiredCredits: credits,
     isPrivate: isPrivate || false,
-    maxPlayers: playersLimit,
+    maxPlayers: maxPlayers || GAME_DEFAULTS.MAX_PLAYERS,
     status: GAME_STATUS.WAITING,
     mazzo: [],
     carteEstratte: [],
