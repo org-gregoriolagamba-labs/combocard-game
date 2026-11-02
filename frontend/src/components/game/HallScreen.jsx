@@ -12,6 +12,7 @@ import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../stor
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
 import { Modal, Button, Input } from "../common";
+import Seme from "./Seme";
 
 function HallScreen() {
   const dispatch = useDispatch();
@@ -59,7 +60,7 @@ function HallScreen() {
     inFlight.current = true;
     try {
       await dispatch(buyCredits({ playerId, amount: creditiDaAcquistare })).unwrap();
-      dispatch(addToast({ message: `✅ Aggiunti ${creditiDaAcquistare} crediti!`, type: "success" }));
+      dispatch(addToast({ message: `Aggiunti ${creditiDaAcquistare} crediti!`, type: "success" }));
       setShowCassa(false);
     } catch (error) {
       dispatch(addToast({ message: error || "Non sono riuscito ad aggiungere i crediti", type: "error" }));
@@ -152,7 +153,10 @@ function HallScreen() {
         <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-green-900">🎴 Hall COMBOCARD</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-green-900 flex items-center gap-2">
+                <Seme seme="Denari" className="h-8 w-8 shrink-0" />
+                Hall COMBOCARD
+              </h1>
               <p className="text-green-700 break-words">Benvenuto, {playerName}!</p>
             </div>
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -194,7 +198,7 @@ function HallScreen() {
               onClick={() => setShowJoinPrivate(true)}
               className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 rounded-xl font-bold hover:from-blue-700 hover:to-blue-900 transition shadow-lg flex items-center justify-center gap-2"
             >
-              🔒 Unisciti a Partita Privata
+              Unisciti a Partita Privata
             </button>
           </div>
         </div>
@@ -327,11 +331,11 @@ function HallScreen() {
               className="w-5 h-5"
             />
             <label htmlFor="isPrivate" className="text-green-900">
-              🔒 Partita Privata
+              Partita Privata
             </label>
           </div>
           <Button onClick={handleCreaPartita} className="w-full">
-            ✨ Crea Partita
+            Crea Partita
           </Button>
         </div>
       </Modal>
@@ -351,7 +355,7 @@ function HallScreen() {
             placeholder="Inserisci il codice"
           />
           <Button onClick={handleUniscitiPrivata} className="w-full">
-            🚀 Unisciti
+            Unisciti
           </Button>
         </div>
       </Modal>
