@@ -8,12 +8,15 @@ import uiReducer, {
   removeToast,
   openModal,
   closeModal,
+  setVittoriaRecente,
+  clearVittoriaRecente,
 } from '../../store/slices/uiSlice';
 
 describe('uiSlice', () => {
   // Updated to match the actual structure in uiSlice.js
   const initialState = {
     toasts: [],
+    vittoriaRecente: null,
     currentScreen: "home",
     modals: {
       cassa: false,
@@ -25,6 +28,15 @@ describe('uiSlice', () => {
 
   test('should return initial state', () => {
     expect(uiReducer(undefined, { type: 'unknown' })).toEqual(initialState);
+  });
+
+  describe('vittoriaRecente', () => {
+    test('remembers the collection the player has just won, and forgets it', () => {
+      const vinta = uiReducer(initialState, setVittoriaRecente({ tipo: 'tris' }));
+      expect(vinta.vittoriaRecente).toEqual({ tipo: 'tris' });
+
+      expect(uiReducer(vinta, clearVittoriaRecente()).vittoriaRecente).toBeNull();
+    });
   });
 
   describe('setScreen', () => {

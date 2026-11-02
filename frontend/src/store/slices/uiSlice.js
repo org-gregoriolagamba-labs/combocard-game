@@ -9,6 +9,9 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   // Toast notifications
   toasts: [],
+
+  // Collection just won by the player
+  vittoriaRecente: null,
   
   // Screen navigation
   currentScreen: "home", // home, hall, lobby, game
@@ -54,6 +57,13 @@ const uiSlice = createSlice({
     closeModal: (state, action) => {
       state.modals[action.payload] = false;
     },
+    // The collection the player has just won: the sheet lights its places for a moment
+    setVittoriaRecente: (state, action) => {
+      state.vittoriaRecente = action.payload;
+    },
+    clearVittoriaRecente: (state) => {
+      state.vittoriaRecente = null;
+    },
     setLoading: (state, action) => {
       state.isLoading = action.payload;
     },
@@ -74,6 +84,8 @@ export const {
   openModal,
   closeModal,
   setLoading,
+  setVittoriaRecente,
+  clearVittoriaRecente,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

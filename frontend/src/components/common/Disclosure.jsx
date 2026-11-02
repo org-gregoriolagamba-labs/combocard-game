@@ -33,7 +33,7 @@ function Disclosure({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((current) => !current)}
-        className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg text-left font-bold text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+        className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg text-left font-bold text-inchiostro-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spade"
       >
         <span className="flex items-center gap-2">{title}</span>
         <ChevronDown

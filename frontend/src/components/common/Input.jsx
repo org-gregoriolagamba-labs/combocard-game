@@ -24,23 +24,23 @@ function Input({
       {label && (
         <label 
           htmlFor={id} 
-          className="block text-sm font-medium text-green-900 mb-2"
+          className="block text-sm font-bold text-inchiostro-900 mb-2"
         >
           {label}
-          {props.required && <span className="text-red-700 ml-1">*</span>}
+          {props.required && <span className="text-coppe ml-1">*</span>}
         </label>
       )}
       <input
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white ${
-          error ? "border-red-700" : ""
+        className={`w-full px-4 py-3 border-2 border-inchiostro-900 rounded-xl placeholder:text-inchiostro-500 focus:outline-none focus:ring-2 focus:ring-spade bg-cartone-50 text-inchiostro-900 ${
+          error ? "border-coppe" : ""
         } ${className}`}
         {...props}
       />
       {error && (
-        <p id={errorId} role="alert" className="mt-1 text-sm text-red-700">{error}</p>
+        <p id={errorId} role="alert" className="mt-1 text-sm font-bold text-coppe">{error}</p>
       )}
     </div>
   );

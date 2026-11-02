@@ -15,7 +15,7 @@ import {
   updatePlayerCards,
   updatePlayerGettoni,
 } from "../store/slices/gameSlice";
-import { setScreen, addToast } from "../store/slices/uiSlice";
+import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
 import { updateCredits } from "../store/slices/playerSlice";
 
 /**
@@ -122,12 +122,25 @@ export function useSocket() {
 
     // Collection won
     const handleCollezioneVinta = ({ tipo, vincitore, vincitori, ammontare, divided }) => {
+      const nome = tipo.toUpperCase().replace("_", " ");
       const winnerNames = vincitori.map((v) => v.name).join(", ");
-      const message = divided
-        ? `🎉 ${tipo.toUpperCase().replace("_", " ")} vinta da ${winnerNames}! Premio diviso: ${ammontare} crediti ciascuno!`
-        : `🎉 ${vincitore.name} ha vinto ${tipo.toUpperCase().replace("_", " ")}! Premio: ${ammontare} crediti!`;
-      
-      dispatch(addToast({ message, type: "success", duration: 5000 }));
+      const iHaveWon = vincitori.some((v) => v.id === playerId);
+
+      let message;
+      if (iHaveWon) {
+        message = divided
+          ? `Hai vinto ${nome} insieme ad altri: +${ammontare} crediti`
+          : `Hai vinto ${nome}: +${ammontare} crediti`;
+      } else {
+        message = divided
+          ? `${nome} vinta da ${winnerNames}: ${ammontare} crediti ciascuno`
+          : `${vincitore.name} ha vinto ${nome}: ${ammontare} crediti`;
+      }
+
+      dispatch(addToast({ message, type: iHaveWon ? "win" : "success", duration: iHaveWon ? 6000 : 4000 }));
+      if (iHaveWon) {
+        dispatch(setVittoriaRecente({ tipo }));
+      }
       refreshGameState();
     };
 
@@ -142,7 +155,7 @@ export function useSocket() {
     // Remaining prizes distributed
     const handlePremiRimanentiDivisi = ({ ammontare, collezioniNonVinte }) => {
       dispatch(addToast({
-        message: `💰 Premi rimanenti divisi: ${ammontare} crediti! (${collezioniNonVinte.join(", ")})`,
+        message: `Premi rimanenti divisi: ${ammontare} crediti (${collezioniNonVinte.join(", ")})`,
         type: "info",
         duration: 5000,
       }));
@@ -152,7 +165,7 @@ export function useSocket() {
     const handleJollyUsato = ({ playerId: jollyPlayerId, tipo }) => {
       if (jollyPlayerId !== playerId) {
         dispatch(addToast({
-          message: `🃏 Un giocatore ha usato il Jolly per ${tipo.toUpperCase().replace("_", " ")}`,
+          message: `Un giocatore ha usato il Jolly per ${tipo.toUpperCase().replace("_", " ")}`,
         }));
       }
       refreshGameState();
@@ -163,9 +176,9 @@ export function useSocket() {
       let message;
       if (vincitori && vincitori.length > 0) {
         const names = vincitori.map((v) => v.name).join(", ");
-        message = `🏆 PARTITA TERMINATA! Vincitore/i: ${names}`;
+        message = `Partita terminata. Vincitore/i: ${names}`;
       } else {
-        message = "🏆 PARTITA TERMINATA!";
+        message = "Partita terminata";
       }
       
       dispatch(addToast({ message, type: "success", duration: 10000 }));

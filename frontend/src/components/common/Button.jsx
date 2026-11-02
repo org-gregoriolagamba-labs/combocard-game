@@ -16,13 +16,13 @@ function Button({
   className = "",
   ...props
 }) {
-  const baseClasses = "min-h-[44px] font-bold rounded-xl transition shadow-lg disabled:opacity-50";
+  const baseClasses = "min-h-[44px] font-bold rounded-xl transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variantClasses = {
-    primary: "bg-gradient-to-r from-green-700 to-green-900 text-white hover:from-green-800 hover:to-green-900",
-    secondary: "bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 hover:from-yellow-500 hover:to-yellow-600",
-    danger: "bg-gradient-to-r from-red-600 to-red-800 text-white hover:from-red-700 hover:to-red-900",
-    outline: "border-2 border-green-700 text-green-700 hover:bg-green-50",
+    primary: "bg-fagiolo text-white hover:bg-fagiolo-dark",
+    secondary: "border-2 border-inchiostro-900 bg-ocra text-inchiostro-900 hover:bg-ocra-dark",
+    danger: "bg-coppe text-white hover:bg-fagiolo-dark",
+    outline: "border-2 border-inchiostro-900 bg-cartone-50 text-inchiostro-900 hover:bg-white",
   };
   
   const sizeClasses = {

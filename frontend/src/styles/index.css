@@ -2,30 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
+/* The table: deep cobalt, the page ground of every screen */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  background-color: #101a4a;
+  color: #2a1a0f;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Scrollbar customization */
+/* Scrollbars in the inks of the table */
+* {
+  scrollbar-color: #e6c460 #16236a;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+  background: #16236a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #e6c460;
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
+@layer components {
+  /* A sheet of card stock: thick outer rule and a fine inner rule, like a printed tombola sheet */
+  .foglio {
+    background-color: #fbf0cd;
+    border: 3px solid #2a1a0f;
+    border-radius: 14px;
+    box-shadow:
+      inset 0 0 0 4px #fbf0cd,
+      inset 0 0 0 5px #2a1a0f,
+      0 14px 28px -12px rgba(5, 8, 30, 0.7);
+  }
+
+  /* The title voice: a slab from the old posters */
+  .titolo {
+    font-family: 'Alfa Slab One', Rockwell, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
 }
 
 /* Custom utility classes */
@@ -33,26 +57,29 @@ body {
   .text-shadow {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
-  
-  .text-shadow-lg {
-    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  }
 }
 
-/* Keyboard focus: one visible ring, with enough contrast on cream and on green */
+/* Keyboard focus: a ring that reads on straw card and on the cobalt table */
 :focus-visible {
-  outline: 3px solid #1d4ed8;
+  outline: 3px solid #f2b632;
   outline-offset: 2px;
+  box-shadow: 0 0 0 5px #101a4a;
+}
+
+.foglio :focus-visible,
+.foglio:focus-visible {
+  outline-color: #1f3a99;
+  box-shadow: 0 0 0 5px #fbf0cd;
 }
 
 /* Browser surfaces in the colours of the game */
 ::selection {
-  background: #fde68a;
-  color: #14532d;
+  background: #f2b632;
+  color: #2a1a0f;
 }
 
 input[type="checkbox"] {
-  accent-color: #15803d;
+  accent-color: #b92d1b;
 }
 
 /* Respect the system setting: no movement */

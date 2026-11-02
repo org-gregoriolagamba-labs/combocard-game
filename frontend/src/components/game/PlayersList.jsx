@@ -2,76 +2,66 @@
  * PlayersList Component
  *
  * Displays the list of players in the current game.
- * On a phone it starts collapsed: the players matter less than the grid.
+ * On a phone it starts collapsed: the players matter less than the sheet.
  */
 
 import React from "react";
 import PropTypes from "prop-types";
-import { Users, Coins } from "lucide-react";
+import { Coins, Sparkles } from "lucide-react";
 import { Disclosure } from "../common";
 
-const COLLEZIONI_ICONS = {
-  tris: "🎯",
-  sequenza: "📊",
-  scopa: "🎴",
-  napola: "💎",
-  combocard_reale: "👑",
-};
+const NOME_COLLEZIONE = (col) => col.toUpperCase().replace("_", " ");
 
 function PlayersList({ game = null, currentPlayerId = null }) {
   return (
-    <div className="bg-amber-50 rounded-2xl shadow-2xl px-3 py-1 lg:px-6 lg:py-3 border-2 lg:border-4 border-amber-600">
+    <div className="foglio px-4 py-1 lg:px-6 lg:py-3">
       <Disclosure
         openOnDesktop
         title={
-          <span className="flex items-center gap-2 text-base lg:text-lg">
-            <Users size={24} aria-hidden="true" />
+          <span className="titolo text-lg">
             Giocatori ({game?.players?.length || 0})
           </span>
         }
       >
-      <div className="space-y-2 pb-3">
-        {game?.players?.map((player) => (
-          <div
-            key={player.id}
-            className={`p-3 rounded-xl ${
-              player.id === currentPlayerId ? "bg-green-100" : ""
-            }`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <div className="font-bold text-green-900 break-words min-w-0">
-                {player.name}
-                {player.id === currentPlayerId && " (Tu)"}
-              </div>
-              <div className="text-right">
-                <div className="flex items-center gap-1 text-sm font-bold tabular-nums text-green-700">
-                  <Coins size={16} />
+        <ul className="space-y-1 pb-3">
+          {game?.players?.map((player) => (
+            <li
+              key={player.id}
+              className={`rounded-xl p-3 ${player.id === currentPlayerId ? "bg-cartone-200" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 break-words font-bold text-inchiostro-900">
+                  {player.name}
+                  {player.id === currentPlayerId && " (Tu)"}
+                </p>
+                <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-inchiostro-900">
+                  <Coins size={16} aria-hidden="true" />
                   {player.gettoni}
+                </p>
+              </div>
+
+              {player.collezioni && player.collezioni.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {player.collezioni.map((col) => (
+                    <span
+                      key={col}
+                      className="rounded-full border border-inchiostro-900 bg-ocra px-2 py-0.5 text-xs font-bold text-inchiostro-900"
+                    >
+                      {NOME_COLLEZIONE(col)}
+                    </span>
+                  ))}
                 </div>
-              </div>
-            </div>
+              )}
 
-            {player.collezioni && player.collezioni.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {player.collezioni.map((col) => (
-                  <span
-                    key={col}
-                    className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full font-bold"
-                  >
-                    {COLLEZIONI_ICONS[col]} {col.toUpperCase().replace("_", " ")}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {player.jollyUsato && (
-              <div className="mt-1 text-xs text-purple-600 font-bold">
-                ✨ Jolly usato
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              {player.jollyUsato && (
+                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-inchiostro-700">
+                  <Sparkles size={12} aria-hidden="true" />
+                  Jolly usato
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
       </Disclosure>
     </div>
   );

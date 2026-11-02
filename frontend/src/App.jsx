@@ -9,6 +9,7 @@ import { Provider } from "react-redux";
 import store from "./store";
 import AppContent from "./AppContent";
 import { Toast } from "./components/common";
+import "@fontsource/alfa-slab-one/latin-400.css";
 import "./styles/index.css";
 
 function App() {
