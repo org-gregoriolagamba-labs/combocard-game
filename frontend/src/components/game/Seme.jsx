@@ -32,7 +32,7 @@ function Seme({ seme, fallback = "", className = "" }) {
 
   return (
     <img
-      src={`${process.env.PUBLIC_URL || ""}/semi/${file}.webp`}
+      src={`/semi/${file}.webp`}
       alt=""
       aria-hidden="true"
       draggable={false}

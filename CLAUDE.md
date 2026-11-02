@@ -2,7 +2,7 @@
 
 Gioco di carte italiano multiplayer in tempo reale. Monorepo con tre pacchetti:
 - `backend/`: Express e Socket.io
-- `frontend/`: React (react-scripts, Redux Toolkit)
+- `frontend/`: React (Vite, Redux Toolkit)
 - `e2e/`: test end-to-end con Playwright
 
 ## Comandi

@@ -6,8 +6,8 @@ import { renderWithProviders } from '../test-utils';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 
-jest.mock('../../services/gameService');
-jest.mock('../../services/playerService');
+vi.mock('../../services/gameService');
+vi.mock('../../services/playerService');
 
 const state = (credits = 100) => ({
   player: { id: 'p1', name: 'Anna', credits },

@@ -54,7 +54,7 @@ describe('CollezioniPanel', () => {
   });
 
   test('the jolly button names its collection and starts the jolly for it', () => {
-    const onJollyMode = jest.fn();
+    const onJollyMode = vi.fn();
     renderPanel({ onJollyMode });
 
     fireEvent.click(screen.getByRole('button', { name: 'Usa il Jolly per TRIS' }));

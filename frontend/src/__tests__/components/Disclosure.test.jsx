@@ -30,7 +30,7 @@ describe('Disclosure', () => {
   });
 
   test('openOnDesktop starts open on a wide screen', () => {
-    window.matchMedia = jest.fn().mockReturnValue({ matches: true });
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true });
 
     render(<Disclosure title="Regole" openOnDesktop>Tris</Disclosure>);
 
@@ -39,7 +39,7 @@ describe('Disclosure', () => {
   });
 
   test('openOnDesktop starts closed on a narrow screen', () => {
-    window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false });
 
     render(<Disclosure title="Regole" openOnDesktop>Tris</Disclosure>);
 

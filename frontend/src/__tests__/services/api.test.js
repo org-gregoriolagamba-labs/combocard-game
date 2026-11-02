@@ -25,11 +25,11 @@ describe('api client', () => {
   let errorSpy;
 
   beforeEach(() => {
-    onExpired = jest.fn();
+    onExpired = vi.fn();
     setSessionExpiredHandler(onExpired);
     setAccessToken(null);
-    global.fetch = jest.fn();
-    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch = vi.fn();
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {

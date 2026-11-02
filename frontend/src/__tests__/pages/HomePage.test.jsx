@@ -5,9 +5,9 @@ import { HomePage } from '../../pages';
 import { renderWithProviders } from '../test-utils';
 import { setAccessToken } from '../../services/api';
 
-jest.mock('../../services/socketService', () => ({
+vi.mock('../../services/socketService', () => ({
   __esModule: true,
-  default: { connect: jest.fn(), disconnect: jest.fn(), getSocket: jest.fn() },
+  default: { connect: vi.fn(), disconnect: vi.fn(), getSocket: vi.fn() },
 }));
 
 const jsonResponse = (status, body) => ({ ok: status < 400, status, json: async () => body });
@@ -28,8 +28,8 @@ describe('HomePage', () => {
 
   beforeEach(() => {
     setAccessToken(null);
-    global.fetch = jest.fn();
-    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch = vi.fn();
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {

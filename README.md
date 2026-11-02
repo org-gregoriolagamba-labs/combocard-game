@@ -210,11 +210,10 @@ CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://192.168.1.*:3000
 
 ### Frontend (.env)
 ```bash
-# API base URL (optional). Defaults to /api via CRA proxy
-REACT_APP_API_URL=/api
+# API base URL (optional). Defaults to /api via the Vite dev proxy
+VITE_API_URL=/api
 # Socket/Backend URL (used for Socket.IO)
-REACT_APP_BACKEND_URL=http://localhost:3001
-REACT_APP_ENV=development
+VITE_BACKEND_URL=http://localhost:3001
 ```
 
 ### LAN / Multi-device note

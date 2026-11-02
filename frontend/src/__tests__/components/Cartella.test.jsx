@@ -22,7 +22,7 @@ describe('Cartella', () => {
   });
 
   test('in jolly mode a click on an uncovered card calls the handler', () => {
-    const onCardClick = jest.fn();
+    const onCardClick = vi.fn();
     render(
       <Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" onCardClick={onCardClick} />,
     );
