@@ -25,19 +25,19 @@ function Toast() {
   const getToastStyles = (type) => {
     switch (type) {
       case "success":
-        return "bg-green-500 text-white";
+        return "bg-green-700 text-white";
       case "error":
-        return "bg-red-500 text-white";
+        return "bg-red-700 text-white";
       case "warning":
         return "bg-yellow-500 text-black";
       case "info":
       default:
-        return "bg-blue-500 text-white";
+        return "bg-blue-700 text-white";
     }
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 space-y-2">
+    <div className="fixed inset-x-4 bottom-40 z-50 flex flex-col items-center space-y-2 lg:inset-x-auto lg:bottom-4 lg:right-4 lg:items-end">
       {toasts.map((toast) => (
         <div
           key={toast.id}

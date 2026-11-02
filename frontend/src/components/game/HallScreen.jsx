@@ -128,29 +128,29 @@ function HallScreen() {
     <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-orange-800 p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 mb-6 border-4 border-amber-700">
+        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
           <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-green-900">🎴 Hall COMBOCARD</h1>
-              <p className="text-green-700">Benvenuto, {playerName}!</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-green-900">🎴 Hall COMBOCARD</h1>
+              <p className="text-green-700 break-words">Benvenuto, {playerName}!</p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              <div className="sm:text-right">
                 <p className="text-sm text-green-700">I Tuoi Crediti</p>
-                <p className="text-3xl font-bold text-green-600 flex items-center gap-2">
-                  <Coins size={32} />
+                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-green-700 flex items-center gap-2">
+                  <Coins size={28} aria-hidden="true" />
                   {playerCredits}
                 </p>
               </div>
               <button
                 onClick={handleEsci}
-                className="bg-gray-200 text-gray-800 px-4 py-3 rounded-xl font-bold hover:bg-gray-300 transition"
+                className="bg-gray-200 text-gray-800 px-4 py-3 min-h-[44px] rounded-xl font-bold hover:bg-gray-300 transition"
               >
                 Esci
               </button>
               <button
                 onClick={handleApriCassa}
-                className="bg-gradient-to-r from-yellow-500 to-yellow-700 text-white px-6 py-3 rounded-xl font-bold hover:from-yellow-600 hover:to-yellow-800 transition shadow-lg flex items-center gap-2"
+                className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 px-5 sm:px-6 py-3 min-h-[44px] rounded-xl font-bold hover:from-yellow-500 hover:to-yellow-600 transition shadow-lg flex items-center gap-2"
               >
                 <DollarSign size={20} />
                 Cassa
@@ -160,11 +160,11 @@ function HallScreen() {
         </div>
 
         {/* Create/Join buttons */}
-        <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 mb-6 border-4 border-amber-700">
+        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <button
               onClick={() => setShowCreaPartita(true)}
-              className="bg-gradient-to-r from-green-600 to-green-800 text-white px-6 py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg flex items-center justify-center gap-2"
+              className="bg-gradient-to-r from-green-700 to-green-900 text-white px-6 py-4 rounded-xl font-bold hover:from-green-800 hover:to-green-900 transition shadow-lg flex items-center justify-center gap-2"
             >
               <Plus size={24} />
               Crea Nuova Partita
@@ -179,14 +179,14 @@ function HallScreen() {
         </div>
 
         {/* Lobbies */}
-        <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 border-4 border-amber-700">
-          <h2 className="text-2xl font-bold text-green-900 mb-4 flex items-center gap-2">
+        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 border-2 sm:border-4 border-amber-700">
+          <h2 className="text-xl sm:text-2xl font-bold text-green-900 mb-4 flex items-center gap-2">
             <Users size={28} />
             Partite in Attesa
           </h2>
           
           {lobbies.length === 0 ? (
-            <p className="text-center text-green-700 py-8">
+            <p className="text-center text-green-800 py-8 [text-wrap:pretty]">
               Nessuna partita in attesa. Creane una nuova!
             </p>
           ) : (
@@ -194,9 +194,9 @@ function HallScreen() {
               {lobbies.map((lobby) => (
                 <div
                   key={lobby.id}
-                  className="bg-white rounded-xl p-4 shadow flex justify-between items-center"
+                  className="bg-white rounded-xl p-3 sm:p-4 shadow flex justify-between items-center gap-3"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-bold text-green-900">
                       Partita di {lobby.creatorName}
                     </p>
@@ -206,7 +206,7 @@ function HallScreen() {
                   </div>
                   <button
                     onClick={() => handleUniscitiPartita(lobby.id)}
-                    className="bg-gradient-to-r from-green-500 to-green-700 text-white px-4 py-2 rounded-lg font-bold hover:from-green-600 hover:to-green-800 transition"
+                    className="bg-gradient-to-r from-green-700 to-green-900 text-white px-4 py-2 min-h-[44px] shrink-0 rounded-lg font-bold hover:from-green-800 hover:to-green-900 transition"
                   >
                     Unisciti
                   </button>

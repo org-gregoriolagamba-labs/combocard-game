@@ -77,15 +77,15 @@ function LobbyScreen() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-orange-800 p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-amber-50 rounded-3xl shadow-2xl p-6 mb-6 border-4 border-amber-700">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-3xl font-bold text-green-900">🎴 Lobby COMBOCARD</h2>
-              <p className="text-green-700 mt-1">Benvenuto, {playerName}!</p>
+        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
+          <div className="flex justify-between items-start gap-3 mb-4">
+            <div className="min-w-0">
+              <h2 className="text-2xl sm:text-3xl font-bold text-green-900">🎴 Lobby COMBOCARD</h2>
+              <p className="text-green-700 mt-1 break-words">Benvenuto, {playerName}!</p>
             </div>
             <button
               onClick={handleTornaAllaHall}
-              className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-bold hover:bg-gray-400 transition flex items-center gap-2"
+              className="bg-gray-300 text-gray-800 px-4 py-2 min-h-[44px] shrink-0 rounded-lg font-bold hover:bg-gray-400 transition flex items-center gap-2"
             >
               <ArrowLeft size={18} />
               Esci
@@ -95,7 +95,7 @@ function LobbyScreen() {
           <div className="bg-green-100 p-4 rounded-xl mb-4 border-2 border-green-600">
             <p className="font-bold text-green-900">
               Codice Partita:{" "}
-              <span className="text-2xl font-mono text-green-700">{gameId}</span>
+              <span className="text-2xl font-mono text-green-700 break-all">{gameId}</span>
             </p>
             <p className="text-sm text-green-700 mt-2">
               Costo partecipazione: {game?.requiredCredits} crediti
@@ -125,7 +125,7 @@ function LobbyScreen() {
                     {index === 0 && "👑 "}{player.name}
                   </p>
                   {player.id === playerId && (
-                    <p className="text-xs text-green-600">Tu</p>
+                    <p className="text-xs text-green-900">Tu</p>
                   )}
                 </div>
               ))}
@@ -146,10 +146,10 @@ function LobbyScreen() {
                 </Button>
               ) : (
                 <div className="bg-yellow-100 p-4 rounded-xl border-2 border-yellow-500">
-                  <p className="text-yellow-800 font-medium">
+                  <p className="text-yellow-900 font-medium [text-wrap:balance]">
                     ⏳ In attesa di altri giocatori...
                   </p>
-                  <p className="text-sm text-yellow-700">
+                  <p className="text-sm text-yellow-900">
                     Servono almeno 2 giocatori per iniziare
                   </p>
                 </div>
@@ -161,7 +161,7 @@ function LobbyScreen() {
           {!isCreator && (
             <div className="text-center">
               <div className="bg-blue-100 p-4 rounded-xl border-2 border-blue-500">
-                <p className="text-blue-800 font-medium">
+                <p className="text-blue-900 font-medium [text-wrap:balance]">
                   ⏳ In attesa che il creatore avvii la partita...
                 </p>
               </div>

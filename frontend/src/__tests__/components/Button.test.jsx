@@ -42,7 +42,7 @@ describe('Button', () => {
     
     const button = screen.getByRole('button');
     // Updated to match the gradient class used in component
-    expect(button).toHaveClass('from-green-600');
+    expect(button).toHaveClass('from-green-700');
   });
 
   test('applies secondary variant styles', () => {
@@ -50,7 +50,7 @@ describe('Button', () => {
     
     const button = screen.getByRole('button');
     // Updated to match the amber gradient used in component
-    expect(button).toHaveClass('from-amber-500');
+    expect(button).toHaveClass('from-yellow-400');
   });
 
   test('applies danger variant styles', () => {
@@ -58,7 +58,7 @@ describe('Button', () => {
     
     const button = screen.getByRole('button');
     // Updated to match the gradient class
-    expect(button).toHaveClass('from-red-500');
+    expect(button).toHaveClass('from-red-600');
   });
 
   test('renders with loading state', () => {
