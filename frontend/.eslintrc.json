@@ -5,6 +5,9 @@
     "jest": true,
     "node": true
   },
+  "globals": {
+    "vi": "readonly"
+  },
   "extends": [
     "eslint:recommended",
     "plugin:react/recommended",

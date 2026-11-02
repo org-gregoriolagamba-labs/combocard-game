@@ -40,8 +40,8 @@ jobs:
       - name: Build frontend
         run: npm --prefix frontend run build
         env:
-          REACT_APP_API_URL: http://localhost:3001/api
-          REACT_APP_BACKEND_URL: http://localhost:3001
+          VITE_API_URL: http://localhost:3001/api
+          VITE_BACKEND_URL: http://localhost:3001
 
       - name: Start backend server in background
         run: |
@@ -159,8 +159,8 @@ jobs:
       - name: Build frontend
         run: npm --prefix frontend run build
         env:
-          REACT_APP_API_URL: http://localhost:3001/api
-          REACT_APP_BACKEND_URL: http://localhost:3001
+          VITE_API_URL: http://localhost:3001/api
+          VITE_BACKEND_URL: http://localhost:3001
 
       - name: Start servers in background
         run: |

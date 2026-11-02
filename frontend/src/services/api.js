@@ -6,8 +6,10 @@
  * storage, and after a reload the refresh cookie provides a new one.
  */
 
+import { translateServerError } from "../utils/errors.utils";
+
 // API base URL from environment or default
-const API_BASE_URL = process.env.REACT_APP_API_URL || "/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 let accessToken = null;
 let pendingRefresh = null;
@@ -36,7 +38,7 @@ async function requestSession() {
 
   // Any other failure is temporary, and the session may still be valid
   if (!response.ok && response.status !== 401) {
-    throw new Error("Could not renew the session");
+    throw new Error(translateServerError("Could not renew the session"));
   }
 
   const session = response.ok ? (await response.json()).data : null;
@@ -91,7 +93,12 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
   };
 
   try {
-    const response = await fetch(url, config);
+    let response;
+    try {
+      response = await fetch(url, config);
+    } catch (networkError) {
+      throw new Error(translateServerError(networkError.message));
+    }
 
     // The access token lasts a few minutes: renew it and repeat the request once
     if (response.status === 401 && !isRetry && !endpoint.startsWith("/auth/")) {
@@ -101,10 +108,15 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
       }
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(translateServerError(undefined));
+    }
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || "An error occurred");
+      throw new Error(translateServerError(data.message || data.error));
     }
 
     return data;

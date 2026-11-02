@@ -25,11 +25,11 @@ describe('api client', () => {
   let errorSpy;
 
   beforeEach(() => {
-    onExpired = jest.fn();
+    onExpired = vi.fn();
     setSessionExpiredHandler(onExpired);
     setAccessToken(null);
-    global.fetch = jest.fn();
-    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch = vi.fn();
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -78,7 +78,7 @@ describe('api client', () => {
         ? sessionResponse('new')
         : jsonResponse(401, { message: 'Authentication required' }));
 
-    await expect(api.get('/games/g1')).rejects.toThrow('Authentication required');
+    await expect(api.get('/games/g1')).rejects.toThrow('Accedi per continuare');
 
     expect(callsTo('/games/g1')).toHaveLength(2);
     expect(callsTo('/auth/refresh')).toHaveLength(1);
@@ -103,7 +103,7 @@ describe('api client', () => {
       .mockResolvedValueOnce(jsonResponse(401, { message: 'Authentication required' }))
       .mockResolvedValueOnce(jsonResponse(503, { message: 'Unavailable' }));
 
-    await expect(api.get('/games/lobby')).rejects.toThrow('Could not renew the session');
+    await expect(api.get('/games/lobby')).rejects.toThrow('Non riesco a rinnovare la sessione: riprova tra poco');
 
     expect(onExpired).not.toHaveBeenCalled();
     expect(getAccessToken()).toBe('old');
@@ -125,10 +125,28 @@ describe('api client', () => {
     expect(callsTo('/auth/refresh')).toHaveLength(1);
   });
 
+  test('a server error reaches the caller in Italian', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(400, { message: 'Collection not complete' }));
+
+    await expect(api.post('/games/g1/claim', {})).rejects.toThrow('La collezione non è ancora completa');
+  });
+
+  test('an unknown server error is generic, not English', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(500, { message: 'Something went wrong' }));
+
+    await expect(api.get('/games/g1')).rejects.toThrow('Qualcosa non ha funzionato: riprova tra poco');
+  });
+
+  test('without a connection it says what to do', async () => {
+    global.fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(api.get('/games/lobby')).rejects.toThrow('Impossibile contattare il server: controlla la connessione e riprova');
+  });
+
   test('a wrong login is not treated as an expired token', async () => {
     global.fetch.mockResolvedValue(jsonResponse(401, { message: 'Invalid username or password' }));
 
-    await expect(api.post('/auth/login', {})).rejects.toThrow('Invalid username or password');
+    await expect(api.post('/auth/login', {})).rejects.toThrow('Nome utente o password non corretti');
 
     expect(callsTo('/auth/refresh')).toHaveLength(0);
   });

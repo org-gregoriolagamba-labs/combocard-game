@@ -1,6 +1,6 @@
 {
   "name": "combocard-game",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "ComboCard - Italian Card Game with Real-time Multiplayer",
   "private": true,
   "scripts": {
@@ -15,8 +15,8 @@
     "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix e2e install",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "npm --prefix backend test",
-    "test:frontend": "npm --prefix frontend test -- --watchAll=false",
-    "test:coverage": "npm --prefix backend test -- --coverage && npm --prefix frontend test -- --coverage --watchAll=false",
+    "test:frontend": "npm --prefix frontend run test:run",
+    "test:coverage": "npm --prefix backend test -- --coverage && npm --prefix frontend run test:run -- --coverage",
     "test:e2e": "npm --prefix e2e test",
     "test:e2e:headed": "npm --prefix e2e run test:headed",
     "test:e2e:ui": "npm --prefix e2e run test:ui",

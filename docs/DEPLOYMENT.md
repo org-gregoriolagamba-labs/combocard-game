@@ -192,7 +192,7 @@ npm run build
 # Serve using nginx, Apache, or a static hosting service
 ```
 
-If frontend and backend are on different domains, build the frontend with `REACT_APP_API_URL` and `REACT_APP_BACKEND_URL`, and set `COOKIE_SAMESITE=none` on the backend, otherwise the browser does not send the refresh cookie.
+If frontend and backend are on different domains, build the frontend with `VITE_API_URL` and `VITE_BACKEND_URL`, and set `COOKIE_SAMESITE=none` on the backend, otherwise the browser does not send the refresh cookie.
 
 ### Option 3: Reverse Proxy with Nginx (Recommended on the Internet)
 
@@ -252,11 +252,11 @@ The default request limits fit normal play, so you do not need to set them. See 
 
 ### 3. Build the Frontend
 
-`REACT_APP_BACKEND_URL` is required. Without it the frontend opens the socket on port 3001, which is closed, and the game stops receiving real-time updates.
+`VITE_BACKEND_URL` is required. Without it the frontend opens the socket on port 3001, which is closed, and the game stops receiving real-time updates.
 
 ```bash
 npm run install:all
-REACT_APP_BACKEND_URL=https://game.example.com npm run build
+VITE_BACKEND_URL=https://game.example.com npm run build
 ```
 
 ### 4. Configure Nginx
@@ -358,7 +358,7 @@ A `backend/.env` copied from an older example may still contain `RATE_LIMIT_MAX_
 ```bash
 git pull
 npm run install:all
-REACT_APP_BACKEND_URL=https://game.example.com npm run build
+VITE_BACKEND_URL=https://game.example.com npm run build
 pm2 restart combocard
 ```
 
@@ -581,14 +581,13 @@ LOG_LEVEL=info
 ### Frontend (`frontend/.env`)
 
 ```env
-# API URL (optional; defaults to /api via CRA proxy)
-REACT_APP_API_URL=/api
+# API URL (optional; defaults to /api via the Vite dev proxy)
+VITE_API_URL=/api
 
 # Socket/Backend URL (used for Socket.IO)
-REACT_APP_BACKEND_URL=http://localhost:3001
+VITE_BACKEND_URL=http://localhost:3001
 
 # Environment
-REACT_APP_ENV=development
 ```
 
 ### E2E Tests (`e2e/.env`)
@@ -739,7 +738,7 @@ The address in the browser must be listed in `CORS_ORIGIN`, with the same protoc
 - [ ] Set `DATABASE_URL`, with a strong password
 - [ ] Set `TRUST_PROXY` when behind Nginx
 - [ ] Check that `RATE_LIMIT_MAX_REQUESTS` is not set to an old low value
-- [ ] Build the frontend with `REACT_APP_BACKEND_URL`
+- [ ] Build the frontend with `VITE_BACKEND_URL`
 - [ ] Keep ports 3001 and 5432 closed from the outside
 - [ ] Enable HTTPS/TLS
 - [ ] Configure proper CORS origins

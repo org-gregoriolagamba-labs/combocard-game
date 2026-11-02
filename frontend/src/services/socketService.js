@@ -9,7 +9,7 @@ import { getAccessToken, refreshAccessToken } from "./api";
 
 // Socket.IO server URL
 const getSocketUrl = () => {
-  const backendUrl = process.env.REACT_APP_BACKEND_URL;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   if (backendUrl) {
     const normalized = backendUrl.replace(/\/api\/?$/, "");
 

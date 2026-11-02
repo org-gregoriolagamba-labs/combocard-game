@@ -9,6 +9,9 @@ Key gameplay features include private games, configurable max players with auto-
 
 The game uses a 40-card Italian deck with:
 
+### Illustrations
+The cards and the suit symbols of the game are those of a historical Neapolitan deck printed in Naples in 1875 by Luigi Pignalosa, from the collection of the British Museum. The last drawn card is shown as the whole card (`frontend/public/carte/`, 40 files named `<seme>-<valore>.webp`), and the player's grid uses the suit cut from a numbered card (`frontend/public/semi/`). Sources, processing and the note on rights are in `frontend/public/carte/CREDITI.md`. The emoji below are only the fallback if an image cannot be loaded.
+
 ### Suits (Semi)
 | Suit | Italian | Emoji | Color |
 |------|---------|-------|-------|
