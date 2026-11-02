@@ -112,7 +112,7 @@ describe('CollezioniPanel', () => {
   test('the jolly rules stay in the panel, closed on a narrow screen', () => {
     renderPanel();
 
-    expect(screen.getByRole('button', { name: /Come funziona il Jolly/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: /Come si gioca/ })).toHaveAttribute('aria-expanded', 'false');
   });
 
   describe('the jolly says when it can work', () => {
@@ -160,7 +160,7 @@ describe('CollezioniPanel', () => {
   test('explains what the jolly changes in the card', () => {
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: /Come funziona il Jolly/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Come si gioca/ }));
 
     expect(screen.getByText(/una sola carta/)).toBeInTheDocument();
     expect(screen.getByText(/SCOPA: la carta cambia seme e tiene il valore/)).toBeInTheDocument();

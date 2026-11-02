@@ -30,18 +30,30 @@ import Cartella from "./Cartella";
 import CartaNapoletana from "./CartaNapoletana";
 import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
+import GuidaPrimaPartita from "./GuidaPrimaPartita";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
 
 const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
 const SECONDI_LUCI = 6000;
+const CHIAVE_GUIDA = "combocard.guida-letta";
+
+// The device remembers that the guide was read; storage can be blocked, so it is only a convenience
+const guidaLetta = () => {
+  try {
+    return window.localStorage.getItem(CHIAVE_GUIDA) === "1";
+  } catch {
+    return false;
+  }
+};
 
 function GameScreen() {
   const dispatch = useDispatch();
   const gridRef = useRef(null);
   const [jollyCarta, setJollyCarta] = useState(null);
   const [confermaUscita, setConfermaUscita] = useState(false);
+  const [guidaChiusa, setGuidaChiusa] = useState(guidaLetta);
   const { id: playerId } = useSelector((state) => state.player);
   const vittoriaRecente = useSelector((state) => state.ui.vittoriaRecente);
   const {
@@ -87,6 +99,15 @@ function GameScreen() {
     () => (jollyAttivabile && jollyMode ? carteConJolly(currentPlayer.cartella, currentPlayer.coperte, jollyMode) : []),
     [jollyAttivabile, jollyMode, currentPlayer]
   );
+
+  const chiudiGuida = () => {
+    setGuidaChiusa(true);
+    try {
+      window.localStorage.setItem(CHIAVE_GUIDA, "1");
+    } catch {
+      // The guide only stays closed until the page is reloaded
+    }
+  };
 
   // Leaving the mode forgets the card that was chosen
   const esciDaJolly = () => {
@@ -294,6 +315,12 @@ function GameScreen() {
       </header>
 
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:p-6">
+        {!guidaChiusa && game?.status === "playing" && !(currentPlayer.collezioni?.length > 0) && (
+          <div className="lg:col-span-2">
+            <GuidaPrimaPartita onClose={chiudiGuida} />
+          </div>
+        )}
+
         {/* The player's sheet, laid out like a tombola sheet */}
         <section ref={gridRef} className="foglio scroll-mt-20 p-2.5 lg:row-span-3">
           <div className="mb-1 flex items-baseline justify-between gap-2 px-1">

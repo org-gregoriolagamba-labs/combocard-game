@@ -48,11 +48,30 @@ Players can claim the following collections:
 
 ## 🃏 Jolly System
 
-Each player receives one Jolly card at the start of the game:
-- The Jolly is placed on a random covered card in the player's grid
-- When activated, the Jolly converts that card to any value needed to complete a collection
-- Each player can only use their Jolly once per game
-- After use, the Jolly position shows "USED"
+Each player has one Jolly per game. It is not a card on the sheet: it is an action.
+
+- The player chooses a collection and then **one card of the sheet that is not covered yet**.
+- The Jolly turns that card into the card that completes the collection, and covers it at once. The collection is then won automatically.
+- It works only when the collection is **exactly one card away**:
+
+| Collection | What the Jolly does to the chosen card | When it can work |
+|------------|----------------------------------------|------------------|
+| Tris | changes the value, keeps the suit | two covered cards of one value |
+| Sequenza | changes the value, keeps the suit | three of four consecutive values covered |
+| Napola | changes the value, keeps the suit | two pairs (one becomes a tris), or a tris and a single (the single becomes a pair) |
+| Scopa | changes the suit, keeps the value | four covered cards of one suit |
+| Combocard Reale | changes value and suit | three of four consecutive values of one suit covered |
+
+- The chosen card can never become a card that is already in the sheet.
+- A collection that has already been won cannot be aimed at.
+- The screen works this out in the browser (`frontend/src/utils/jolly.utils.js`, a mirror of `backend/src/services/jolly.service.js`) to offer the Jolly only where it can work, to enable only the cards it can turn, and to say which card becomes which before the player confirms. The server stays the judge.
+- After use, the card shows "USATO".
+
+## 🧾 The sheet (cartella)
+
+The server gives each player 25 different cards in a 5x5 array. **The position in that array never matters:** every collection looks only at the values and suits of the covered cards.
+
+The screen therefore lays the sheet out like a tombola sheet: the deck as a table of ten rows (values, Asso to Re) and four columns (suits: Denari, Coppe, Spade, Bastoni). The player's 25 cards are printed in their place, the other 15 places stay empty, and a dot marks a card that has been drawn but is not in the sheet. On this table a tris is a row, a sequenza is neighbouring rows, a scopa is a column, a napola is three places in a row and two in another, and a combocard reale is neighbouring rows of one column. A drawn card is covered with a bean (`frontend/src/utils/mazzo.utils.js`).
 
 ## 🎲 Game Flow
 
@@ -72,7 +91,7 @@ Each player receives one Jolly card at the start of the game:
 - **Auto-start** triggers when the max player limit is reached
 
 ### 4. Game
-- Each player gets a 5x5 grid of 25 random cards
+- Each player gets a sheet of 25 random, different cards (a 5x5 grid on the server, shown as a tombola sheet, see above)
 - One shared deck is drawn from by the game creator
 - When a card is drawn, all players who have it in their grid get it "covered"
 - **Draw cooldown**: 8 seconds between draws

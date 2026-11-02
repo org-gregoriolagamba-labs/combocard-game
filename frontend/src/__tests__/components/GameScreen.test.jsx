@@ -40,6 +40,39 @@ const stateFor = (playerId, overrides = {}) => {
 };
 
 describe('GameScreen', () => {
+  describe('the guide for a first game', () => {
+    beforeEach(() => window.localStorage.clear());
+    afterAll(() => window.localStorage.clear());
+
+    test('tells in three lines what happens by itself, until the player has read it', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      const guida = screen.getByRole('region', { name: 'Come si gioca' });
+      expect(guida).toHaveTextContent('si copre da sola');
+      expect(guida).toHaveTextContent('la collezione si vince da sola');
+      expect(guida).toHaveTextContent('manca una sola carta');
+    });
+
+    test('"Ho capito" closes it, and the device remembers', () => {
+      const { unmount } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ho capito' }));
+      expect(screen.queryByRole('region', { name: 'Come si gioca' })).not.toBeInTheDocument();
+      unmount();
+
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+      expect(screen.queryByRole('region', { name: 'Come si gioca' })).not.toBeInTheDocument();
+    });
+
+    test('is not shown to a player who has already won a collection', () => {
+      const state = stateFor('carlo');
+      state.game.currentPlayer.collezioni = ['tris'];
+      renderWithProviders(<GameScreen />, { preloadedState: state });
+
+      expect(screen.queryByRole('region', { name: 'Come si gioca' })).not.toBeInTheDocument();
+    });
+  });
+
   test('the creator draws from the action bar', () => {
     renderWithProviders(<GameScreen />, { preloadedState: stateFor('anna') });
 
@@ -157,7 +190,7 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /Giocatori \(2\)/ }));
 
     expect(screen.getByText('Carlo (Tu)')).toBeVisible();
-    expect(screen.getByText(/una sola carta/)).not.toBeVisible();
+    expect(screen.getByText(/Hai un Jolly a partita/)).not.toBeVisible();
   });
 
   test('a finished game shows the way back instead of the draw button', () => {

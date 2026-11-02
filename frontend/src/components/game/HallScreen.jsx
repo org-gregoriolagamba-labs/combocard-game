@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Coins, Plus, Users, DollarSign } from "lucide-react";
+import { Coins, Plus } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
@@ -23,12 +23,14 @@ function HallScreen() {
   const [showCassa, setShowCassa] = useState(false);
   const [creditiDaAcquistare, setCreditiDaAcquistare] = useState(0);
   const [showCreaPartita, setShowCreaPartita] = useState(false);
-  const [creditiRichiesti, setCreditiRichiesti] = useState(100);
+  // Ask what the player can afford, up to the usual 100
+  const [creditiRichiesti, setCreditiRichiesti] = useState(Math.max(10, Math.min(100, playerCredits)) || 100);
   const [isPrivate, setIsPrivate] = useState(false);
-  const [maxPlayers, setMaxPlayers] = useState(10);
+  const [maxPlayers, setMaxPlayers] = useState(6);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
   const [privateGameCode, setPrivateGameCode] = useState("");
   const [createErrors, setCreateErrors] = useState({});
+  const [privateError, setPrivateError] = useState(null);
   const inFlight = useRef(false);
 
   // Load lobbies on mount and periodically
@@ -103,7 +105,7 @@ function HallScreen() {
 
       setShowCreaPartita(false);
       setIsPrivate(false);
-      setMaxPlayers(10);
+      setMaxPlayers(6);
 
       // Automatically join the created game
       await handleUniscitiPartita(result.gameId);
@@ -114,132 +116,154 @@ function HallScreen() {
     }
   };
 
-  const handleUniscitiPartita = async (targetGameId) => {
-    const lobby = lobbies.find((l) => l.id === targetGameId);
-    
-    if (lobby && playerCredits < lobby.requiredCredits) {
-      dispatch(addToast({ 
-        message: `Servono ${lobby.requiredCredits} crediti per unirsi a questa partita!`, 
-        type: "error" 
-      }));
-      return;
-    }
-
+  // Joins a game and opens its lobby; resolves to an error message, or null when it worked
+  const entraInPartita = async (targetGameId) => {
     try {
       await dispatch(joinGame({ gameId: targetGameId })).unwrap();
       const gameData = await gameService.getGame(targetGameId);
       dispatch(setGame(gameData));
       dispatch(setScreen("lobby"));
+      return null;
     } catch (error) {
-      dispatch(addToast({ message: error || "Errore nell'unirsi alla partita", type: "error" }));
+      return String(error?.message ?? error ?? "Errore nell'unirsi alla partita");
     }
   };
 
-  const handleUniscitiPrivata = async () => {
-    if (!privateGameCode) {
-      dispatch(addToast({ message: "Inserisci il codice partita", type: "error" }));
+  const handleUniscitiPartita = async (targetGameId) => {
+    const lobby = lobbies.find((l) => l.id === targetGameId);
+
+    if (lobby && playerCredits < lobby.requiredCredits) {
+      dispatch(addToast({
+        message: `Servono ${lobby.requiredCredits} crediti per unirsi a questa partita!`,
+        type: "error"
+      }));
       return;
     }
-    
+
+    const errore = await entraInPartita(targetGameId);
+    if (errore) {
+      dispatch(addToast({ message: errore, type: "error" }));
+    }
+  };
+
+  // A wrong code stays in the dialog, in its field, with what was typed
+  const handleUniscitiPrivata = async () => {
+    const codice = privateGameCode.trim();
+    if (!codice) {
+      setPrivateError("Inserisci il codice della partita");
+      return;
+    }
+
+    const errore = await entraInPartita(codice);
+    if (errore) {
+      setPrivateError(errore);
+      return;
+    }
+
     setShowJoinPrivate(false);
-    await handleUniscitiPartita(privateGameCode);
     setPrivateGameCode("");
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-orange-800 p-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
-          <div className="flex justify-between items-center flex-wrap gap-4">
+    <div className="min-h-[100dvh] bg-notte-900 p-4">
+      <div className="mx-auto max-w-3xl space-y-4">
+        {/* Header and the two ways into a game */}
+        <section className="foglio p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-green-900 flex items-center gap-2">
+              <h1 className="titolo flex items-center gap-2 text-2xl text-inchiostro-900 sm:text-3xl">
                 <Seme seme="Denari" className="h-8 w-8 shrink-0" />
-                Hall COMBOCARD
+                Hall
               </h1>
-              <p className="text-green-700 break-words">Benvenuto, {playerName}!</p>
+              <p className="break-words text-inchiostro-700">Benvenuto, {playerName}!</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="sm:text-right">
-                <p className="text-sm text-green-800">I tuoi crediti</p>
-                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-green-700 flex items-center gap-2">
-                  <Coins size={28} aria-hidden="true" />
+                <p className="text-sm text-inchiostro-700">I tuoi crediti</p>
+                <p className="titolo flex items-center gap-2 text-2xl text-bastoni sm:text-3xl">
+                  <Coins size={26} aria-hidden="true" />
                   {playerCredits}
                 </p>
               </div>
               <button
-                onClick={handleEsci}
-                className="bg-gray-200 text-gray-800 px-4 py-3 min-h-[44px] rounded-xl font-bold hover:bg-gray-300 transition"
-              >
-                Esci
-              </button>
-              <button
                 onClick={handleApriCassa}
-                className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 px-5 sm:px-6 py-3 min-h-[44px] rounded-xl font-bold hover:from-yellow-500 hover:to-yellow-600 transition shadow-lg flex items-center gap-2"
+                className="flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-inchiostro-900 bg-ocra px-5 py-3 font-bold text-inchiostro-900 transition hover:bg-ocra-dark"
               >
-                <DollarSign size={20} />
+                <Seme seme="Denari" className="h-6 w-6" />
                 Cassa
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Create/Join buttons */}
-        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t-2 border-inchiostro-900/20 pt-4 sm:grid-cols-2">
             <button
               onClick={() => setShowCreaPartita(true)}
-              className="bg-gradient-to-r from-green-700 to-green-900 text-white px-6 py-4 rounded-xl font-bold hover:from-green-800 hover:to-green-900 transition shadow-lg flex items-center justify-center gap-2"
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-fagiolo px-6 py-3 font-bold text-white shadow-md transition hover:bg-fagiolo-dark"
             >
-              <Plus size={24} />
+              <Plus size={22} aria-hidden="true" />
               Crea Nuova Partita
             </button>
             <button
-              onClick={() => setShowJoinPrivate(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 rounded-xl font-bold hover:from-blue-700 hover:to-blue-900 transition shadow-lg flex items-center justify-center gap-2"
+              onClick={() => {
+                setPrivateError(null);
+                setShowJoinPrivate(true);
+              }}
+              className="min-h-[52px] rounded-xl border-2 border-inchiostro-900 bg-cartone-50 px-6 py-3 font-bold text-inchiostro-900 transition hover:bg-white"
             >
               Unisciti a Partita Privata
             </button>
           </div>
-        </div>
 
-        {/* Lobbies */}
-        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 border-2 sm:border-4 border-amber-700">
-          <h2 className="text-xl sm:text-2xl font-bold text-green-900 mb-4 flex items-center gap-2">
-            <Users size={28} />
-            Partite in Attesa
-          </h2>
-          
+          <div className="mt-3 text-right">
+            <button
+              onClick={handleEsci}
+              className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-inchiostro-700 underline decoration-2 underline-offset-4 hover:text-inchiostro-900"
+            >
+              Esci dall&apos;account
+            </button>
+          </div>
+        </section>
+
+        {/* Games waiting for players */}
+        <section className="foglio p-4 sm:p-6">
+          <h2 className="titolo mb-3 text-xl text-inchiostro-900 sm:text-2xl">Partite in attesa</h2>
+
           {lobbies.length === 0 ? (
-            <p className="text-center text-green-800 py-8 [text-wrap:pretty]">
+            <p className="py-6 text-center text-inchiostro-700 [text-wrap:pretty]">
               Nessuna partita in attesa. Creane una nuova!
             </p>
           ) : (
-            <div className="space-y-3">
-              {lobbies.map((lobby) => (
-                <div
-                  key={lobby.id}
-                  className="bg-white rounded-xl p-3 sm:p-4 shadow flex justify-between items-center gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="font-bold text-green-900">
-                      Partita di {lobby.creatorName}
-                    </p>
-                    <p className="text-sm text-green-700">
-                      {lobby.playerCount}/{lobby.maxPlayers} giocatori • {lobby.requiredCredits} crediti
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleUniscitiPartita(lobby.id)}
-                    className="bg-gradient-to-r from-green-700 to-green-900 text-white px-4 py-2 min-h-[44px] shrink-0 rounded-lg font-bold hover:from-green-800 hover:to-green-900 transition"
+            <ul>
+              {lobbies.map((lobby) => {
+                const mancano = lobby.requiredCredits - playerCredits;
+                return (
+                  <li
+                    key={lobby.id}
+                    className="flex items-center justify-between gap-3 border-t-2 border-inchiostro-900/20 py-3 first:border-t-0 first:pt-0"
                   >
-                    Unisciti
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-inchiostro-900">Partita di {lobby.creatorName}</p>
+                      <p className="text-sm text-inchiostro-700">
+                        {lobby.playerCount}/{lobby.maxPlayers} giocatori · costa {lobby.requiredCredits} crediti
+                        {mancano <= 0 && ` · te ne restano ${playerCredits - lobby.requiredCredits}`}
+                      </p>
+                      {mancano > 0 && (
+                        <p className="text-sm font-bold text-coppe">Ti mancano {mancano} crediti</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleUniscitiPartita(lobby.id)}
+                      disabled={mancano > 0}
+                      className="min-h-[44px] shrink-0 rounded-lg bg-fagiolo px-4 py-2 font-bold text-white transition hover:bg-fagiolo-dark disabled:cursor-not-allowed disabled:bg-inchiostro-500"
+                    >
+                      Unisciti
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
+        </section>
       </div>
 
       {/* Cash Register Modal */}
@@ -249,7 +273,7 @@ function HallScreen() {
         title="Cassa: aggiungi crediti"
       >
         <div className="space-y-4">
-          <p className="text-sm text-green-900">
+          <p className="text-sm text-inchiostro-900">
             Sono crediti di gioco: non hanno valore reale e non serve nessun pagamento.
           </p>
           <Input
@@ -261,13 +285,13 @@ function HallScreen() {
             min="0"
             max="10000"
           />
-          <div className="grid grid-cols-4 gap-2">
-            {[5, 10, 25, 50, 100, 500, 1000].map((amount) => (
+          <div className="grid grid-cols-4 gap-2" role="group" aria-label="Importi rapidi">
+            {[10, 50, 100, 500].map((amount) => (
               <button
                 key={amount}
                 type="button"
                 onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
-                className="min-h-[44px] bg-green-100 text-green-900 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
+                className="min-h-[44px] rounded-lg border-2 border-inchiostro-900 bg-cartone-200 py-2 text-sm font-bold text-inchiostro-900 transition hover:bg-cartone-300"
               >
                 +{amount}
               </button>
@@ -276,7 +300,7 @@ function HallScreen() {
           <button
             type="button"
             onClick={() => setCreditiDaAcquistare(0)}
-            className="min-h-[44px] w-full bg-red-100 text-red-900 py-2 rounded-lg font-bold hover:bg-red-200 transition"
+            className="min-h-[44px] w-full rounded-lg py-2 text-sm font-bold text-inchiostro-700 underline decoration-2 underline-offset-4 transition hover:text-inchiostro-900"
           >
             Azzera
           </button>
@@ -307,6 +331,7 @@ function HallScreen() {
               setCreateErrors((errors) => ({ ...errors, creditiRichiesti: undefined }));
             }}
             error={createErrors.creditiRichiesti}
+            hint="Ogni giocatore li paga per entrare e vanno nel montepremi."
             min="10"
           />
           <Input
@@ -319,6 +344,7 @@ function HallScreen() {
               setCreateErrors((errors) => ({ ...errors, maxPlayers: undefined }));
             }}
             error={createErrors.maxPlayers}
+            hint="Da 2 a 10. Se la partita si riempie, parte da sola."
             min="2"
             max="10"
           />
@@ -328,9 +354,9 @@ function HallScreen() {
               id="isPrivate"
               checked={isPrivate}
               onChange={(e) => setIsPrivate(e.target.checked)}
-              className="w-5 h-5"
+              className="h-5 w-5"
             />
-            <label htmlFor="isPrivate" className="text-green-900">
+            <label htmlFor="isPrivate" className="text-inchiostro-900">
               Partita Privata
             </label>
           </div>
@@ -351,7 +377,11 @@ function HallScreen() {
             label="Codice Partita"
             type="text"
             value={privateGameCode}
-            onChange={(e) => setPrivateGameCode(e.target.value)}
+            onChange={(e) => {
+              setPrivateGameCode(e.target.value);
+              setPrivateError(null);
+            }}
+            error={privateError ?? undefined}
             placeholder="Inserisci il codice"
           />
           <Button onClick={handleUniscitiPrivata} className="w-full">

@@ -11,7 +11,7 @@
  * while choosing the card for the jolly. A drawn card is covered by a bean.
  */
 
-import React, { useRef } from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Sparkles } from "lucide-react";
 import Seme from "./Seme";
@@ -58,15 +58,12 @@ function Cartella({
   const righe = mappaCartella(cartella, coperte, estratte);
 
   // The beans already on the sheet when it appears do not fall again
-  const giaCoperte = useRef(null);
-  if (giaCoperte.current === null) {
-    giaCoperte.current = new Set(
-      righe.flat().filter((p) => p.coperta).map((p) => `${p.seme}|${p.valore}`)
-    );
-  }
+  const [giaCoperte] = useState(
+    () => new Set(righe.flat().filter((p) => p.coperta).map((p) => `${p.seme}|${p.valore}`))
+  );
 
   return (
-    <table className="w-full table-fixed border-separate [border-spacing:3px]">
+    <table className="w-full table-fixed border-separate [border-spacing:2px]">
       <caption className="sr-only">
         La tua cartella: i valori in riga da Asso a Re, i semi in colonna
       </caption>
@@ -124,7 +121,7 @@ function Cartella({
               const isJolly = Boolean(jollyPos) && jollyPos.row === row && jollyPos.col === col;
               const isClickable = choosing && !coperta && (!attive || attive.has(`${row}-${col}`));
               const isSelected = Boolean(selected) && selected.row === row && selected.col === col;
-              const nuovo = coperta && !giaCoperte.current.has(`${posto.seme}|${posto.valore}`);
+              const nuovo = coperta && !giaCoperte.has(`${posto.seme}|${posto.valore}`);
 
               return (
                 <td key={posto.seme} className="p-0">

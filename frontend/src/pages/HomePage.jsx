@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
 import Seme from "../components/game/Seme";
+import { INCHIOSTRO_SEME } from "../utils";
 
 const MIN_USERNAME_LENGTH = 3;
 const MIN_PASSWORD_LENGTH = 8;
@@ -64,25 +65,30 @@ function HomePage() {
     }
   };
 
+  const campo =
+    "w-full rounded-xl border-2 border-inchiostro-900 bg-cartone-50 px-4 py-3 text-inchiostro-900 placeholder:text-inchiostro-500 focus:outline-none focus:ring-2 focus:ring-spade";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center p-4">
-      <div className="bg-amber-50 rounded-3xl shadow-2xl p-5 sm:p-8 max-w-md w-full border-4 border-amber-600">
-        <div className="text-center mb-8">
-          <div className="flex justify-center gap-2 mb-4">
-            <Seme seme="Spade" className="h-10 w-10 sm:h-12 sm:w-12" />
-            <Seme seme="Coppe" className="h-10 w-10 sm:h-12 sm:w-12" />
-            <Seme seme="Denari" className="h-10 w-10 sm:h-12 sm:w-12" />
-            <Seme seme="Bastoni" className="h-10 w-10 sm:h-12 sm:w-12" />
+    <div className="flex min-h-[100dvh] items-center justify-center bg-notte-900 p-4">
+      <div className="foglio w-full max-w-md p-5 sm:p-8">
+        <div className="mb-6 text-center">
+          <div className="mb-4 grid grid-cols-4 gap-2" aria-hidden="true">
+            {["Denari", "Coppe", "Spade", "Bastoni"].map((seme) => (
+              <span
+                key={seme}
+                className={`flex h-14 items-center justify-center rounded-md border-2 border-inchiostro-900 ${INCHIOSTRO_SEME[seme].soft}`}
+              >
+                <Seme seme={seme} className="h-10 w-10" />
+              </span>
+            ))}
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-green-900 mb-2 break-words">COMBOCARD</h1>
-          <p className="text-green-700 font-medium">
-            Colleziona, combina, conquista!
-          </p>
+          <h1 className="titolo break-words text-4xl text-inchiostro-900 sm:text-5xl">COMBOCARD</h1>
+          <p className="mt-2 font-medium text-inchiostro-700">Colleziona, combina, conquista!</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-green-900 mb-2">
+            <label htmlFor="username" className="mb-2 block text-sm font-bold text-inchiostro-900">
               Nome utente
             </label>
             <input
@@ -95,7 +101,7 @@ function HomePage() {
               }}
               aria-invalid={message ? true : undefined}
               aria-describedby={message ? "auth-error" : undefined}
-              className="w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
+              className={campo}
               placeholder="Inserisci il tuo nome utente"
               autoComplete="username"
               maxLength={30}
@@ -105,7 +111,7 @@ function HomePage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-green-900 mb-2">
+            <label htmlFor="password" className="mb-2 block text-sm font-bold text-inchiostro-900">
               Password
             </label>
             <input
@@ -117,25 +123,30 @@ function HomePage() {
                 clearMessage();
               }}
               aria-invalid={message ? true : undefined}
-              aria-describedby={message ? "auth-error" : undefined}
-              className="w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
+              aria-describedby={message ? "auth-error" : "password-hint"}
+              className={campo}
               placeholder={isRegistering ? `Almeno ${MIN_PASSWORD_LENGTH} caratteri` : "Inserisci la password"}
               autoComplete={isRegistering ? "new-password" : "current-password"}
               maxLength={128}
               disabled={isLoading}
             />
+            {isRegistering && (
+              <p id="password-hint" className="mt-1 text-xs text-inchiostro-700">
+                Almeno {MIN_PASSWORD_LENGTH} caratteri.
+              </p>
+            )}
           </div>
 
           {message && (
-            <p id="auth-error" role="alert" className="text-red-700 text-sm">{message}</p>
+            <p id="auth-error" role="alert" className="text-sm font-bold text-coppe">{message}</p>
           )}
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-green-700 to-green-900 text-white py-3 rounded-xl font-bold hover:from-green-800 hover:to-green-900 transition shadow-lg disabled:opacity-50"
+            className="min-h-[48px] w-full rounded-xl bg-fagiolo py-3 font-bold text-white shadow-md transition hover:bg-fagiolo-dark disabled:opacity-50"
           >
-            {isLoading && "⏳ Caricamento..."}
+            {isLoading && "Caricamento..."}
             {!isLoading && (isRegistering ? "Registrati" : "Accedi")}
           </button>
         </form>
@@ -144,15 +155,14 @@ function HomePage() {
           type="button"
           onClick={handleToggleMode}
           disabled={isLoading}
-          className="w-full mt-4 min-h-[44px] text-sm font-medium text-green-800 underline hover:text-green-900"
+          className="mt-4 min-h-[44px] w-full text-sm font-bold text-inchiostro-900 underline decoration-2 underline-offset-4 hover:text-fagiolo"
         >
           {isRegistering ? "Hai già un account? Accedi" : "Non hai un account? Crea un account"}
         </button>
 
-        <div className="mt-6 text-center text-xs text-green-700">
-          <p>Benvenuto su COMBOCARD!</p>
-          <p className="mt-1">Acquista crediti e partecipa alle partite</p>
-        </div>
+        <p className="mt-4 text-center text-xs text-inchiostro-700 [text-wrap:balance]">
+          Si gioca con crediti di gioco, senza pagamenti e senza valore reale.
+        </p>
       </div>
     </div>
   );

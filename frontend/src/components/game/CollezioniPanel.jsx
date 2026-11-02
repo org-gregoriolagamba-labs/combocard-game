@@ -136,10 +136,15 @@ function CollezioniPanel({
 
       <Disclosure
         openOnDesktop
-        title="Come funziona il Jolly"
+        title="Come si gioca"
         className="mt-1 border-t-2 border-inchiostro-900/20 lg:mt-2"
       >
         <div className="space-y-2 pb-3 text-xs text-inchiostro-700">
+          <p>
+            Quando esce una carta, la tua cartella si copre da sola con un fagiolo. Completa una figura: la
+            collezione si vince da sola.
+          </p>
+          <p className="font-bold text-inchiostro-900">Il Jolly</p>
           <p>
             Hai un Jolly a partita. Si usa quando a una collezione manca <strong>una sola carta</strong>: scegli la
             collezione, poi una carta della cartella non ancora coperta. Il Jolly la trasforma nella carta che manca
