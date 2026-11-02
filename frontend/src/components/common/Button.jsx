@@ -16,7 +16,7 @@ function Button({
   className = "",
   ...props
 }) {
-  const baseClasses = "min-h-[44px] font-bold rounded-xl transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseClasses = "min-h-[44px] font-bold rounded-xl transition shadow-md disabled:cursor-not-allowed disabled:border-transparent disabled:bg-inchiostro-500 disabled:text-cartone-50";
   
   const variantClasses = {
     primary: "bg-fagiolo text-white hover:bg-fagiolo-dark",
