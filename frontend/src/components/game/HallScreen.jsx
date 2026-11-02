@@ -4,7 +4,7 @@
  * Main hall where players can view lobbies, buy credits, and create/join games.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Coins, Plus, Users, DollarSign } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
@@ -27,6 +27,8 @@ function HallScreen() {
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
   const [privateGameCode, setPrivateGameCode] = useState("");
+  const [createErrors, setCreateErrors] = useState({});
+  const inFlight = useRef(false);
 
   // Load lobbies on mount and periodically
   useEffect(() => {
@@ -48,32 +50,49 @@ function HallScreen() {
     setShowCassa(true);
   };
 
+  // A double tap must not add the credits twice: the ref answers at once, the state would not
   const handleAcquistaCrediti = async () => {
-    if (creditiDaAcquistare <= 0) {
-      dispatch(addToast({ message: "Inserisci un importo valido", type: "error" }));
+    if (creditiDaAcquistare <= 0 || creditiDaAcquistare > 10000 || inFlight.current) {
       return;
     }
 
-    if (creditiDaAcquistare > 10000) {
-      dispatch(addToast({ message: "L'importo massimo acquistabile è 10000 crediti", type: "error" }));
-      return;
-    }
-
+    inFlight.current = true;
     try {
       await dispatch(buyCredits({ playerId, amount: creditiDaAcquistare })).unwrap();
-      dispatch(addToast({ message: `✅ Acquistati ${creditiDaAcquistare} crediti!`, type: "success" }));
+      dispatch(addToast({ message: `✅ Aggiunti ${creditiDaAcquistare} crediti!`, type: "success" }));
       setShowCassa(false);
     } catch (error) {
-      dispatch(addToast({ message: error || "Errore nell'acquisto dei crediti", type: "error" }));
+      dispatch(addToast({ message: error || "Non sono riuscito ad aggiungere i crediti", type: "error" }));
+    } finally {
+      inFlight.current = false;
     }
   };
 
+  // Each problem is shown in its field, once
+  const validaCreaPartita = () => {
+    const errors = {};
+
+    if (creditiRichiesti < 10) {
+      errors.creditiRichiesti = "Almeno 10 crediti";
+    } else if (playerCredits < creditiRichiesti) {
+      errors.creditiRichiesti = `Hai ${playerCredits} crediti: aggiungine dalla Cassa o chiedi meno crediti`;
+    }
+
+    if (maxPlayers < 2 || maxPlayers > 10) {
+      errors.maxPlayers = "Da 2 a 10 giocatori";
+    }
+
+    return errors;
+  };
+
   const handleCreaPartita = async () => {
-    if (playerCredits < creditiRichiesti) {
-      dispatch(addToast({ message: "Crediti insufficienti!", type: "error" }));
+    const errors = validaCreaPartita();
+    setCreateErrors(errors);
+    if (Object.keys(errors).length > 0 || inFlight.current) {
       return;
     }
 
+    inFlight.current = true;
     try {
       const result = await dispatch(createGame({
         requiredCredits: creditiRichiesti,
@@ -88,7 +107,9 @@ function HallScreen() {
       // Automatically join the created game
       await handleUniscitiPartita(result.gameId);
     } catch (error) {
-      dispatch(addToast({ message: error || "Errore nella creazione della partita", type: "error" }));
+      dispatch(addToast({ message: error || "Non sono riuscito a creare la partita", type: "error" }));
+    } finally {
+      inFlight.current = false;
     }
   };
 
@@ -136,7 +157,7 @@ function HallScreen() {
             </div>
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div className="sm:text-right">
-                <p className="text-sm text-green-700">I Tuoi Crediti</p>
+                <p className="text-sm text-green-800">I tuoi crediti</p>
                 <p className="text-2xl sm:text-3xl font-bold tabular-nums text-green-700 flex items-center gap-2">
                   <Coins size={28} aria-hidden="true" />
                   {playerCredits}
@@ -221,14 +242,18 @@ function HallScreen() {
       <Modal
         isOpen={showCassa}
         onClose={() => setShowCassa(false)}
-        title="💰 Cassa - Acquista Crediti"
+        title="Cassa: aggiungi crediti"
       >
         <div className="space-y-4">
+          <p className="text-sm text-green-900">
+            Sono crediti di gioco: non hanno valore reale e non serve nessun pagamento.
+          </p>
           <Input
-            label="Importo da acquistare"
+            label="Importo da aggiungere"
             type="number"
+            inputMode="numeric"
             value={creditiDaAcquistare}
-            onChange={(e) => setCreditiDaAcquistare(parseInt(e.target.value) || 0)}
+            onChange={(e) => setCreditiDaAcquistare(Math.min(10000, parseInt(e.target.value) || 0))}
             min="0"
             max="10000"
           />
@@ -236,21 +261,27 @@ function HallScreen() {
             {[5, 10, 25, 50, 100, 500, 1000].map((amount) => (
               <button
                 key={amount}
+                type="button"
                 onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
-                className="bg-green-100 text-green-800 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
+                className="min-h-[44px] bg-green-100 text-green-900 py-2 rounded-lg font-bold hover:bg-green-200 transition text-sm"
               >
                 +{amount}
               </button>
             ))}
           </div>
           <button
+            type="button"
             onClick={() => setCreditiDaAcquistare(0)}
-            className="w-full bg-red-100 text-red-800 py-2 rounded-lg font-bold hover:bg-red-200 transition"
+            className="min-h-[44px] w-full bg-red-100 text-red-900 py-2 rounded-lg font-bold hover:bg-red-200 transition"
           >
-            🔄 Reset
+            Azzera
           </button>
-          <Button onClick={handleAcquistaCrediti} className="w-full">
-            💳 Acquista {creditiDaAcquistare} Crediti
+          <Button
+            onClick={handleAcquistaCrediti}
+            disabled={creditiDaAcquistare <= 0}
+            className="w-full"
+          >
+            {creditiDaAcquistare > 0 ? `Aggiungi ${creditiDaAcquistare} crediti` : "Scegli un importo"}
           </Button>
         </div>
       </Modal>
@@ -259,21 +290,31 @@ function HallScreen() {
       <Modal
         isOpen={showCreaPartita}
         onClose={() => setShowCreaPartita(false)}
-        title="🎮 Crea Nuova Partita"
+        title="Crea nuova partita"
       >
         <div className="space-y-4">
           <Input
             label="Crediti richiesti per partecipare"
             type="number"
+            inputMode="numeric"
             value={creditiRichiesti}
-            onChange={(e) => setCreditiRichiesti(parseInt(e.target.value) || 0)}
+            onChange={(e) => {
+              setCreditiRichiesti(parseInt(e.target.value) || 0);
+              setCreateErrors((errors) => ({ ...errors, creditiRichiesti: undefined }));
+            }}
+            error={createErrors.creditiRichiesti}
             min="10"
           />
           <Input
             label="Numero massimo giocatori"
             type="number"
+            inputMode="numeric"
             value={maxPlayers}
-            onChange={(e) => setMaxPlayers(parseInt(e.target.value) || 2)}
+            onChange={(e) => {
+              setMaxPlayers(parseInt(e.target.value) || 0);
+              setCreateErrors((errors) => ({ ...errors, maxPlayers: undefined }));
+            }}
+            error={createErrors.maxPlayers}
             min="2"
             max="10"
           />
@@ -299,7 +340,7 @@ function HallScreen() {
       <Modal
         isOpen={showJoinPrivate}
         onClose={() => setShowJoinPrivate(false)}
-        title="🔒 Unisciti a Partita Privata"
+        title="Unisciti a una partita privata"
       >
         <div className="space-y-4">
           <Input

@@ -39,7 +39,7 @@ function PlayersList({ game = null, currentPlayerId = null }) {
             }`}
           >
             <div className="flex justify-between items-start mb-2">
-              <div className="font-bold text-green-900">
+              <div className="font-bold text-green-900 break-words min-w-0">
                 {player.name}
                 {player.id === currentPlayerId && " (Tu)"}
               </div>

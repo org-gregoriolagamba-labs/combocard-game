@@ -121,7 +121,7 @@ function LobbyScreen() {
                       : "bg-white border-2 border-gray-200"
                   }`}
                 >
-                  <p className="font-bold text-green-900">
+                  <p className="font-bold text-green-900 break-words">
                     {index === 0 && "👑 "}{player.name}
                   </p>
                   {player.id === playerId && (

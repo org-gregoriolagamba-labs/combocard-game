@@ -68,18 +68,6 @@ export const drawCard = createAsyncThunk(
   }
 );
 
-export const claimCollection = createAsyncThunk(
-  "game/claim",
-  async ({ gameId, tipo }, { rejectWithValue }) => {
-    try {
-      const result = await gameService.claimCollection(gameId, tipo);
-      return { ...result, tipo };
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
 export const playJolly = createAsyncThunk(
   "game/useJolly",
   async ({ gameId, row, col, tipo }, { rejectWithValue }) => {

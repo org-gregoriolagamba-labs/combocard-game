@@ -51,16 +51,84 @@ describe('GameScreen', () => {
     renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
     expect(screen.getByText('Montepremi')).toBeInTheDocument();
-    expect(screen.getByText('Tuoi Gettoni')).toBeInTheDocument();
+    expect(screen.getByText('I tuoi crediti')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Hall/ })).toBeInTheDocument();
   });
 
-  test('every collection has a claim button', () => {
+  test('every collection shows its progress and prize, and has a jolly button', () => {
     renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
-    for (const label of ['TRIS', 'SEQUENZA', 'SCOPA', 'NAPOLA', 'COMBOCARD REALE']) {
-      expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument();
+    for (const [tipo, label] of [['tris', 'TRIS'], ['sequenza', 'SEQUENZA'], ['scopa', 'SCOPA'], ['napola', 'NAPOLA'], ['combocard_reale', 'COMBOCARD REALE']]) {
+      expect(screen.getByTestId(`collezione-${tipo}`)).toHaveTextContent(/Premio \d+/);
+      expect(screen.getByRole('button', { name: `Usa il Jolly per ${label}` })).toBeInTheDocument();
     }
+  });
+
+  test('the collections cannot be claimed by hand: the server wins them by itself', () => {
+    renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+    expect(screen.queryByRole('button', { name: /^🎯 TRIS$/ })).not.toBeInTheDocument();
+    expect(gameService.claimCollection).toBeUndefined();
+  });
+
+  describe('leaving the game', () => {
+    const leave = () => fireEvent.click(screen.getByRole('button', { name: /Hall/ }));
+
+    beforeEach(() => {
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      gameService.leaveGame.mockResolvedValue({ success: true });
+    });
+
+    test('while the game is in progress asks in a dialog that names the consequence', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      leave();
+
+      const dialog = screen.getByRole('dialog', { name: 'Uscire dalla partita?' });
+      expect(dialog).toHaveTextContent('perdi i crediti spesi per partecipare');
+      expect(window.confirm).not.toHaveBeenCalled();
+      expect(gameService.leaveGame).not.toHaveBeenCalled();
+    });
+
+    test('"Resta in partita" closes the dialog and stays', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+      leave();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Resta in partita' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(gameService.leaveGame).not.toHaveBeenCalled();
+    });
+
+    test('"Esci dalla partita" leaves it', async () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+      leave();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Esci dalla partita' }));
+
+      await waitFor(() => expect(gameService.leaveGame).toHaveBeenCalledWith('game-456'));
+    });
+
+    test('Esc does not leave the game', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+      leave();
+
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(gameService.leaveGame).not.toHaveBeenCalled();
+    });
+
+    test('once the game is finished it leaves without asking', async () => {
+      const state = stateFor('carlo');
+      state.game.game.status = 'finished';
+      renderWithProviders(<GameScreen />, { preloadedState: state });
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Torna alla Hall' })[0]);
+
+      await waitFor(() => expect(gameService.leaveGame).toHaveBeenCalledWith('game-456'));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   test('players and rules start collapsed on a narrow screen and open on demand', () => {
@@ -100,7 +168,7 @@ describe('GameScreen', () => {
   });
 
   describe('guided jolly', () => {
-    const startJolly = () => fireEvent.click(screen.getAllByRole('button', { name: 'Usa Jolly' })[0]);
+    const startJolly = () => fireEvent.click(screen.getByRole('button', { name: 'Usa il Jolly per TRIS' }));
     const firstCard = () => screen.getAllByRole('button', { name: 'Asso di Spade' })[0];
     const confirmGroup = () => screen.getAllByRole('group', { name: 'Conferma Jolly' })[0];
 
@@ -164,7 +232,8 @@ describe('GameScreen', () => {
     });
 
     test('if the jolly cannot be used the mode stays on, so another card can be tried', async () => {
-      gameService.useJolly.mockRejectedValue(new Error('Jolly cannot complete this collection or card already exists in grid'));
+      // The API client translates the server's English: here the answer is already in Italian
+      gameService.useJolly.mockRejectedValue(new Error("Il Jolly non può completare questa collezione con quella carta. Scegli un'altra carta o un'altra collezione."));
       const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
       startJolly();
       fireEvent.click(firstCard());

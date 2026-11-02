@@ -124,8 +124,8 @@ export function useSocket() {
     const handleCollezioneVinta = ({ tipo, vincitore, vincitori, ammontare, divided }) => {
       const winnerNames = vincitori.map((v) => v.name).join(", ");
       const message = divided
-        ? `🎉 ${tipo.toUpperCase().replace("_", " ")} vinta da ${winnerNames}! Premio diviso: ${ammontare} gettoni ciascuno!`
-        : `🎉 ${vincitore.name} ha vinto ${tipo.toUpperCase().replace("_", " ")}! Premio: ${ammontare} gettoni!`;
+        ? `🎉 ${tipo.toUpperCase().replace("_", " ")} vinta da ${winnerNames}! Premio diviso: ${ammontare} crediti ciascuno!`
+        : `🎉 ${vincitore.name} ha vinto ${tipo.toUpperCase().replace("_", " ")}! Premio: ${ammontare} crediti!`;
       
       dispatch(addToast({ message, type: "success", duration: 5000 }));
       refreshGameState();
@@ -142,7 +142,7 @@ export function useSocket() {
     // Remaining prizes distributed
     const handlePremiRimanentiDivisi = ({ ammontare, collezioniNonVinte }) => {
       dispatch(addToast({
-        message: `💰 Premi rimanenti divisi: ${ammontare} gettoni! (${collezioniNonVinte.join(", ")})`,
+        message: `💰 Premi rimanenti divisi: ${ammontare} crediti! (${collezioniNonVinte.join(", ")})`,
         type: "info",
         duration: 5000,
       }));

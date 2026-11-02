@@ -8,58 +8,58 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
-import { useToast } from "../hooks";
 
 const MIN_USERNAME_LENGTH = 3;
 const MIN_PASSWORD_LENGTH = 8;
 
-const ERROR_MESSAGES = {
-  "Invalid username or password": "Nome utente o password non corretti",
-  "Username already taken": "Questo nome utente è già in uso",
-  "Too many failed login attempts, please try again later.": "Troppi tentativi falliti, riprova tra poco",
-  "Too many requests, please try again later.": "Troppe richieste, riprova tra poco",
-};
-
-const translateError = (message) => ERROR_MESSAGES[message] ?? message;
-
 function HomePage() {
   const dispatch = useDispatch();
   const { isLoading, error } = useSelector((state) => state.player);
-  const { error: toastError } = useToast();
 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [formError, setFormError] = useState(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  // The message is shown in the form, once: server errors arrive already in Italian
+  const message = formError ?? error;
+
+  const clearMessage = () => {
+    setFormError(null);
+    dispatch(clearError());
+  };
+
   const handleToggleMode = () => {
     setIsRegistering((value) => !value);
-    dispatch(clearError());
+    clearMessage();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (username.trim().length === 0 || password.length === 0) {
-      toastError("Inserisci nome utente e password");
+      setFormError("Inserisci nome utente e password");
       return;
     }
 
     if (isRegistering && username.trim().length < MIN_USERNAME_LENGTH) {
-      toastError(`Il nome utente deve avere almeno ${MIN_USERNAME_LENGTH} caratteri`);
+      setFormError(`Il nome utente deve avere almeno ${MIN_USERNAME_LENGTH} caratteri`);
       return;
     }
 
     if (isRegistering && password.length < MIN_PASSWORD_LENGTH) {
-      toastError(`La password deve avere almeno ${MIN_PASSWORD_LENGTH} caratteri`);
+      setFormError(`La password deve avere almeno ${MIN_PASSWORD_LENGTH} caratteri`);
       return;
     }
+
+    setFormError(null);
 
     try {
       const action = isRegistering ? registerAccount : login;
       const { player } = await dispatch(action({ username, password })).unwrap();
       await dispatch(enterGameOrHall(player));
-    } catch (err) {
-      toastError(translateError(err) || "Errore di accesso");
+    } catch {
+      // The reason is in the state of the player and is shown in the form
     }
   };
 
@@ -88,7 +88,12 @@ function HomePage() {
               id="username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                clearMessage();
+              }}
+              aria-invalid={message ? true : undefined}
+              aria-describedby={message ? "auth-error" : undefined}
               className="w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
               placeholder="Inserisci il tuo nome utente"
               autoComplete="username"
@@ -106,7 +111,12 @@ function HomePage() {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                clearMessage();
+              }}
+              aria-invalid={message ? true : undefined}
+              aria-describedby={message ? "auth-error" : undefined}
               className="w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
               placeholder={isRegistering ? `Almeno ${MIN_PASSWORD_LENGTH} caratteri` : "Inserisci la password"}
               autoComplete={isRegistering ? "new-password" : "current-password"}
@@ -115,8 +125,8 @@ function HomePage() {
             />
           </div>
 
-          {error && (
-            <p className="text-red-600 text-sm">{translateError(error)}</p>
+          {message && (
+            <p id="auth-error" role="alert" className="text-red-700 text-sm">{message}</p>
           )}
 
           <button

@@ -70,21 +70,10 @@ export const drawCard = async (gameId) => {
 };
 
 /**
- * Claim a collection
+ * Use the jolly on a card of the grid
  * @param {string} gameId - Game ID
- * @param {string} tipo - Collection type
- * @returns {Promise} Claim result
- */
-export const claimCollection = async (gameId, tipo) => {
-  const response = await api.post(`/games/${gameId}/claim`, { tipo });
-  return response.data;
-};
-
-/**
- * Use jolly card
- * @param {string} gameId - Game ID
- * @param {Object} options - Jolly options
- * @returns {Promise} Jolly result
+ * @param {Object} choice - Position of the card and collection to complete
+ * @returns {Promise} Result, with the card the jolly became
  */
 export const useJolly = async (gameId, { row, col, tipo }) => {
   const response = await api.post(`/games/${gameId}/jolly`, {
