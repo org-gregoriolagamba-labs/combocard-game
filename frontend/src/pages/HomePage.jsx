@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
+import Seme from "../components/game/Seme";
 
 const MIN_USERNAME_LENGTH = 3;
 const MIN_PASSWORD_LENGTH = 8;
@@ -68,10 +69,10 @@ function HomePage() {
       <div className="bg-amber-50 rounded-3xl shadow-2xl p-5 sm:p-8 max-w-md w-full border-4 border-amber-600">
         <div className="text-center mb-8">
           <div className="flex justify-center gap-2 mb-4">
-            <span className="text-4xl sm:text-5xl">⚔️</span>
-            <span className="text-4xl sm:text-5xl">🏆</span>
-            <span className="text-4xl sm:text-5xl">💰</span>
-            <span className="text-4xl sm:text-5xl">🪵</span>
+            <Seme seme="Spade" className="h-10 w-10 sm:h-12 sm:w-12" />
+            <Seme seme="Coppe" className="h-10 w-10 sm:h-12 sm:w-12" />
+            <Seme seme="Denari" className="h-10 w-10 sm:h-12 sm:w-12" />
+            <Seme seme="Bastoni" className="h-10 w-10 sm:h-12 sm:w-12" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-green-900 mb-2 break-words">COMBOCARD</h1>
           <p className="text-green-700 font-medium">
@@ -82,7 +83,7 @@ function HomePage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-green-900 mb-2">
-              👤 Nome utente
+              Nome utente
             </label>
             <input
               id="username"
@@ -105,7 +106,7 @@ function HomePage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-green-900 mb-2">
-              🔑 Password
+              Password
             </label>
             <input
               id="password"
@@ -135,7 +136,7 @@ function HomePage() {
             className="w-full bg-gradient-to-r from-green-700 to-green-900 text-white py-3 rounded-xl font-bold hover:from-green-800 hover:to-green-900 transition shadow-lg disabled:opacity-50"
           >
             {isLoading && "⏳ Caricamento..."}
-            {!isLoading && (isRegistering ? "✨ Registrati" : "✨ Accedi")}
+            {!isLoading && (isRegistering ? "Registrati" : "Accedi")}
           </button>
         </form>
 
