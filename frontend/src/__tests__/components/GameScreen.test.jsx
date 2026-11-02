@@ -5,7 +5,7 @@ import { GameScreen } from '../../components/game';
 import { renderWithProviders, mockGameState } from '../test-utils';
 import * as gameService from '../../services/gameService';
 
-jest.mock('../../services/gameService');
+vi.mock('../../services/gameService');
 
 const carta = { valore: 'Asso', seme: 'Spade', emoji: '⚔️', valoreNum: 1 };
 const cartella = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => ({ ...carta })));
@@ -75,7 +75,7 @@ describe('GameScreen', () => {
     const leave = () => fireEvent.click(screen.getByRole('button', { name: /Hall/ }));
 
     beforeEach(() => {
-      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
       gameService.leaveGame.mockResolvedValue({ success: true });
     });
 
@@ -173,8 +173,8 @@ describe('GameScreen', () => {
     const confirmGroup = () => screen.getAllByRole('group', { name: 'Conferma Jolly' })[0];
 
     beforeEach(() => {
-      Element.prototype.scrollIntoView = jest.fn();
-      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      Element.prototype.scrollIntoView = vi.fn();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
     });
 
     afterEach(() => {

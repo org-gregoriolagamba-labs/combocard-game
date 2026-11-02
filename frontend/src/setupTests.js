@@ -7,33 +7,33 @@
 import '@testing-library/jest-dom';
 
 // Mock socket.io-client
-jest.mock('socket.io-client', () => {
+vi.mock('socket.io-client', () => {
   const mockSocket = {
-    on: jest.fn(),
-    off: jest.fn(),
-    emit: jest.fn(),
-    connect: jest.fn(),
-    disconnect: jest.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
     connected: false,
   };
   
   return {
-    io: jest.fn(() => mockSocket),
+    io: vi.fn(() => mockSocket),
   };
 });
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation(query => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
   })),
 });
 

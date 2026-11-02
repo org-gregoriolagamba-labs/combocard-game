@@ -20,7 +20,7 @@ const base = {
 describe('BarraAzione', () => {
   describe('creator of the game', () => {
     test('can draw a card', () => {
-      const onDraw = jest.fn();
+      const onDraw = vi.fn();
       render(<BarraAzione {...base} onDraw={onDraw} />);
 
       fireEvent.click(screen.getByRole('button', { name: /Estrai Carta/ }));
@@ -29,7 +29,7 @@ describe('BarraAzione', () => {
     });
 
     test('during the wait it shows the seconds left and cannot draw', () => {
-      const onDraw = jest.fn();
+      const onDraw = vi.fn();
       render(<BarraAzione {...base} drawCooldown={5} onDraw={onDraw} />);
 
       const button = screen.getByRole('button', { name: /Attendi 5s/ });
@@ -57,7 +57,7 @@ describe('BarraAzione', () => {
 
   describe('jolly mode', () => {
     test('says which collection it is for and can be cancelled', () => {
-      const onCancelJolly = jest.fn();
+      const onCancelJolly = vi.fn();
       render(<BarraAzione {...base} jollyMode="combocard_reale" onCancelJolly={onCancelJolly} />);
 
       expect(screen.getByText(/Jolly per COMBOCARD REALE/)).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe('BarraAzione', () => {
     });
 
     test('"Usa Jolly" confirms', () => {
-      const onConfirmJolly = jest.fn();
+      const onConfirmJolly = vi.fn();
       render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} onConfirmJolly={onConfirmJolly} />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Usa Jolly' }));
@@ -99,8 +99,8 @@ describe('BarraAzione', () => {
     });
 
     test('"Cambia carta" goes back to choosing without leaving the mode', () => {
-      const onChangeJollyCard = jest.fn();
-      const onCancelJolly = jest.fn();
+      const onChangeJollyCard = vi.fn();
+      const onCancelJolly = vi.fn();
       render(
         <BarraAzione {...base} jollyMode="tris" jollyPending={pending}
           onChangeJollyCard={onChangeJollyCard} onCancelJolly={onCancelJolly} />,
@@ -113,8 +113,8 @@ describe('BarraAzione', () => {
     });
 
     test('Esc while confirming goes back to choosing', () => {
-      const onChangeJollyCard = jest.fn();
-      const onCancelJolly = jest.fn();
+      const onChangeJollyCard = vi.fn();
+      const onCancelJolly = vi.fn();
       render(
         <BarraAzione {...base} jollyMode="tris" jollyPending={pending}
           onChangeJollyCard={onChangeJollyCard} onCancelJolly={onCancelJolly} />,
@@ -127,7 +127,7 @@ describe('BarraAzione', () => {
     });
 
     test('Esc while choosing leaves the jolly mode', () => {
-      const onCancelJolly = jest.fn();
+      const onCancelJolly = vi.fn();
       render(<BarraAzione {...base} jollyMode="tris" onCancelJolly={onCancelJolly} />);
 
       fireEvent.keyDown(screen.getByRole('group', { name: 'Modalità Jolly' }), { key: 'Escape' });
@@ -153,7 +153,7 @@ describe('BarraAzione', () => {
 
   describe('finished game', () => {
     test('offers the way back to the hall and nothing else', () => {
-      const onLeave = jest.fn();
+      const onLeave = vi.fn();
       render(<BarraAzione {...base} status="finished" jollyMode="tris" onLeave={onLeave} />);
 
       expect(screen.getByText(/PARTITA TERMINATA/)).toBeInTheDocument();

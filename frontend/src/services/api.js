@@ -9,7 +9,7 @@
 import { translateServerError } from "../utils/errors.utils";
 
 // API base URL from environment or default
-const API_BASE_URL = process.env.REACT_APP_API_URL || "/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 let accessToken = null;
 let pendingRefresh = null;

@@ -22,7 +22,7 @@ export const store = configureStore({
         ignoredActions: ["game/setGame"],
       },
     }),
-  devTools: process.env.NODE_ENV !== "production",
+  devTools: import.meta.env.DEV,
 });
 
 export default store;

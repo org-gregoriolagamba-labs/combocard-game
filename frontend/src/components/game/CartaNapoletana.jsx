@@ -13,7 +13,7 @@ const WIDTH = 198;
 const HEIGHT = 360;
 
 function CartaNapoletana({ valore, seme, className = "" }) {
-  const src = `${process.env.PUBLIC_URL || ""}/carte/${seme.toLowerCase()}-${valore.toLowerCase()}.webp`;
+  const src = `/carte/${seme.toLowerCase()}-${valore.toLowerCase()}.webp`;
   const [failedSrc, setFailedSrc] = useState(null);
   const nome = `${valore} di ${seme}`;
 

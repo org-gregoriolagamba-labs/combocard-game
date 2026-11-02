@@ -31,7 +31,7 @@ describe('Modal', () => {
   });
 
   test('Esc closes it', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<Content onClose={onClose} />);
 
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
@@ -40,7 +40,7 @@ describe('Modal', () => {
   });
 
   test('the close button has a name and is a real tap target', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<Content onClose={onClose} />);
 
     const close = screen.getByRole('button', { name: 'Chiudi' });
@@ -52,7 +52,7 @@ describe('Modal', () => {
   });
 
   test('a tap outside closes it, a tap inside does not', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     const { container } = render(<Content onClose={onClose} />);
 
     fireEvent.click(screen.getByLabelText('Importo'));

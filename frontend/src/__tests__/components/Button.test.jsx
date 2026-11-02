@@ -14,7 +14,7 @@ describe('Button', () => {
   });
 
   test('calls onClick when clicked', () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<Button onClick={handleClick}>Click me</Button>);
     
     fireEvent.click(screen.getByRole('button'));
@@ -29,7 +29,7 @@ describe('Button', () => {
   });
 
   test('does not call onClick when disabled', () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<Button onClick={handleClick} disabled>Disabled</Button>);
     
     fireEvent.click(screen.getByRole('button'));

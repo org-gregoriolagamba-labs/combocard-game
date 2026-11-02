@@ -15,7 +15,7 @@ describe('Input', () => {
   });
 
   test('handles value changes', () => {
-    const handleChange = jest.fn();
+    const handleChange = vi.fn();
     render(<Input name="test" value="" onChange={handleChange} />);
     
     const input = screen.getByRole('textbox');

@@ -10,28 +10,33 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-redux": "^9.3.1",
-    "react-scripts": "5.0.1",
     "socket.io-client": "^4.8.4"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^16.3.3",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@vitest/coverage-v8": "^4.1.12",
     "autoprefixer": "^10.6.2",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.32",
     "prettier": "^3.9.10",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12"
   },
-  "proxy": "http://localhost:3001",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
     "lint": "eslint src/ --ext .js,.jsx",
     "lint:fix": "eslint src/ --ext .js,.jsx --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,json,css}\""
@@ -47,5 +52,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }
