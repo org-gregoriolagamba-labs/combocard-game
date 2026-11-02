@@ -7,8 +7,9 @@
 
 import React from "react";
 import PropTypes from "prop-types";
-import { Coins, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Disclosure } from "../common";
+import Credito from "./Credito";
 
 const NOME_COLLEZIONE = (col) => col.toUpperCase().replace("_", " ");
 
@@ -35,7 +36,7 @@ function PlayersList({ game = null, currentPlayerId = null }) {
                   {player.id === currentPlayerId && " (Tu)"}
                 </p>
                 <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-inchiostro-900">
-                  <Coins size={16} aria-hidden="true" />
+                  <Credito />
                   {player.gettoni}
                 </p>
               </div>

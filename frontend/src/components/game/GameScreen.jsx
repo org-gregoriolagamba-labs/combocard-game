@@ -15,7 +15,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Coins, DoorOpen } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 import {
   drawCard,
   playJolly,
@@ -31,6 +31,7 @@ import CartaNapoletana from "./CartaNapoletana";
 import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
 import GuidaPrimaPartita from "./GuidaPrimaPartita";
+import Credito from "./Credito";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
@@ -267,8 +268,9 @@ function GameScreen() {
               />
             )}
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase leading-tight tracking-wide text-inchiostro-700">
-                Ultima carta
+              <p className="text-[13px] font-bold leading-tight tabular-nums text-inchiostro-700">
+                <span className="sr-only">Ultima carta. </span>
+                {game?.carteRimaste ?? 0} carte rimaste
               </p>
               {ultimaCartaEstratta ? (
                 <p className="titolo truncate text-xl leading-tight text-inchiostro-900" aria-live="polite">
@@ -285,19 +287,19 @@ function GameScreen() {
 
           <dl className="shrink-0 text-right">
             <div>
-              <dt className="text-[11px] leading-none text-inchiostro-700">Montepremi</dt>
-              <dd className="titolo flex items-center justify-end gap-1 text-base leading-tight text-denari">
-                <Coins size={16} aria-hidden="true" />
+              <dt className="text-xs leading-none text-inchiostro-700">Montepremi</dt>
+              <dd className="titolo flex items-center justify-end gap-1 text-base leading-tight text-inchiostro-900">
+                <Credito />
                 {montepremi}
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] leading-none text-inchiostro-700">I tuoi crediti</dt>
+              <dt className="text-xs leading-none text-inchiostro-700">I tuoi crediti</dt>
               <dd
                 key={currentPlayer.gettoni}
-                className="titolo flex animate-conta items-center justify-end gap-1 text-base leading-tight text-bastoni"
+                className="titolo flex animate-conta items-center justify-end gap-1 text-base leading-tight text-inchiostro-900"
               >
-                <Coins size={16} aria-hidden="true" />
+                <Credito />
                 {currentPlayer.gettoni}
               </dd>
             </div>
@@ -322,10 +324,9 @@ function GameScreen() {
         )}
 
         {/* The player's sheet, laid out like a tombola sheet */}
-        <section ref={gridRef} className="foglio scroll-mt-20 p-2.5 lg:row-span-3">
+        <section ref={gridRef} className="foglio scroll-mt-20 p-2.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
           <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
             <h2 className="titolo text-lg text-inchiostro-900">La tua cartella</h2>
-            <p className="text-[11px] font-bold tabular-nums text-inchiostro-700">{game?.carteRimaste ?? 0} carte rimaste</p>
           </div>
 
           <Cartella
@@ -342,9 +343,8 @@ function GameScreen() {
             onCardClick={handleSceglieCartaJolly}
           />
 
-          <p className="mt-2 px-1 text-[11px] leading-snug text-inchiostro-700">
-            Quando esce una carta, la tua si copre da sola con un fagiolo. Il posto vuoto è una carta che non hai.
-            Il puntino è una carta uscita.
+          <p className="mt-2 px-1 text-[13px] leading-snug text-inchiostro-700">
+            Posto vuoto: carta che non hai. Puntino: carta già uscita.
           </p>
 
           <div className="mt-3 hidden lg:block">{azione("panel")}</div>

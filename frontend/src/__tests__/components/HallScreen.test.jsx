@@ -19,15 +19,15 @@ describe('HallScreen', () => {
     gameService.getLobby.mockResolvedValue([]);
   });
 
-  describe('the Cassa', () => {
-    const openCassa = () => fireEvent.click(screen.getByRole('button', { name: 'Cassa' }));
+  describe('the dialog to take credits', () => {
+    const openCassa = () => fireEvent.click(screen.getByRole('button', { name: 'Prendi crediti' }));
 
     test('is a dialog that says the credits are play money', () => {
       renderWithProviders(<HallScreen />, { preloadedState: state() });
 
       openCassa();
 
-      const dialog = screen.getByRole('dialog', { name: 'Cassa: aggiungi crediti' });
+      const dialog = screen.getByRole('dialog', { name: 'Prendi crediti di gioco' });
       expect(dialog).toHaveTextContent('crediti di gioco');
       expect(dialog).toHaveTextContent('nessun pagamento');
     });
@@ -145,7 +145,7 @@ describe('HallScreen', () => {
       fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
 
       expect(screen.getByLabelText('Crediti richiesti per partecipare'))
-        .toHaveAccessibleDescription('Hai 30 crediti: aggiungine dalla Cassa o chiedi meno crediti');
+        .toHaveAccessibleDescription('Hai 30 crediti: aggiungine con «Prendi crediti» o chiedi meno crediti');
       expect(gameService.createGame).not.toHaveBeenCalled();
     });
   });

@@ -119,6 +119,27 @@ describe('Cartella', () => {
     });
   });
 
+  describe('the sheet shows how near a figure is', () => {
+    const sei = (seme) => ({ valore: 'Sei', seme, valoreNum: 6 });
+    const tre = (seme) => ({ valore: 'Tre', seme, valoreNum: 3 });
+
+    test('a row with two covered cards of one value shows 2/3, a tris being three', () => {
+      render(<Cartella cartella={[[sei('Spade'), sei('Coppe'), tre('Spade')]]} coperte={[[true, true, false]]} />);
+
+      const riga = screen.getByRole('rowheader', { name: /Sei/ });
+      expect(riga).toHaveTextContent('2/3');
+      expect(screen.getByRole('rowheader', { name: /Tre/ })).not.toHaveTextContent('/3');
+    });
+
+    test('a column with three covered cards of one suit shows 3/5, a scopa being five', () => {
+      const carte = [['Asso', 1], ['Due', 2], ['Tre', 3], ['Re', 10]].map(([valore, valoreNum]) => ({ valore, seme: 'Spade', valoreNum }));
+      render(<Cartella cartella={[carte]} coperte={[[true, true, true, false]]} />);
+
+      expect(screen.getByRole('columnheader', { name: /Spade/ })).toHaveTextContent('3/5');
+      expect(screen.getByRole('columnheader', { name: /Coppe/ })).not.toHaveTextContent('/5');
+    });
+  });
+
   test('the suit is drawn with its Neapolitan illustration', () => {
     const { container } = render(<Cartella cartella={griglia} coperte={[[false]]} />);
 

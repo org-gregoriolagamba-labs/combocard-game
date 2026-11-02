@@ -77,13 +77,13 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 
 ### 1. Registration
 - Player enters their name
-- Starts with 0 credits (credits are bought via the **Cassa**)
+- Starts with 0 credits (credits are taken with **Prendi crediti** (play money))
 
 ### 2. Hall (Game List)
 - View available public games waiting for players
 - Create a new game (choose required credits, max players, and public/private)
 - Join a public game or use a **private code** to join a private game
-- Buy credits via **Cassa** (preset cuts + reset, max purchase 10,000)
+- Take credits with **Prendi crediti** (preset cuts + reset, max purchase 10,000)
 
 ### 3. Lobby (Pre-game)
 - Wait for other players (2–10 players per game)

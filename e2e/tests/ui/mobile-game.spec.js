@@ -4,7 +4,7 @@
  * The main flow with a phone-sized screen: the grid, the last card and the main
  * action are in the same screen, nothing scrolls sideways, every control is at
  * least 44 px, and the jolly is used in two steps in the bar, without browser dialogs.
- * The page speaks Italian, errors appear once, the Cassa is an accessible dialog,
+ * The page speaks Italian, errors appear once, taking credits is an accessible dialog,
  * and leaving a game in progress is asked in a dialog that names the consequence.
  * @tags @mobile
  */
@@ -51,7 +51,7 @@ async function signInHall(page, player) {
   await page.getByLabel(/nome utente/i).fill(player.name);
   await page.getByLabel(/password/i).fill(PASSWORD);
   await page.getByRole('button', { name: /accedi/i }).click();
-  await expect(page.getByRole('button', { name: 'Cassa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Prendi crediti' })).toBeVisible();
 }
 
 async function signIn(page, player) {
@@ -89,9 +89,12 @@ async function withKnownSheet(page, player) {
     const game = body.data?.game ?? body.data;
     if (game?.players) {
       game.players = game.players.map((p) =>
-        p.id === player.id ? { ...p, cartella, coperte, jollyUsato: false, jollyPos: null } : p,
+        p.id === player.id ? { ...p, cartella, coperte, collezioni: [], jollyUsato: false, jollyPos: null } : p,
       );
-      game.collezioni.tris.vinto = false;
+      // No collection is won yet, whatever the random draws did: the tests do not depend on luck
+      Object.values(game.collezioni).forEach((c) => {
+        c.vinto = false;
+      });
     }
     await route.fulfill({ response, json: body });
   });
@@ -105,7 +108,7 @@ test.describe('Game screen on a phone @mobile', () => {
     const viewportHeight = page.viewportSize().height;
     const bar = await page.getByTestId('barra-azione').boundingBox();
     const table = await page.getByRole('table').boundingBox();
-    const lastDrawn = await page.getByText('Ultima carta').boundingBox();
+    const lastDrawn = await page.getByRole('banner').boundingBox();
 
     // The whole sheet (ten rows) sits between the header and the bar, with no scrolling
     expect(lastDrawn.y + lastDrawn.height).toBeLessThan(viewportHeight);
@@ -128,7 +131,7 @@ test.describe('Game screen on a phone @mobile', () => {
     const { guest } = await startedGame(request);
     await signIn(page, guest);
 
-    await expect(page.getByRole('columnheader')).toHaveText(['Denari', 'Coppe', 'Spade', 'Bastoni']);
+    await expect(page.getByRole('columnheader')).toContainText(['Denari', 'Coppe', 'Spade', 'Bastoni']);
     await expect(page.getByRole('rowheader')).toHaveCount(10);
     await expect(page.getByRole('button', { name: NOME_CARTA })).toHaveCount(25);
   });
@@ -256,6 +259,7 @@ test.describe('Game screen on a phone @mobile', () => {
 
   test('a player at the first game sees the guide, and "Ho capito" closes it for good', async ({ page, request }) => {
     const { guest } = await startedGame(request);
+    await withKnownSheet(page, guest);
     await page.goto('/');
     await page.getByLabel(/nome utente/i).fill(guest.name);
     await page.getByLabel(/password/i).fill(PASSWORD);
@@ -272,7 +276,7 @@ test.describe('Game screen on a phone @mobile', () => {
   });
 });
 
-test.describe('Login and Cassa on a phone @mobile', () => {
+test.describe('Login and credits on a phone @mobile', () => {
   test('the page speaks Italian', async ({ page }) => {
     await page.goto('/');
 
@@ -292,13 +296,13 @@ test.describe('Login and Cassa on a phone @mobile', () => {
     await expect(page.getByRole('alert')).toHaveText('Nome utente o password non corretti');
   });
 
-  test('the Cassa is a dialog that says the credits are play money, and gives the focus back', async ({ page, request }) => {
+  test('the credits dialog says the credits are play money, and gives the focus back', async ({ page, request }) => {
     const player = await registerPlayer(request, API_URL, 'Cassa');
     await signInHall(page, player);
 
-    const cassa = page.getByRole('button', { name: 'Cassa' });
+    const cassa = page.getByRole('button', { name: 'Prendi crediti' });
     await cassa.click();
-    const dialog = page.getByRole('dialog', { name: 'Cassa: aggiungi crediti' });
+    const dialog = page.getByRole('dialog', { name: 'Prendi crediti di gioco' });
     await expect(dialog).toContainText('crediti di gioco');
     await expect(dialog).toBeFocused();
     await expect(page.getByLabel('Importo da aggiungere')).toBeVisible();

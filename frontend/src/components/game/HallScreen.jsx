@@ -6,13 +6,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Coins, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
 import { Modal, Button, Input } from "../common";
 import Seme from "./Seme";
+import Credito from "./Credito";
 
 function HallScreen() {
   const dispatch = useDispatch();
@@ -78,7 +79,7 @@ function HallScreen() {
     if (creditiRichiesti < 10) {
       errors.creditiRichiesti = "Almeno 10 crediti";
     } else if (playerCredits < creditiRichiesti) {
-      errors.creditiRichiesti = `Hai ${playerCredits} crediti: aggiungine dalla Cassa o chiedi meno crediti`;
+      errors.creditiRichiesti = `Hai ${playerCredits} crediti: aggiungine con «Prendi crediti» o chiedi meno crediti`;
     }
 
     if (maxPlayers < 2 || maxPlayers > 10) {
@@ -180,8 +181,8 @@ function HallScreen() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="sm:text-right">
                 <p className="text-sm text-inchiostro-700">I tuoi crediti</p>
-                <p className="titolo flex items-center gap-2 text-2xl text-bastoni sm:text-3xl">
-                  <Coins size={26} aria-hidden="true" />
+                <p className="titolo flex items-center gap-2 text-2xl text-inchiostro-900 sm:text-3xl">
+                  <Credito className="h-6 w-6" />
                   {playerCredits}
                 </p>
               </div>
@@ -189,8 +190,8 @@ function HallScreen() {
                 onClick={handleApriCassa}
                 className="flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-inchiostro-900 bg-ocra px-5 py-3 font-bold text-inchiostro-900 transition hover:bg-ocra-dark"
               >
-                <Seme seme="Denari" className="h-6 w-6" />
-                Cassa
+                <Credito className="h-6 w-6" />
+                Prendi crediti
               </button>
             </div>
           </div>
@@ -270,7 +271,7 @@ function HallScreen() {
       <Modal
         isOpen={showCassa}
         onClose={() => setShowCassa(false)}
-        title="Cassa: aggiungi crediti"
+        title="Prendi crediti di gioco"
       >
         <div className="space-y-4">
           <p className="text-sm text-inchiostro-900">

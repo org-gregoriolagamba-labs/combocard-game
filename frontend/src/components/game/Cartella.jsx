@@ -23,16 +23,27 @@ const nomeCarta = (carta, coperta) =>
 // The bean lies a little crooked, and not always the same way
 const INCLINAZIONI = ["-rotate-12", "rotate-6", "-rotate-3", "rotate-12", "rotate-3"];
 
+// A dried bean, drawn flat in the vermilion ink: kidney outline, the hilum and a few speckles
 function Fagiolo({ nuovo, indice }) {
   return (
-    <span
+    <svg
       aria-hidden="true"
+      viewBox="0 0 30 22"
       className={`pointer-events-none absolute bottom-0.5 right-0.5 h-[22px] w-[30px] ${INCLINAZIONI[indice % INCLINAZIONI.length]} ${
         nuovo ? "animate-fagiolo-giu" : ""
       }`}
     >
-      <span className="block h-full w-full rounded-[50%_50%_46%_54%/58%_58%_42%_42%] border border-fagiolo-dark bg-fagiolo shadow-[0_2px_3px_rgba(42,26,15,0.55),inset_3px_3px_4px_rgba(255,255,255,0.28)]" />
-    </span>
+      <path
+        d="M3.2 12.2C2 5.6 9.4 1.6 16.8 2.2c8.2.7 12.4 6 10.6 11.6-1.8 5.6-9.8 7.8-15.6 5.2-4.2-1.8-8-3.2-8.6-6.8Z"
+        fill="#b92d1b"
+        stroke="#7c1a0e"
+        strokeWidth="1.2"
+      />
+      <path d="M11 9.6c3-2.6 7.2-2.4 9.6.2" fill="none" stroke="#7c1a0e" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="9" cy="14.6" r="0.9" fill="#7c1a0e" />
+      <circle cx="19.4" cy="15.2" r="0.9" fill="#7c1a0e" />
+      <circle cx="23.2" cy="9.6" r="0.8" fill="#7c1a0e" />
+    </svg>
   );
 }
 
@@ -56,6 +67,9 @@ function Cartella({
   const luci = new Set(evidenziate.map((p) => `${p.row}-${p.col}`));
   const attive = possibili ? new Set(possibili.map((p) => `${p.row}-${p.col}`)) : null;
   const righe = mappaCartella(cartella, coperte, estratte);
+  // How near each row (a tris) and each column (a scopa) is: shown on the sheet itself
+  const perRiga = righe.map((riga) => riga.filter((p) => p.coperta).length);
+  const perColonna = SEMI_IN_ORDINE.map((_, c) => righe.filter((riga) => riga[c].coperta).length);
 
   // The beans already on the sheet when it appears do not fall again
   const [giaCoperte] = useState(
@@ -69,17 +83,22 @@ function Cartella({
       </caption>
       <thead>
         <tr>
-          <td className="w-[5.1rem] p-0" />
+          <td className="w-[5.6rem] p-0" />
           {SEMI_IN_ORDINE.map((seme) => (
             <th
               key={seme}
               scope="col"
-              className={`rounded-md border-2 border-inchiostro-900 px-0.5 py-1 text-center ${INCHIOSTRO_SEME[seme].soft}`}
+              className={`relative rounded-md border-2 border-inchiostro-900 px-0.5 py-1 text-center ${INCHIOSTRO_SEME[seme].soft}`}
             >
               <Seme seme={seme} className="mx-auto h-6 w-6" />
-              <span className={`block text-[11px] font-bold leading-tight ${INCHIOSTRO_SEME[seme].text}`}>
+              <span className={`block text-[13px] font-bold leading-tight ${INCHIOSTRO_SEME[seme].text}`}>
                 {seme}
               </span>
+              {perColonna[SEMI_IN_ORDINE.indexOf(seme)] >= 3 && (
+                <span aria-hidden="true" className="absolute -right-1 -top-2 rounded-sm bg-inchiostro-900 px-1 text-[11px] font-bold leading-4 text-cartone-50">
+                  {perColonna[SEMI_IN_ORDINE.indexOf(seme)]}/5
+                </span>
+              )}
             </th>
           ))}
         </tr>
@@ -92,7 +111,12 @@ function Cartella({
                 <span className="titolo flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-inchiostro-900 bg-cartone-200 text-[12px] leading-none text-inchiostro-900">
                   {indiceRiga + 1}
                 </span>
-                <span className="text-[11px] font-bold leading-tight text-inchiostro-900">{riga[0].valore}</span>
+                <span className="text-[13px] font-bold leading-tight text-inchiostro-900">{riga[0].valore}</span>
+                {perRiga[indiceRiga] >= 2 && (
+                  <span aria-hidden="true" className="rounded-sm bg-inchiostro-900 px-1 text-[11px] font-bold leading-4 text-cartone-50">
+                    {perRiga[indiceRiga]}/3
+                  </span>
+                )}
               </span>
             </th>
             {riga.map((posto, indiceColonna) => {

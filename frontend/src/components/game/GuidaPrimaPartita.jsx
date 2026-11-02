@@ -13,7 +13,7 @@ function GuidaPrimaPartita({ onClose }) {
   return (
     <section
       aria-label="Come si gioca"
-      className="rounded-xl border-2 border-inchiostro-900 bg-ocra p-3 text-inchiostro-900"
+      className="rounded-xl border-2 border-inchiostro-900 bg-cartone-50 p-3 text-inchiostro-900"
     >
       <p className="titolo text-base">Come si gioca</p>
       <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm [text-wrap:pretty]">

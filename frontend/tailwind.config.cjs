@@ -11,7 +11,7 @@ module.exports = {
         // Table (page ground)
         notte: { 950: '#0b1236', 900: '#101a4a', 800: '#16236a', 700: '#233792', 300: '#aeb9ee' },
         // Straw card stock of the sheet
-        cartone: { 50: '#fffaf0', 100: '#fbf0cd', 200: '#f3dc8f', 300: '#e6c460', 400: '#c9a235' },
+        cartone: { 50: '#fffaf0', 100: '#f0dd9c', 200: '#e4c96a', 300: '#d3b04a', 400: '#b8912c' },
         // Printing ink
         inchiostro: { 900: '#2a1a0f', 700: '#4d3522', 500: '#7a5b3f' },
         // The four suits, each with its own ink

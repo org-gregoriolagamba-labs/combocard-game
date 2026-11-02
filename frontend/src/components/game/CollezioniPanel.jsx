@@ -135,7 +135,6 @@ function CollezioniPanel({
       </ul>
 
       <Disclosure
-        openOnDesktop
         title="Come si gioca"
         className="mt-1 border-t-2 border-inchiostro-900/20 lg:mt-2"
       >
