@@ -13,7 +13,6 @@ import { fetchPlayer } from "../../store/slices/playerSlice";
 import { gameService } from "../../services";
 import { Button } from "../common";
 import { copyText } from "../../utils";
-import Seme from "./Seme";
 
 function LobbyScreen() {
   const dispatch = useDispatch();
@@ -94,7 +93,6 @@ function LobbyScreen() {
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h1 className="titolo flex items-center gap-2 text-xl text-inchiostro-900 sm:text-3xl">
-                <Seme seme="Denari" className="h-8 w-8 shrink-0" />
                 Lobby
               </h1>
               <p className="mt-1 break-words text-inchiostro-700">Benvenuto, {playerName}!</p>

@@ -95,7 +95,7 @@ function Cartella({
                 {seme}
               </span>
               {perColonna[SEMI_IN_ORDINE.indexOf(seme)] >= 3 && (
-                <span aria-hidden="true" className="absolute -right-1 -top-2 rounded-sm bg-inchiostro-900 px-1 text-[11px] font-bold leading-4 text-cartone-50">
+                <span aria-hidden="true" className={`absolute right-0.5 top-0.5 rounded-sm px-1 text-[11px] font-bold leading-4 text-cartone-50 ${perColonna[SEMI_IN_ORDINE.indexOf(seme)] >= 5 ? "bg-fagiolo" : "bg-inchiostro-900"}`}>
                   {perColonna[SEMI_IN_ORDINE.indexOf(seme)]}/5
                 </span>
               )}
@@ -114,7 +114,7 @@ function Cartella({
                 <span className="flex min-w-0 flex-col items-start">
                   <span className="text-[13px] font-bold leading-tight text-inchiostro-900">{riga[0].valore}</span>
                   {perRiga[indiceRiga] >= 2 && (
-                    <span aria-hidden="true" className="rounded-sm bg-inchiostro-900 px-1 text-[11px] font-bold leading-4 text-cartone-50">
+                    <span aria-hidden="true" className={`rounded-sm px-1 text-[11px] font-bold leading-4 text-cartone-50 ${perRiga[indiceRiga] >= 3 ? "bg-fagiolo" : "bg-inchiostro-900"}`}>
                       {perRiga[indiceRiga]}/3
                     </span>
                   )}

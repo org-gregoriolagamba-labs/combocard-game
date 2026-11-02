@@ -37,7 +37,7 @@ describe('HallScreen', () => {
 
       openCassa();
 
-      expect(screen.getByLabelText('Importo da aggiungere')).toBeInTheDocument();
+      expect(screen.getByLabelText('Quanti crediti vuoi?')).toBeInTheDocument();
     });
 
     test('with nothing chosen it cannot add, and says what to do', () => {

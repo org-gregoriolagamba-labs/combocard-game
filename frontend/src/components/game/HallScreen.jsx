@@ -12,7 +12,6 @@ import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../stor
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
 import { Modal, Button, Input } from "../common";
-import Seme from "./Seme";
 import Credito from "./Credito";
 
 function HallScreen() {
@@ -173,7 +172,6 @@ function HallScreen() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
               <h1 className="titolo flex items-center gap-2 text-2xl text-inchiostro-900 sm:text-3xl">
-                <Seme seme="Denari" className="h-8 w-8 shrink-0" />
                 Hall
               </h1>
               <p className="break-words text-inchiostro-700">Benvenuto, {playerName}!</p>
@@ -278,7 +276,7 @@ function HallScreen() {
             Sono crediti di gioco: non hanno valore reale e non serve nessun pagamento.
           </p>
           <Input
-            label="Importo da aggiungere"
+            label="Quanti crediti vuoi?"
             type="number"
             inputMode="numeric"
             value={creditiDaAcquistare}

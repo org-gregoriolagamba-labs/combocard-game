@@ -305,7 +305,7 @@ test.describe('Login and credits on a phone @mobile', () => {
     const dialog = page.getByRole('dialog', { name: 'Prendi crediti di gioco' });
     await expect(dialog).toContainText('crediti di gioco');
     await expect(dialog).toBeFocused();
-    await expect(page.getByLabel('Importo da aggiungere')).toBeVisible();
+    await expect(page.getByLabel('Quanti crediti vuoi?')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Scegli un importo' })).toBeDisabled();
 
     await page.keyboard.press('Escape');
