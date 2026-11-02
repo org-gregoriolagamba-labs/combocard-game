@@ -91,7 +91,7 @@ function Cartella({
               className={`relative rounded-md border-2 border-inchiostro-900 px-0.5 py-1 text-center ${INCHIOSTRO_SEME[seme].soft}`}
             >
               <Seme seme={seme} className="mx-auto h-6 w-6" />
-              <span className={`block text-[13px] font-bold leading-tight ${INCHIOSTRO_SEME[seme].text}`}>
+              <span className={`block text-[13px] font-bold leading-tight tracking-tight ${INCHIOSTRO_SEME[seme].text}`}>
                 {seme}
               </span>
               {perColonna[SEMI_IN_ORDINE.indexOf(seme)] >= 3 && (
@@ -111,12 +111,14 @@ function Cartella({
                 <span className="titolo flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-inchiostro-900 bg-cartone-200 text-[12px] leading-none text-inchiostro-900">
                   {indiceRiga + 1}
                 </span>
-                <span className="text-[13px] font-bold leading-tight text-inchiostro-900">{riga[0].valore}</span>
-                {perRiga[indiceRiga] >= 2 && (
-                  <span aria-hidden="true" className="rounded-sm bg-inchiostro-900 px-1 text-[11px] font-bold leading-4 text-cartone-50">
-                    {perRiga[indiceRiga]}/3
-                  </span>
-                )}
+                <span className="flex min-w-0 flex-col items-start">
+                  <span className="text-[13px] font-bold leading-tight text-inchiostro-900">{riga[0].valore}</span>
+                  {perRiga[indiceRiga] >= 2 && (
+                    <span aria-hidden="true" className="rounded-sm bg-inchiostro-900 px-1 text-[11px] font-bold leading-4 text-cartone-50">
+                      {perRiga[indiceRiga]}/3
+                    </span>
+                  )}
+                </span>
               </span>
             </th>
             {riga.map((posto, indiceColonna) => {
