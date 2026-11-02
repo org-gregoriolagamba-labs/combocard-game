@@ -34,10 +34,8 @@ function PlayersList({ game = null, currentPlayerId = null }) {
         {game?.players?.map((player) => (
           <div
             key={player.id}
-            className={`p-3 rounded-xl border-2 ${
-              player.id === currentPlayerId
-                ? "bg-green-100 border-green-400"
-                : "bg-white border-green-200"
+            className={`p-3 rounded-xl ${
+              player.id === currentPlayerId ? "bg-green-100" : ""
             }`}
           >
             <div className="flex justify-between items-start mb-2">
@@ -46,7 +44,7 @@ function PlayersList({ game = null, currentPlayerId = null }) {
                 {player.id === currentPlayerId && " (Tu)"}
               </div>
               <div className="text-right">
-                <div className="flex items-center gap-1 text-sm font-bold text-green-600">
+                <div className="flex items-center gap-1 text-sm font-bold tabular-nums text-green-700">
                   <Coins size={16} />
                   {player.gettoni}
                 </div>

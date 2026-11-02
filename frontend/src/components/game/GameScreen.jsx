@@ -1,6 +1,6 @@
 /**
  * GameScreen Component
- *
+ * 
  * Main game interface where the actual card game is played.
  *
  * On a phone the screen is one column in reading order: header, last drawn
@@ -8,9 +8,12 @@
  * bar fixed at the bottom, within thumb reach. On wide screens the grid sits
  * on the left and the last card with its action, the collections and the
  * players on the right.
+ *
+ * The jolly is used in two steps, both in the bar: the player taps a card of
+ * the grid, then confirms it by name.
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Coins, ArrowLeft } from "lucide-react";
 import {
@@ -25,16 +28,17 @@ import {
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { fetchPlayer } from "../../store/slices/playerSlice";
 import Cartella from "./Cartella";
+import CartaNapoletana from "./CartaNapoletana";
 import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
 import BarraAzione from "./BarraAzione";
 
-// Card colors for different suits
-const SEMI_COLORS = {
-  Spade: "from-gray-700 to-gray-900",
-  Coppe: "from-red-600 to-red-800",
-  Denari: "from-yellow-500 to-yellow-700",
-  Bastoni: "from-amber-700 to-amber-900",
+// What the server says when the jolly cannot be used, in the language of the game
+const ERRORI_JOLLY = {
+  "Jolly cannot complete this collection or card already exists in grid":
+    "Il Jolly non può completare questa collezione con quella carta. Scegli un'altra carta o un'altra collezione.",
+  "Jolly already used": "Hai già usato il Jolly.",
+  "Collection already won": "Questa collezione è già stata vinta: scegline un'altra.",
 };
 
 // Panels: thin border and tight padding on a phone, the full frame on wide screens
@@ -42,6 +46,8 @@ const PANEL = "bg-amber-50 rounded-2xl shadow-2xl p-3 lg:p-6 border-2 lg:border-
 
 function GameScreen() {
   const dispatch = useDispatch();
+  const gridRef = useRef(null);
+  const [jollyCarta, setJollyCarta] = useState(null);
   const { id: playerId, name: playerName } = useSelector((state) => state.player);
   const {
     currentGameId: gameId,
@@ -66,6 +72,19 @@ function GameScreen() {
       return () => clearTimeout(timer);
     }
   }, [drawCooldown, dispatch]);
+
+  // Leaving the mode forgets the card that was chosen
+  const esciDaJolly = () => {
+    dispatch(setJollyMode(null));
+    setJollyCarta(null);
+  };
+
+  const scrollToGrid = () => {
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)")?.matches;
+    gridRef.current?.scrollIntoView?.({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  };
 
   const handleEstraiCarta = async () => {
     if (drawCooldown > 0) {
@@ -115,13 +134,12 @@ function GameScreen() {
     }
 
     dispatch(setJollyMode(tipo));
-    dispatch(addToast({
-      message: `🎯 Modalità Jolly attivata per ${tipo.toUpperCase().replace("_", " ")}. Clicca su una carta non coperta.`,
-      type: "info",
-    }));
+    setJollyCarta(null);
+    scrollToGrid();
   };
 
-  const handleUsaJolly = async (row, col) => {
+  // Step one: the player taps a card, the bar asks for the confirmation
+  const handleSceglieCartaJolly = (row, col) => {
     if (currentPlayer?.jollyUsato) {
       dispatch(addToast({ message: "Jolly già usato!", type: "warning" }));
       return;
@@ -132,22 +150,31 @@ function GameScreen() {
       return;
     }
 
-    if (!window.confirm(
-      `Usare Jolly per ${jollyMode.toUpperCase().replace("_", " ")} sulla carta in posizione [${row + 1},${col + 1}]?`
-    )) {
+    setJollyCarta({ row, col });
+  };
+
+  // Step two: the player confirms, the jolly is used
+  const handleConfermaJolly = async () => {
+    if (!jollyCarta) {
       return;
     }
 
+    const { row, col } = jollyCarta;
     try {
       const result = await dispatch(playJolly({ gameId, row, col, tipo: jollyMode })).unwrap();
       dispatch(addToast({
         message: `✨ Jolly attivato! Carta convertita in ${result.convertedTo.valore} di ${result.convertedTo.seme}`,
         type: "success",
       }));
-      dispatch(setJollyMode(null));
+      esciDaJolly();
     } catch (error) {
-      dispatch(addToast({ message: error || "Errore uso jolly", type: "error" }));
-      dispatch(setJollyMode(null));
+      // The mode stays on: the player can try with another card
+      dispatch(addToast({
+        message: ERRORI_JOLLY[error] ?? (error || "Errore uso jolly"),
+        type: "error",
+        duration: 6000,
+      }));
+      setJollyCarta(null);
     }
   };
 
@@ -159,7 +186,7 @@ function GameScreen() {
         "I tuoi gettoni attuali verranno salvati.\n\n" +
         "Sei sicuro di voler uscire?"
       );
-
+      
       if (!confirmed) {
         return;
       }
@@ -184,6 +211,8 @@ function GameScreen() {
     );
   }
 
+  const cartaScelta = jollyMode && jollyCarta ? currentPlayer.cartella[jollyCarta.row]?.[jollyCarta.col] : null;
+
   const azione = (variant) => (
     <BarraAzione
       variant={variant}
@@ -192,8 +221,11 @@ function GameScreen() {
       status={game?.status}
       drawCooldown={drawCooldown}
       jollyMode={isGameFinished ? null : jollyMode}
+      jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
       onDraw={handleEstraiCarta}
-      onCancelJolly={() => dispatch(setJollyMode(null))}
+      onCancelJolly={esciDaJolly}
+      onConfirmJolly={handleConfermaJolly}
+      onChangeJollyCard={() => setJollyCarta(null)}
       onLeave={handleTornaAllaHall}
     />
   );
@@ -208,7 +240,7 @@ function GameScreen() {
               <h2 className="truncate text-lg lg:text-2xl font-bold text-green-900">
                 🎴 COMBOCARD - {playerName}
               </h2>
-              <p className="text-xs lg:text-sm text-green-700">Codice: {gameId}</p>
+              <p className="text-xs lg:text-sm text-green-800">Codice: {gameId}</p>
             </div>
 
             <button
@@ -221,16 +253,16 @@ function GameScreen() {
 
             <div className="order-3 lg:order-2 flex w-full items-center gap-5 lg:w-auto lg:gap-4">
               <div className="flex items-center gap-1.5 lg:block">
-                <p className="text-xs lg:text-sm text-green-700">Montepremi</p>
-                <p className="text-lg lg:text-2xl font-bold text-amber-600 flex items-center gap-1">
+                <p className="text-xs lg:text-sm text-green-800">Montepremi</p>
+                <p className="text-lg lg:text-2xl font-bold tabular-nums text-amber-700 flex items-center gap-1">
                   <Coins size={20} aria-hidden="true" />
                   {montepremi}
                 </p>
               </div>
 
               <div className="flex items-center gap-1.5 lg:block">
-                <p className="text-xs lg:text-sm text-green-700">Tuoi Gettoni</p>
-                <p className="text-lg lg:text-2xl font-bold text-green-600 flex items-center gap-1">
+                <p className="text-xs lg:text-sm text-green-800">Tuoi Gettoni</p>
+                <p className="text-lg lg:text-2xl font-bold tabular-nums text-green-700 flex items-center gap-1">
                   <Coins size={20} aria-hidden="true" />
                   {currentPlayer.gettoni}
                 </p>
@@ -242,36 +274,43 @@ function GameScreen() {
         {/* Main game area */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
           {/* Last drawn card: leads on a phone, top of the sidebar on wide screens */}
-          <section className={`${PANEL} lg:col-start-3`}>
-            <div className="mb-2 lg:mb-4 flex items-baseline justify-between gap-2">
-              <h3 className="text-base lg:text-lg font-bold text-green-900">🎴 Ultima Carta</h3>
-              <p className="text-xs lg:text-sm text-green-800">
-                Carte rimaste: {game?.carteRimaste ?? 0}/40
-              </p>
-            </div>
+          <section
+            className={`${PANEL} grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 lg:col-start-3 lg:grid-cols-[1fr_auto] lg:items-baseline lg:gap-y-4`}
+          >
+            <h3 className="col-start-2 row-start-1 self-end text-xs font-bold text-green-800 lg:col-start-1 lg:text-lg lg:text-green-900">
+              🎴 Ultima Carta
+            </h3>
+            <p className="col-start-3 row-start-1 self-end text-xs text-green-800 tabular-nums lg:col-start-2 lg:text-sm">
+              Carte rimaste: {game?.carteRimaste ?? 0}/40
+            </p>
 
             {ultimaCartaEstratta ? (
-              <div
-                className={`bg-gradient-to-br ${SEMI_COLORS[ultimaCartaEstratta.seme]} border-2 lg:border-4 border-white rounded-xl lg:rounded-2xl p-2 lg:p-8 shadow-xl flex items-center gap-3 lg:block lg:text-center`}
-              >
-                <div className="text-3xl lg:text-7xl lg:mb-3" aria-hidden="true">{ultimaCartaEstratta.emoji}</div>
-                <div>
-                  <span className="text-2xl lg:block lg:text-3xl font-bold text-white lg:mb-1">{ultimaCartaEstratta.valore}</span>{" "}
-                  <span className="text-sm lg:block text-white opacity-90">di {ultimaCartaEstratta.seme}</span>
-                </div>
-              </div>
+              <>
+                <CartaNapoletana
+                  valore={ultimaCartaEstratta.valore}
+                  seme={ultimaCartaEstratta.seme}
+                  className="col-start-1 row-span-2 row-start-1 h-[88px] w-auto rounded-md shadow-md lg:col-span-2 lg:row-span-1 lg:row-start-2 lg:mx-auto lg:h-60"
+                />
+                <p className="col-span-2 col-start-2 row-start-2 self-start lg:col-span-2 lg:col-start-1 lg:row-start-3 lg:text-center">
+                  <span className="text-2xl font-bold text-green-900 lg:block lg:text-3xl">{ultimaCartaEstratta.valore}</span>{" "}
+                  <span className="text-sm text-green-800 lg:block">di {ultimaCartaEstratta.seme}</span>
+                </p>
+              </>
             ) : (
-              <div className="bg-green-100 rounded-xl lg:rounded-2xl p-3 lg:p-8 text-center text-green-700 border-2 border-green-300">
+              <p className="col-span-2 col-start-1 row-start-2 rounded-xl border-2 border-green-300 bg-green-100 p-3 text-center text-green-800 lg:col-span-2 lg:row-start-2 lg:p-8">
                 Nessuna carta estratta
-              </div>
+              </p>
             )}
 
             {/* On wide screens the action sits under the card; a phone has the bar below */}
-            <div className="hidden lg:block mt-4">{azione("panel")}</div>
+            <div className="hidden lg:col-span-2 lg:row-start-4 lg:block">{azione("panel")}</div>
           </section>
 
           {/* Player's card grid */}
-          <section className={`${PANEL} lg:col-start-1 lg:col-span-2 lg:row-start-1 lg:row-span-3`}>
+          <section
+            ref={gridRef}
+            className={`${PANEL} scroll-mt-3 lg:col-start-1 lg:col-span-2 lg:row-start-1 lg:row-span-3`}
+          >
             <h3 className="text-base lg:text-xl font-bold mb-2 lg:mb-4 text-green-900">🎴 La Tua Cartella</h3>
 
             <div className="mx-auto w-full max-w-sm lg:max-w-none">
@@ -279,14 +318,15 @@ function GameScreen() {
                 cartella={currentPlayer.cartella}
                 coperte={currentPlayer.coperte}
                 jollyPos={currentPlayer.jollyPos}
-                jollyMode={jollyMode}
+                jollyMode={isGameFinished ? null : jollyMode}
                 jollyUsato={currentPlayer.jollyUsato}
-                onCardClick={isGameFinished ? () => {} : handleUsaJolly}
+                selected={jollyCarta}
+                onCardClick={handleSceglieCartaJolly}
               />
             </div>
 
             {!currentPlayer.jollyUsato && !jollyMode && !isGameFinished && (
-              <p className="text-xs text-green-700 mt-3 text-center">
+              <p className="text-xs text-green-800 mt-3 text-center">
                 💡 Seleziona una collezione e poi clicca &quot;Usa Jolly&quot; per attivare la modalità Jolly
               </p>
             )}
@@ -311,7 +351,7 @@ function GameScreen() {
       </div>
 
       {/* Main action, fixed at the bottom of a phone screen */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-amber-600 bg-amber-50 px-3 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] lg:hidden">
+      <div data-testid="barra-azione" className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-amber-600 bg-amber-50 px-3 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] lg:hidden">
         <div className="mx-auto max-w-md">{azione("bar")}</div>
       </div>
     </div>

@@ -38,3 +38,31 @@ body {
     text-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
 }
+
+/* Keyboard focus: one visible ring, with enough contrast on cream and on green */
+:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* Browser surfaces in the colours of the game */
+::selection {
+  background: #fde68a;
+  color: #14532d;
+}
+
+input[type="checkbox"] {
+  accent-color: #15803d;
+}
+
+/* Respect the system setting: no movement */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

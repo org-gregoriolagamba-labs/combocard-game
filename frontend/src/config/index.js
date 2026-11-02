@@ -26,16 +26,8 @@ export const SEMI_EMOJI = {
   Bastoni: "🪵",
 };
 
-export const SEMI_COLORS = {
-  Spade: "from-gray-700 to-gray-900",
-  Coppe: "from-red-600 to-red-800",
-  Denari: "from-yellow-500 to-yellow-700",
-  Bastoni: "from-amber-700 to-amber-900",
-};
-
 export default {
   BACKEND_URL,
   API_URL,
   SEMI_EMOJI,
-  SEMI_COLORS,
 };

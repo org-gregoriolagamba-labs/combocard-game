@@ -10,7 +10,10 @@ const base = {
   drawCooldown: 0,
   jollyMode: null,
   onDraw: () => {},
+  jollyPending: null,
   onCancelJolly: () => {},
+  onConfirmJolly: () => {},
+  onChangeJollyCard: () => {},
   onLeave: () => {},
 };
 
@@ -73,6 +76,78 @@ describe('BarraAzione', () => {
       render(<BarraAzione {...base} isCreator={false} jollyMode="tris" />);
 
       expect(screen.getByText(/Jolly per TRIS/)).toBeInTheDocument();
+    });
+  });
+
+  describe('jolly confirmation', () => {
+    const pending = { valore: 'Sei', seme: 'Spade' };
+
+    test('asks about the chosen card by name instead of by coordinates', () => {
+      render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
+
+      expect(screen.getByText(/Usare il Jolly per TRIS sulla carta Sei di Spade\?/)).toBeInTheDocument();
+      expect(screen.queryByText(/tocca una carta non coperta/)).not.toBeInTheDocument();
+    });
+
+    test('"Usa Jolly" confirms', () => {
+      const onConfirmJolly = jest.fn();
+      render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} onConfirmJolly={onConfirmJolly} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Usa Jolly' }));
+
+      expect(onConfirmJolly).toHaveBeenCalledTimes(1);
+    });
+
+    test('"Cambia carta" goes back to choosing without leaving the mode', () => {
+      const onChangeJollyCard = jest.fn();
+      const onCancelJolly = jest.fn();
+      render(
+        <BarraAzione {...base} jollyMode="tris" jollyPending={pending}
+          onChangeJollyCard={onChangeJollyCard} onCancelJolly={onCancelJolly} />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cambia carta' }));
+
+      expect(onChangeJollyCard).toHaveBeenCalledTimes(1);
+      expect(onCancelJolly).not.toHaveBeenCalled();
+    });
+
+    test('Esc while confirming goes back to choosing', () => {
+      const onChangeJollyCard = jest.fn();
+      const onCancelJolly = jest.fn();
+      render(
+        <BarraAzione {...base} jollyMode="tris" jollyPending={pending}
+          onChangeJollyCard={onChangeJollyCard} onCancelJolly={onCancelJolly} />,
+      );
+
+      fireEvent.keyDown(screen.getByRole('group', { name: 'Conferma Jolly' }), { key: 'Escape' });
+
+      expect(onChangeJollyCard).toHaveBeenCalledTimes(1);
+      expect(onCancelJolly).not.toHaveBeenCalled();
+    });
+
+    test('Esc while choosing leaves the jolly mode', () => {
+      const onCancelJolly = jest.fn();
+      render(<BarraAzione {...base} jollyMode="tris" onCancelJolly={onCancelJolly} />);
+
+      fireEvent.keyDown(screen.getByRole('group', { name: 'Modalità Jolly' }), { key: 'Escape' });
+
+      expect(onCancelJolly).toHaveBeenCalledTimes(1);
+    });
+
+    test('the focus goes to the button that answers the current question', () => {
+      const { rerender } = render(<BarraAzione {...base} jollyMode="tris" />);
+      expect(screen.getByRole('button', { name: 'Annulla' })).toHaveFocus();
+
+      rerender(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
+
+      expect(screen.getByRole('button', { name: 'Usa Jolly' })).toHaveFocus();
+    });
+
+    test('the question is announced to screen readers', () => {
+      render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
+
+      expect(screen.getByText(/Usare il Jolly per TRIS/)).toHaveAttribute('aria-live', 'polite');
     });
   });
 

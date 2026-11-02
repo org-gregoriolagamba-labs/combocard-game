@@ -24,7 +24,7 @@ function Input({
         </label>
       )}
       <input
-        className={`w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none bg-white ${
+        className={`w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white ${
           error ? "border-red-500" : ""
         } ${className}`}
         {...props}

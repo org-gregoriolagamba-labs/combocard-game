@@ -25,14 +25,14 @@ function Toast() {
   const getToastStyles = (type) => {
     switch (type) {
       case "success":
-        return "bg-green-500 text-white";
+        return "bg-green-700 text-white";
       case "error":
-        return "bg-red-500 text-white";
+        return "bg-red-700 text-white";
       case "warning":
         return "bg-yellow-500 text-black";
       case "info":
       default:
-        return "bg-blue-500 text-white";
+        return "bg-blue-700 text-white";
     }
   };
 

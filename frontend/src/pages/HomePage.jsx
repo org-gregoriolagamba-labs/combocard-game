@@ -65,15 +65,15 @@ function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center p-4">
-      <div className="bg-amber-50 rounded-3xl shadow-2xl p-8 max-w-md w-full border-4 border-amber-600">
+      <div className="bg-amber-50 rounded-3xl shadow-2xl p-5 sm:p-8 max-w-md w-full border-4 border-amber-600">
         <div className="text-center mb-8">
           <div className="flex justify-center gap-2 mb-4">
-            <span className="text-5xl">⚔️</span>
-            <span className="text-5xl">🏆</span>
-            <span className="text-5xl">💰</span>
-            <span className="text-5xl">🪵</span>
+            <span className="text-4xl sm:text-5xl">⚔️</span>
+            <span className="text-4xl sm:text-5xl">🏆</span>
+            <span className="text-4xl sm:text-5xl">💰</span>
+            <span className="text-4xl sm:text-5xl">🪵</span>
           </div>
-          <h1 className="text-5xl font-bold text-green-900 mb-2">COMBOCARD</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold text-green-900 mb-2 break-words">COMBOCARD</h1>
           <p className="text-green-700 font-medium">
             Colleziona, combina, conquista!
           </p>
@@ -89,7 +89,7 @@ function HomePage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none bg-white"
+              className="w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
               placeholder="Inserisci il tuo nome utente"
               autoComplete="username"
               maxLength={30}
@@ -107,7 +107,7 @@ function HomePage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-green-600 rounded-xl focus:border-green-800 focus:outline-none bg-white"
+              className="w-full px-4 py-3 border-2 border-green-700 rounded-xl placeholder:text-gray-600 focus:border-green-900 focus:outline-none focus:ring-2 focus:ring-green-700 bg-white"
               placeholder={isRegistering ? `Almeno ${MIN_PASSWORD_LENGTH} caratteri` : "Inserisci la password"}
               autoComplete={isRegistering ? "new-password" : "current-password"}
               maxLength={128}
@@ -122,7 +122,7 @@ function HomePage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-900 transition shadow-lg disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-green-700 to-green-900 text-white py-3 rounded-xl font-bold hover:from-green-800 hover:to-green-900 transition shadow-lg disabled:opacity-50"
           >
             {isLoading && "⏳ Caricamento..."}
             {!isLoading && (isRegistering ? "✨ Registrati" : "✨ Accedi")}
@@ -133,7 +133,7 @@ function HomePage() {
           type="button"
           onClick={handleToggleMode}
           disabled={isLoading}
-          className="w-full mt-4 text-sm font-medium text-green-800 underline hover:text-green-900"
+          className="w-full mt-4 min-h-[44px] text-sm font-medium text-green-800 underline hover:text-green-900"
         >
           {isRegistering ? "Hai già un account? Accedi" : "Non hai un account? Crea un account"}
         </button>

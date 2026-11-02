@@ -32,7 +32,7 @@ function CollezioniPanel({
         Collezioni
       </h3>
 
-      <div className="space-y-2 lg:space-y-3">
+      <div>
         {COLLEZIONI.map(({ tipo, label, icon }) => {
           const collezione = game?.collezioni[tipo];
           const ammontare = game?.collezioniDistribuzione[tipo];
@@ -48,7 +48,7 @@ function CollezioniPanel({
           return (
             <div
               key={tipo}
-              className="border-2 border-green-200 rounded-xl p-2 lg:p-3 bg-white"
+              className="border-t-2 border-green-200 py-2 first:border-t-0 first:pt-0 lg:py-3"
             >
               <div className="flex items-center justify-between gap-2 mb-1.5 lg:mb-2">
                 <button
@@ -58,8 +58,8 @@ function CollezioniPanel({
                     collezione?.vinto || isGameFinished
                       ? "bg-gray-300 text-gray-600 cursor-not-allowed"
                       : isReale
-                      ? "bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 shadow-lg"
-                      : "bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900"
+                      ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-yellow-950 hover:from-yellow-500 hover:to-orange-600 shadow-lg"
+                      : "bg-gradient-to-r from-green-700 to-green-900 text-white hover:from-green-800 hover:to-green-900"
                   }`}
                 >
                   {icon} {label}
@@ -84,16 +84,16 @@ function CollezioniPanel({
                         className={`w-6 h-2 rounded ${
                           i < progresso.count
                             ? progresso.status === "near"
-                              ? "bg-green-500"
+                              ? "bg-green-600"
                               : progresso.status === "mid"
-                              ? "bg-yellow-400"
-                              : "bg-gray-400"
+                              ? "bg-yellow-500"
+                              : "bg-gray-500"
                             : "bg-gray-200"
                         }`}
                       />
                     ))}
                   </div>
-                  <div className="text-xs text-green-700 font-bold">
+                  <div className="text-xs text-green-800 font-bold tabular-nums">
                     {progresso.count}/{progresso.total}
                   </div>
                   <div
@@ -109,8 +109,8 @@ function CollezioniPanel({
                 </div>
 
                 <div className="flex items-baseline gap-1.5 lg:block lg:text-right">
-                  <p className="text-xs text-green-700">Premio</p>
-                  <p className="font-bold text-green-600 text-sm">
+                  <p className="text-xs text-green-800">Premio</p>
+                  <p className="font-bold tabular-nums text-green-700 text-sm">
                     {ammontare}
                     {isReale && " 🏆"}
                   </p>
@@ -124,7 +124,7 @@ function CollezioniPanel({
       <Disclosure
         openOnDesktop
         title="📖 Come si gioca"
-        className="mt-3 lg:mt-4 rounded-xl border-2 border-green-600 bg-green-100 px-3"
+        className="mt-3 lg:mt-4 rounded-xl bg-green-100 px-3"
       >
         <ul className="space-y-1 pb-3 text-xs text-green-800">
           <li>• TRIS: 3 stesso valore</li>
