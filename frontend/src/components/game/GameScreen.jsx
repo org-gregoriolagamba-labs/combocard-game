@@ -18,7 +18,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Coins, ArrowLeft } from "lucide-react";
 import {
   drawCard,
-  claimCollection,
   playJolly,
   leaveGame,
   setJollyMode,
@@ -32,14 +31,7 @@ import CartaNapoletana from "./CartaNapoletana";
 import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
 import BarraAzione from "./BarraAzione";
-
-// What the server says when the jolly cannot be used, in the language of the game
-const ERRORI_JOLLY = {
-  "Jolly cannot complete this collection or card already exists in grid":
-    "Il Jolly non può completare questa collezione con quella carta. Scegli un'altra carta o un'altra collezione.",
-  "Jolly already used": "Hai già usato il Jolly.",
-  "Collection already won": "Questa collezione è già stata vinta: scegline un'altra.",
-};
+import { Modal, Button } from "../common";
 
 // Panels: thin border and tight padding on a phone, the full frame on wide screens
 const PANEL = "bg-amber-50 rounded-2xl shadow-2xl p-3 lg:p-6 border-2 lg:border-4 border-amber-600";
@@ -48,6 +40,7 @@ function GameScreen() {
   const dispatch = useDispatch();
   const gridRef = useRef(null);
   const [jollyCarta, setJollyCarta] = useState(null);
+  const [confermaUscita, setConfermaUscita] = useState(false);
   const { id: playerId, name: playerName } = useSelector((state) => state.player);
   const {
     currentGameId: gameId,
@@ -102,26 +95,6 @@ function GameScreen() {
     }
   };
 
-  const handleRivendicaCollezione = async (tipo) => {
-    try {
-      const result = await dispatch(claimCollection({ gameId, tipo })).unwrap();
-      dispatch(addToast({
-        message: `🎉 Hai vinto ${tipo.toUpperCase().replace("_", " ")}!\nPremio: ${result.premio} gettoni!`,
-        type: "success",
-      }));
-
-      if (tipo === "combocard_reale") {
-        dispatch(addToast({
-          message: "🏆 HAI VINTO CON COMBOCARD REALE! Partita terminata!",
-          type: "success",
-          duration: 10000,
-        }));
-      }
-    } catch (error) {
-      dispatch(addToast({ message: error || "Errore rivendicazione collezione", type: "error" }));
-    }
-  };
-
   const handleAttivaModalitaJolly = (tipo) => {
     if (currentPlayer?.jollyUsato) {
       dispatch(addToast({ message: "Jolly già usato!", type: "warning" }));
@@ -169,28 +142,23 @@ function GameScreen() {
       esciDaJolly();
     } catch (error) {
       // The mode stays on: the player can try with another card
-      dispatch(addToast({
-        message: ERRORI_JOLLY[error] ?? (error || "Errore uso jolly"),
-        type: "error",
-        duration: 6000,
-      }));
+      dispatch(addToast({ message: error || "Errore uso jolly", type: "error", duration: 6000 }));
       setJollyCarta(null);
     }
   };
 
-  const handleTornaAllaHall = async () => {
+  // Leaving a game in progress costs the entry fee: it is asked in a dialog that names it
+  const handleTornaAllaHall = () => {
     if (game && game.status === "playing") {
-      const confirmed = window.confirm(
-        "⚠️ La partita è ancora in corso!\n\n" +
-        "Se esci ora perderai i crediti spesi per partecipare e non potrai rientrare.\n" +
-        "I tuoi gettoni attuali verranno salvati.\n\n" +
-        "Sei sicuro di voler uscire?"
-      );
-      
-      if (!confirmed) {
-        return;
-      }
+      setConfermaUscita(true);
+      return;
     }
+
+    esciDallaPartita();
+  };
+
+  const esciDallaPartita = async () => {
+    setConfermaUscita(false);
 
     try {
       await dispatch(leaveGame({ gameId })).unwrap();
@@ -237,7 +205,7 @@ function GameScreen() {
         <header className={`${PANEL} mb-3 lg:mb-4 lg:p-4`}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="order-1 min-w-0 flex-1">
-              <h2 className="truncate text-lg lg:text-2xl font-bold text-green-900">
+              <h2 title={playerName} className="truncate text-lg lg:text-2xl font-bold text-green-900">
                 🎴 COMBOCARD - {playerName}
               </h2>
               <p className="text-xs lg:text-sm text-green-800">Codice: {gameId}</p>
@@ -261,7 +229,7 @@ function GameScreen() {
               </div>
 
               <div className="flex items-center gap-1.5 lg:block">
-                <p className="text-xs lg:text-sm text-green-800">Tuoi Gettoni</p>
+                <p className="text-xs lg:text-sm text-green-800">I tuoi crediti</p>
                 <p className="text-lg lg:text-2xl font-bold tabular-nums text-green-700 flex items-center gap-1">
                   <Coins size={20} aria-hidden="true" />
                   {currentPlayer.gettoni}
@@ -327,7 +295,7 @@ function GameScreen() {
 
             {!currentPlayer.jollyUsato && !jollyMode && !isGameFinished && (
               <p className="text-xs text-green-800 mt-3 text-center">
-                💡 Seleziona una collezione e poi clicca &quot;Usa Jolly&quot; per attivare la modalità Jolly
+                💡 Il Jolly si usa una sola volta: tocca &quot;Jolly&quot; sulla collezione che vuoi completare, poi scegli la carta
               </p>
             )}
           </section>
@@ -337,7 +305,6 @@ function GameScreen() {
             <CollezioniPanel
               game={game}
               currentPlayer={currentPlayer}
-              onClaim={isGameFinished ? () => {} : handleRivendicaCollezione}
               onJollyMode={isGameFinished ? () => {} : handleAttivaModalitaJolly}
               isGameFinished={isGameFinished}
             />
@@ -349,6 +316,25 @@ function GameScreen() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={confermaUscita}
+        title="Uscire dalla partita?"
+        onClose={() => setConfermaUscita(false)}
+      >
+        <p className="text-green-900">
+          La partita è ancora in corso. Se esci ora perdi i crediti spesi per partecipare e non potrai rientrare.
+        </p>
+        <p className="mt-2 text-green-800">I crediti che hai adesso vengono salvati.</p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+          <Button variant="danger" onClick={esciDallaPartita} className="flex-1">
+            Esci dalla partita
+          </Button>
+          <Button variant="outline" onClick={() => setConfermaUscita(false)} className="flex-1">
+            Resta in partita
+          </Button>
+        </div>
+      </Modal>
 
       {/* Main action, fixed at the bottom of a phone screen */}
       <div data-testid="barra-azione" className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-amber-600 bg-amber-50 px-3 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] lg:hidden">

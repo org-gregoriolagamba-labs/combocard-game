@@ -4,6 +4,8 @@
  * The main flow with a phone-sized screen: the grid, the last card and the main
  * action are in the same screen, nothing scrolls sideways, every control is at
  * least 44 px, and the jolly is used in two steps in the bar, without browser dialogs.
+ * The page speaks Italian, errors appear once, the Cassa is an accessible dialog,
+ * and leaving a game in progress is asked in a dialog that names the consequence.
  * @tags @mobile
  */
 
@@ -38,6 +40,14 @@ async function startedGame(request) {
   }
 
   return { creator, guest };
+}
+
+async function signInHall(page, player) {
+  await page.goto('/');
+  await page.getByLabel(/nome utente/i).fill(player.name);
+  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.getByRole('button', { name: /accedi/i }).click();
+  await expect(page.getByRole('button', { name: 'Cassa' })).toBeVisible();
 }
 
 async function signIn(page, player) {
@@ -104,6 +114,42 @@ test.describe('Game screen on a phone @mobile', () => {
     await guestContext.close();
   });
 
+  test('the collections are information: there is nothing to claim by hand', async ({ page, request }) => {
+    const { guest } = await startedGame(request);
+    await signIn(page, guest);
+
+    // Each row shows its progress or its winner; the only control it can have is the jolly.
+    // A collection may already be won after a few random draws, so the jolly is not a given.
+    for (const tipo of ['tris', 'sequenza', 'scopa', 'napola', 'combocard_reale']) {
+      const row = page.getByTestId(`collezione-${tipo}`);
+      await expect(row).toBeVisible();
+      await expect(row).toContainText(/Premio \d+/);
+      for (const button of await row.getByRole('button').all()) {
+        await expect(button).toHaveAccessibleName(/^Usa il Jolly per /);
+      }
+    }
+  });
+
+  test('leaving a game in progress is asked in a dialog, and Esc stays', async ({ page, request }) => {
+    const { guest } = await startedGame(request);
+    let browserDialogs = 0;
+    page.on('dialog', async (dialog) => {
+      browserDialogs += 1;
+      await dialog.dismiss();
+    });
+    await signIn(page, guest);
+
+    await page.getByRole('button', { name: /Hall/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Uscire dalla partita?' });
+    await expect(dialog).toContainText('perdi i crediti spesi per partecipare');
+    await expect(dialog).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText(/Carte rimaste/)).toBeVisible();
+    expect(browserDialogs).toBe(0);
+  });
+
   test('the jolly is used in two steps in the bar, without browser dialogs', async ({ page, request }) => {
     const { guest } = await startedGame(request);
     let dialogs = 0;
@@ -117,7 +163,8 @@ test.describe('Game screen on a phone @mobile', () => {
     await expect(page.getByRole('button', { name: NOME_CARTA }).first()).toBeDisabled();
 
     // The collection: the page goes to the grid and the bar explains what to do
-    await page.getByRole('button', { name: 'Usa Jolly' }).first().click();
+    // Any collection will do: one may already be won, and then it has no jolly button
+    await page.getByRole('button', { name: /^Usa il Jolly per / }).first().click();
     const mode = page.getByRole('group', { name: 'Modalità Jolly' });
     await expect(mode).toContainText('tocca una carta non coperta');
     await expect(page.getByRole('button', { name: 'Annulla' })).toBeFocused();
@@ -140,5 +187,49 @@ test.describe('Game screen on a phone @mobile', () => {
     await expect(page.getByRole('group', { name: 'Modalità Jolly' })).toHaveCount(0);
 
     expect(dialogs).toBe(0);
+  });
+});
+
+test.describe('Login and Cassa on a phone @mobile', () => {
+  test('the page speaks Italian', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page).toHaveTitle('ComboCard');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'it');
+  });
+
+  test('a wrong password is shown once, in the form', async ({ page, request }) => {
+    const player = await registerPlayer(request, API_URL, 'Accesso');
+    await page.goto('/');
+
+    await page.getByLabel(/nome utente/i).fill(player.name);
+    await page.getByLabel(/password/i).fill('not the password');
+    await page.getByRole('button', { name: /accedi/i }).click();
+
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await expect(page.getByRole('alert')).toHaveText('Nome utente o password non corretti');
+  });
+
+  test('the Cassa is a dialog that says the credits are play money, and gives the focus back', async ({ page, request }) => {
+    const player = await registerPlayer(request, API_URL, 'Cassa');
+    await signInHall(page, player);
+
+    const cassa = page.getByRole('button', { name: 'Cassa' });
+    await cassa.click();
+    const dialog = page.getByRole('dialog', { name: 'Cassa: aggiungi crediti' });
+    await expect(dialog).toContainText('crediti di gioco');
+    await expect(dialog).toBeFocused();
+    await expect(page.getByLabel('Importo da aggiungere')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Scegli un importo' })).toBeDisabled();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(cassa).toBeFocused();
+
+    await cassa.click();
+    await page.getByRole('button', { name: '+100', exact: true }).click();
+    await page.getByRole('button', { name: 'Aggiungi 100 crediti' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('Aggiunti 100 crediti');
   });
 });

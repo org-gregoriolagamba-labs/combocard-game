@@ -40,7 +40,7 @@ describe('Input', () => {
     render(<Input name="test" error="Error message" />);
     
     const input = screen.getByRole('textbox');
-    expect(input).toHaveClass('border-red-500');
+    expect(input).toHaveClass('border-red-700');
   });
 
   test('is disabled when disabled prop is true', () => {
@@ -66,5 +66,32 @@ describe('Input', () => {
     render(<Input label="Email" name="email" required />);
     
     expect(screen.getByText('*')).toBeInTheDocument();
+  });
+
+  test('its label is tied to the field even when no id is given', () => {
+    render(<Input label="Importo da aggiungere" type="number" />);
+
+    expect(screen.getByLabelText('Importo da aggiungere')).toBeInTheDocument();
+  });
+
+  test('two fields without an id do not share a label', () => {
+    render(<><Input label="Crediti richiesti" /><Input label="Numero massimo giocatori" /></>);
+
+    expect(screen.getByLabelText('Crediti richiesti')).not.toBe(screen.getByLabelText('Numero massimo giocatori'));
+  });
+
+  test('an error is announced and tied to its field', () => {
+    render(<Input label="Giocatori" error="Da 2 a 10 giocatori" />);
+
+    const field = screen.getByLabelText('Giocatori');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Da 2 a 10 giocatori');
+    expect(field).toHaveAccessibleDescription('Da 2 a 10 giocatori');
+  });
+
+  test('a field without errors is not marked as invalid', () => {
+    render(<Input label="Importo" />);
+
+    expect(screen.getByLabelText('Importo')).not.toHaveAttribute('aria-invalid');
   });
 });

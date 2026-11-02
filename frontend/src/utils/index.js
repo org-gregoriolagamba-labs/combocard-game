@@ -5,3 +5,4 @@
  */
 
 export { calcolaProgresso } from './progress.utils';
+export { translateServerError } from './errors.utils';
