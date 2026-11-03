@@ -178,6 +178,7 @@ export const joinGame = asyncHandler(async (req, res) => {
     jollyUsato: false,
     jollyPos: null,
     jollyUsedFor: null,
+    regoleLette: Boolean(player.regoleAccettateIl),
   };
 
   game.players.push(gamePlayer);
@@ -219,6 +220,11 @@ export const startGame = asyncHandler(async (req, res) => {
 
   if (game.players.length < GAME_DEFAULTS.MIN_PLAYERS) {
     throw new AppError(`At least ${GAME_DEFAULTS.MIN_PLAYERS} players required`, 400);
+  }
+
+  // Everyone must know how the game works before it starts
+  if (!everyoneReadTheRules(game, req.gameState)) {
+    throw new AppError("Waiting for all players to confirm they read the rules", 409);
   }
 
   const creditMovements = trackCredits(req.gameState, game);
@@ -492,11 +498,42 @@ export const leaveGame = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Every player of the game has confirmed that they read the rules
+ */
+function everyoneReadTheRules(game, gameState) {
+  return game.players.every((p) => Boolean(gameState.players[p.id]?.regoleAccettateIl));
+}
+
+/**
+ * A player confirmed the rules: the game they are in learns it, and a full game that
+ * was waiting only for the rules starts.
+ */
+export function applyRulesConfirmation(gameState, io, store, player) {
+  const game = gameState.games[player.currentGameId];
+  const gamePlayer = game?.players.find((p) => p.id === player.id);
+  if (!gamePlayer) {
+    return;
+  }
+
+  gamePlayer.regoleLette = true;
+  io.to(game.id).emit("regoleConfermate", { playerId: player.id });
+
+  if (game.status === GAME_STATUS.WAITING && game.players.length === game.maxPlayers) {
+    setTimeout(() => autoStartGame(game, game.id, io, gameState, store), 100);
+  }
+}
+
+/**
  * Helper function to auto-start a game when max players reached
  */
 async function autoStartGame(game, gameId, io, gameState, store) {
   // The creator may have started the game in the meantime
   if (game.status !== GAME_STATUS.WAITING) {
+    return;
+  }
+
+  // The game waits for the players who have not confirmed the rules: it starts when the last one does
+  if (!everyoneReadTheRules(game, gameState)) {
     return;
   }
 
