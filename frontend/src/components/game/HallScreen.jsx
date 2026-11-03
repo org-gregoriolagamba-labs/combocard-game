@@ -186,7 +186,7 @@ function HallScreen() {
               </div>
               <button
                 onClick={handleApriCassa}
-                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-oro bg-transparent px-5 py-3 font-bold text-oro transition hover:bg-oro/10"
+                className="flex min-h-[44px] max-w-full items-center gap-2 rounded-xl border border-oro bg-transparent px-5 py-3 max-[259px]:px-3 font-bold text-oro transition hover:bg-oro/10"
               >
                 <Credito className="h-6 w-6" />
                 Prendi crediti
@@ -216,7 +216,7 @@ function HallScreen() {
           <div className="mt-3 text-right">
             <button
               onClick={handleEsci}
-              className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
+              className="min-h-[44px] [overflow-wrap:anywhere] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
             >
               Esci dall&apos;account
             </button>
@@ -238,10 +238,10 @@ function HallScreen() {
                 return (
                   <li
                     key={lobby.id}
-                    className="flex items-center justify-between gap-3 border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
                   >
                     <div className="min-w-0">
-                      <p className="font-bold text-testo">Partita di {lobby.creatorName}</p>
+                      <p className="[overflow-wrap:anywhere] font-bold text-testo">Partita di {lobby.creatorName}</p>
                       <p className="text-sm text-testo-2">
                         {lobby.playerCount}/{lobby.maxPlayers} giocatori · costa {lobby.requiredCredits} crediti
                         {mancano <= 0 && ` · te ne restano ${playerCredits - lobby.requiredCredits}`}
@@ -253,7 +253,7 @@ function HallScreen() {
                     <button
                       onClick={() => handleUniscitiPartita(lobby.id)}
                       disabled={mancano > 0}
-                      className="min-h-[44px] shrink-0 rounded-lg bg-oro px-4 py-2 font-bold text-inchiostro-900 transition hover:bg-oro-dark disabled:cursor-not-allowed disabled:text-testo-3 disabled:bg-notte-600"
+                      className="min-h-[44px] shrink-0 rounded-lg bg-oro px-4 py-2 max-[259px]:px-2 font-bold text-inchiostro-900 transition hover:bg-oro-dark disabled:cursor-not-allowed disabled:text-testo-3 disabled:bg-notte-600"
                     >
                       Unisciti
                     </button>

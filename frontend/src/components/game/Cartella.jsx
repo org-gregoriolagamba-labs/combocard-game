@@ -127,13 +127,13 @@ function Cartella({
   );
 
   return (
-    <table className="w-full table-fixed border-separate [border-spacing:3px]">
+    <table className="w-full table-fixed border-separate [border-spacing:3px] max-[359px]:[border-spacing:2px] max-[319px]:min-w-[18.25rem]">
       <caption className="sr-only">
         La tua cartella: i valori in riga da Asso a Re, i semi in colonna
       </caption>
       <thead>
         <tr>
-          <td className="w-[5.6rem] p-0 align-middle">
+          <td className="w-[5.6rem] p-0 align-middle max-[359px]:w-[5.4rem]">
             {vicine.length > 0 && (
               <ul className="flex flex-col items-start gap-px pl-0.5">
                 {vicine.map(({ tipo, sigla, nome, count, total }) => (
@@ -156,10 +156,10 @@ function Cartella({
             <th
               key={seme}
               scope="col"
-              className={`relative rounded-lg border border-linea-forte px-0.5 py-1 text-center ${INCHIOSTRO_SEME[seme].soft}`}
+              className={`relative rounded-lg border border-linea-forte px-0.5 py-1 text-center max-[379px]:px-0 ${INCHIOSTRO_SEME[seme].soft}`}
             >
               <Seme seme={seme} className="mx-auto h-6 w-6" />
-              <span className={`block text-[13px] font-bold leading-tight tracking-tight ${INCHIOSTRO_SEME[seme].text}`}>
+              <span className={`block text-[13px] font-bold leading-tight tracking-tight max-[379px]:text-[11px] ${INCHIOSTRO_SEME[seme].text}`}>
                 {seme}
               </span>
               {perColonna[indiceSeme] >= 3 && (

@@ -67,12 +67,12 @@ function CollezioniPanel({
             <li
               key={tipo}
               data-testid={`collezione-${tipo}`}
-              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 max-[359px]:grid-cols-[auto_minmax(0,1fr)] border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
             >
               <FiguraCollezione tipo={tipo} className="h-14 w-11" />
 
               <div className="min-w-0">
-                <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-testo">
+                <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-testo [overflow-wrap:anywhere]">
                   {label}
                   <span className="text-xs font-bold tabular-nums text-testo-2">
                     Premio {ammontare}
@@ -85,8 +85,8 @@ function CollezioniPanel({
                     Vinta da {nomiVincitori(game, collezione)}
                   </p>
                 ) : (
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex items-center gap-0.5" aria-hidden="true">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <div className="flex flex-wrap items-center gap-0.5" aria-hidden="true">
                       {Array.from({ length: progresso.total }).map((_, i) => (
                         <div
                           key={i}
@@ -110,7 +110,7 @@ function CollezioniPanel({
                     type="button"
                     disabled
                     aria-label={`Jolly per ${label}: aspetta, ${jollyBloccatoDa} sta scegliendo il Jolly`}
-                    className="min-h-[44px] min-w-[64px] rounded-lg border-2 border-dashed border-linea px-3 text-sm font-bold text-testo-3"
+                    className="min-h-[44px] min-w-[64px] max-[359px]:col-span-2 rounded-lg border-2 border-dashed border-linea px-3 text-sm font-bold text-testo-3"
                   >
                     Jolly
                   </button>
@@ -119,7 +119,7 @@ function CollezioniPanel({
                     type="button"
                     disabled
                     aria-label={`Jolly per ${label}: non ancora possibile, ti manca più di una carta`}
-                    className="min-h-[44px] min-w-[64px] rounded-lg border-2 border-dashed border-linea px-3 text-sm font-bold text-testo-3"
+                    className="min-h-[44px] min-w-[64px] max-[359px]:col-span-2 rounded-lg border-2 border-dashed border-linea px-3 text-sm font-bold text-testo-3"
                   >
                     Jolly
                   </button>
@@ -128,7 +128,7 @@ function CollezioniPanel({
                     type="button"
                     aria-label={`Usa il Jolly per ${label}`}
                     onClick={() => onJollyMode(tipo)}
-                    className="min-h-[44px] min-w-[64px] rounded-lg bg-oro px-3 text-sm font-bold text-inchiostro-900 transition hover:bg-oro-dark"
+                    className="min-h-[44px] min-w-[64px] max-[359px]:col-span-2 rounded-lg bg-oro px-3 text-sm font-bold text-inchiostro-900 transition hover:bg-oro-dark"
                   >
                     Jolly
                   </button>

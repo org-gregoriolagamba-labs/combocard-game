@@ -184,6 +184,8 @@ Phone: one column, 12 px page padding, `max-w-7xl` container. A sticky header (5
 
 The cards already drawn sit in a closed `Disclosure` ("Carte uscite", count "N su 40") below the collections: 48 px thumbnails from `public/carte-mini`, the latest first, each with its name for screen readers (the name is printed if the picture is missing). It is closed by default so the sheet, the last card and the action keep sharing one screen.
 
+Narrow screens: under 380 px the suit names drop to 11 px ("Bastoni" must fit its column), under 360 px the page and sheet paddings shrink and the cell gaps go to 2 px, under 320 px the sheet keeps 18.25 rem of width and scrolls inside its own box (the page never scrolls sideways), and under 260 px the sticky header wraps onto two rows. Names of players come from users and have no spaces: texts that carry one use `[overflow-wrap:anywhere]` (it lowers the minimum width, `break-words` does not). Checked at 320, 360, 390, 180 (a 360 px phone zoomed to 200%) and 160 px.
+
 Desktop (`lg`): two columns (26 rem sheet, fluid rest); the sheet is sticky at the top, the action moves into a panel under it and the bar is hidden.
 
 The sheet is a real table: a 5.6 rem row-head column plus four equal suit columns, 3 px cell gaps, 44 px rows. Spacing is Tailwind's 4 px steps (8, 12, 16 common); the grid gap and 44/52 px targets are the fixed rhythm.
