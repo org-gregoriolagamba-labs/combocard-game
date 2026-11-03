@@ -31,7 +31,7 @@ Se `DATABASE_URL` è impostata e il database non è raggiungibile all'avvio, il 
 
 | Tabella | Contenuto |
 |---|---|
-| `players` | Identità e saldo di ogni giocatore. |
+| `players` | Identità e saldo di ogni giocatore, e quando ha confermato di aver letto le regole (`rules_accepted_at`, vuoto finché non lo fa). |
 | `games` | Stato completo della partita in `state`, più le colonne per filtrare (`status`, `is_private`). |
 | `credit_transactions` | Un movimento per ogni variazione di crediti, con il saldo risultante. |
 | `user_accounts` | Nome utente, hash della password e ruolo di ogni account. Vedi [AUTH.md](AUTH.md). |

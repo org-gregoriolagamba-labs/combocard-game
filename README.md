@@ -138,6 +138,7 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/players/:playerId` | Get your own player |
+| POST | `/api/players/:playerId/accept-rules` | Confirm that you read and understood the rules (once; a game does not start until all its players have) |
 | POST | `/api/players/:playerId/buy-credits` | Buy credits for your own player |
 
 ### Game Routes

@@ -84,7 +84,14 @@ function LobbyScreen() {
 
   // Check if current user is the creator
   const isCreator = game?.players?.length > 0 && game.players[0].id === playerId;
-  const canStart = isCreator && game?.players?.length >= 2;
+  // Players who are new to the game must confirm that they read the rules before it starts
+  const inAttesaDiRegole = (game?.players ?? []).filter((p) => p.regoleLette === false);
+  const nomiInAttesa = inAttesaDiRegole.map((p) => p.name);
+  const fraseAttesa =
+    nomiInAttesa.length === 1
+      ? `In attesa che ${nomiInAttesa[0]} confermi di aver letto le regole`
+      : `In attesa che ${nomiInAttesa.slice(0, -1).join(", ")} e ${nomiInAttesa.at(-1)} confermino di aver letto le regole`;
+  const canStart = isCreator && game?.players?.length >= 2 && inAttesaDiRegole.length === 0;
 
   return (
     <div className="min-h-[100dvh] tavolo p-4">
@@ -144,11 +151,25 @@ function LobbyScreen() {
                 <p className="text-xs text-testo-2">
                   {[player.id === playerId && "Tu", index === 0 && "Creatore"].filter(Boolean).join(" · ") || "\u00a0"}
                 </p>
+                {player.regoleLette === false && (
+                  <p className="text-xs font-bold text-oro">Sta leggendo le regole</p>
+                )}
               </li>
             ))}
           </ul>
 
-          {isCreator && (
+          {inAttesaDiRegole.length > 0 && (
+            <div
+              role="status"
+              aria-label="Attesa delle regole"
+              className="mb-4 rounded-xl border border-oro/60 bg-oro/10 p-4 text-center"
+            >
+              <p className="font-bold text-oro [text-wrap:balance]">{fraseAttesa}</p>
+              <p className="text-sm text-testo-2">La partita inizia appena tutti hanno confermato.</p>
+            </div>
+          )}
+
+          {isCreator && inAttesaDiRegole.length === 0 && (
             <div>
               {canStart ? (
                 <Button

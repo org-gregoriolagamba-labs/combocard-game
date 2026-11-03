@@ -22,9 +22,12 @@ export function uniqueUsername(base = 'Player') {
  * @param {APIRequestContext} request - Playwright request context
  * @param {string} apiUrl - Backend URL
  * @param {string} base - Readable prefix of the username
+ * @param {Object} [options]
+ * @param {boolean} [options.acceptRules=true] - Confirm the rules too: a game does not start for a
+ *   player who has not. Pass false to test what happens to a new player.
  * @returns {Promise<Object>} Player, with `token` and ready-to-use `headers`
  */
-export async function registerPlayer(request, apiUrl, base) {
+export async function registerPlayer(request, apiUrl, base, { acceptRules = true } = {}) {
   const response = await request.post(`${apiUrl}/api/auth/register`, {
     data: { username: uniqueUsername(base), password: PASSWORD },
   });
@@ -33,5 +36,14 @@ export async function registerPlayer(request, apiUrl, base) {
   }
 
   const { accessToken, player } = (await response.json()).data;
-  return { ...player, token: accessToken, headers: { Authorization: `Bearer ${accessToken}` } };
+  const headers = { Authorization: `Bearer ${accessToken}` };
+
+  if (acceptRules) {
+    const accepted = await request.post(`${apiUrl}/api/players/${player.id}/accept-rules`, { headers });
+    if (!accepted.ok()) {
+      throw new Error(`Rules confirmation failed: ${accepted.status()} ${await accepted.text()}`);
+    }
+  }
+
+  return { ...player, token: accessToken, headers };
 }

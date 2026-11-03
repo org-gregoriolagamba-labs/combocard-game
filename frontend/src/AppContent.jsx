@@ -17,13 +17,15 @@ import { addToast, setScreen } from "./store/slices/uiSlice";
 import { HomePage } from "./pages";
 
 // Game screens
-import { HallScreen, LobbyScreen, GameScreen } from "./components/game";
+import { HallScreen, LobbyScreen, GameScreen, RegoleScreen } from "./components/game";
 import { LoadingSpinner } from "./components/common";
 
 function AppContent() {
   const dispatch = useDispatch();
   const currentScreen = useSelector((state) => state.ui.currentScreen);
   const sessionChecked = useSelector((state) => state.player.sessionChecked);
+  const playerId = useSelector((state) => state.player.id);
+  const regoleAccettateIl = useSelector((state) => state.player.regoleAccettateIl);
 
   // Initialize socket connection
   useSocket();
@@ -49,10 +51,15 @@ function AppContent() {
 
   if (!sessionChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center tavolo">
         <LoadingSpinner size="xl" />
       </div>
     );
+  }
+
+  // A player who never confirmed the rules reads them before anything else
+  if (playerId && regoleAccettateIl === null) {
+    return <RegoleScreen />;
   }
 
   const renderScreen = () => {

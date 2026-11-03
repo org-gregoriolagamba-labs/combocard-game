@@ -83,6 +83,10 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 - Player enters their name
 - Starts with 0 credits (credits are taken with **Prendi crediti** (play money))
 
+### 1b. The rules
+- The first time a player uses the game, a screen shows the full rules ("Prima di giocare: le regole"). The player must scroll to the end, tick "Ho letto e compreso le regole e le meccaniche del gioco" and continue. The date is saved with the player (`players.rules_accepted_at`) and the question is not asked again. Existing accounts confirm at their next access.
+- **A game does not start until every player in it has confirmed.** The creator cannot start it (409), a full game waits instead of starting by itself, and the lobby tells everyone who the game is waiting for ("In attesa che Bruno confermi di aver letto le regole"). When the last player confirms, a full game starts by itself.
+
 ### 2. Hall (Game List)
 - View available public games waiting for players
 - Create a new game (choose required credits, max players, and public/private)

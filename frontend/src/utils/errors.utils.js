@@ -34,6 +34,8 @@ const EXACT = {
   "Collection already won": "Questa collezione è già stata vinta",
   "Collection type not specified": "Scegli una collezione",
   "Jolly already used": "Hai già usato il Jolly",
+  "Waiting for all players to confirm they read the rules":
+    "Aspetta che tutti i giocatori confermino di aver letto le regole",
   "Jolly cannot complete this collection or card already exists in grid":
     "Il Jolly non può completare questa collezione con quella carta. Scegli un'altra carta o un'altra collezione.",
   "Too many failed login attempts, please try again later.": "Troppi tentativi falliti: riprova tra poco",
