@@ -7,10 +7,12 @@
  * collection can be seen: a tris is a row, a sequenza is neighbouring rows, a
  * scopa is a column, a combocard reale is neighbouring rows in one column.
  *
- * The cards are the light of the table: ivory tiles on a dark ground. Every card
- * is a button named by its value and suit; it can be activated only while
- * choosing the card for the jolly. A drawn card is sealed with a badge in the
- * ink of its suit.
+ * The cards are the light of the table: ivory tiles on a dark ground. Every tile
+ * shows the card itself, a small print of the real card of the 1875 deck with its
+ * number (the same number as the row), so no tile has to be read through the row
+ * label. Every card is a button named by its value and suit; it can be activated
+ * only while choosing the card for the jolly. A drawn card is sealed with a badge
+ * in the ink of its suit.
  */
 
 import React, { useState } from "react";
@@ -22,11 +24,44 @@ import { INCHIOSTRO_SEME, SEMI_IN_ORDINE, mappaCartella } from "../../utils";
 const nomeCarta = (carta, coperta) =>
   `${carta.valore} di ${carta.seme}${coperta ? ", coperta" : ""}`;
 
+// The card itself, small: the print of the deck (files of 54 px made from the cards) and its number
+function FaccioCarta({ carta, numero, coperta }) {
+  const [mancante, setMancante] = useState(false);
+
+  return (
+    <span aria-hidden="true" className="flex h-full w-full items-center gap-1 px-[3px]">
+      {!mancante && (
+        <img
+          src={`/carte-mini/${carta.seme.toLowerCase()}-${carta.valore.toLowerCase()}.webp`}
+          alt=""
+          width={54}
+          height={98}
+          decoding="async"
+          draggable={false}
+          onError={() => setMancante(true)}
+          className="h-10 w-auto shrink-0 select-none rounded-[2px] border border-inchiostro-900/30"
+        />
+      )}
+      {!coperta && (
+        <span className="titolo min-w-0 flex-1 text-center text-[17px] leading-none text-inchiostro-900">
+          {numero}
+        </span>
+      )}
+    </span>
+  );
+}
+
+FaccioCarta.propTypes = {
+  carta: PropTypes.shape({ valore: PropTypes.string, seme: PropTypes.string }).isRequired,
+  numero: PropTypes.number.isRequired,
+  coperta: PropTypes.bool,
+};
+
 // The seal that closes a drawn card: a badge in the ink of the suit, with a ring that spreads once
 function Sigillo({ seme, nuovo }) {
   return (
     <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-lg bg-notte-950/50">
-      <span className="absolute bottom-0.5 right-0.5 flex h-6 w-6 items-center justify-center">
+      <span className="absolute right-1 top-1/2 -mt-3 flex h-6 w-6 items-center justify-center">
         {nuovo && (
           <span className={`absolute inset-0 rounded-full ${INCHIOSTRO_SEME[seme].bg} animate-onda`} />
         )}
@@ -182,7 +217,7 @@ function Cartella({
                         : ""
                     }`}
                   >
-                    <Seme seme={carta.seme} fallback={carta.emoji} className="h-8 w-8" />
+                    <FaccioCarta carta={carta} numero={indiceRiga + 1} coperta={coperta} />
 
                     {isJolly && (
                       <span className="absolute left-0 top-0 rounded-br-md bg-oro px-1 text-[10px] font-bold leading-4 text-inchiostro-900">
