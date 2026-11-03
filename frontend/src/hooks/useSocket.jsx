@@ -12,6 +12,8 @@ import {
   setGame,
   setCurrentPlayer,
   setUltimaCartaEstratta,
+  setJollyInCorso,
+  clearJollyInCorso,
   updatePlayerCards,
   updatePlayerGettoni,
 } from "../store/slices/gameSlice";
@@ -161,8 +163,24 @@ export function useSocket() {
       }));
     };
 
+    // A player declares the jolly: the draws are paused until the card is chosen
+    const handleJollyInCorso = (hold) => {
+      if (hold?.scadenza) {
+        dispatch(setJollyInCorso(hold));
+      }
+    };
+
+    // The player gave the jolly up (or left): the draws can go on
+    const handleJollyAnnullato = ({ playerId: jollyPlayerId }) => {
+      dispatch(clearJollyInCorso(jollyPlayerId));
+      if (jollyPlayerId !== playerId) {
+        dispatch(addToast({ message: "Il Jolly è stato lasciato: si può estrarre di nuovo" }));
+      }
+    };
+
     // Jolly used
     const handleJollyUsato = ({ playerId: jollyPlayerId, tipo }) => {
+      dispatch(clearJollyInCorso(jollyPlayerId));
       if (jollyPlayerId !== playerId) {
         dispatch(addToast({
           message: `Un giocatore ha usato il Jolly per ${tipo.toUpperCase().replace("_", " ")}`,
@@ -194,6 +212,8 @@ export function useSocket() {
     socket.on("collezioneVinta", handleCollezioneVinta);
     socket.on("gettoniAggiornati", handleGettoniAggiornati);
     socket.on("premiRimanentiDivisi", handlePremiRimanentiDivisi);
+    socket.on("jollyInCorso", handleJollyInCorso);
+    socket.on("jollyAnnullato", handleJollyAnnullato);
     socket.on("jollyUsato", handleJollyUsato);
     socket.on("gameFinished", handleGameFinished);
 
@@ -207,6 +227,8 @@ export function useSocket() {
       socket.off("collezioneVinta", handleCollezioneVinta);
       socket.off("gettoniAggiornati", handleGettoniAggiornati);
       socket.off("premiRimanentiDivisi", handlePremiRimanentiDivisi);
+      socket.off("jollyInCorso", handleJollyInCorso);
+      socket.off("jollyAnnullato", handleJollyAnnullato);
       socket.off("jollyUsato", handleJollyUsato);
       socket.off("gameFinished", handleGameFinished);
     };

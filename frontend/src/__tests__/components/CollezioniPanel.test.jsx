@@ -30,6 +30,23 @@ const renderPanel = (props = {}) =>
   );
 
 describe('CollezioniPanel', () => {
+  test('while another player chooses the jolly, the jolly button waits and says why', () => {
+    const onJollyMode = vi.fn();
+    renderPanel({ jollyBloccatoDa: 'Anna', onJollyMode });
+
+    const bottone = within(row('tris')).getByRole('button', { name: 'Jolly per TRIS: aspetta, Anna sta scegliendo il Jolly' });
+    fireEvent.click(bottone);
+
+    expect(bottone).toBeDisabled();
+    expect(onJollyMode).not.toHaveBeenCalled();
+  });
+
+  test('without a pause the jolly button is active as usual', () => {
+    renderPanel({ jollyBloccatoDa: null });
+
+    expect(within(row('tris')).getByRole('button', { name: 'Usa il Jolly per TRIS' })).toBeEnabled();
+  });
+
   test('lists the five collections, each with its prize', () => {
     renderPanel();
 

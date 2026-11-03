@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GameScreen } from '../../components/game';
 import { renderWithProviders, mockGameState } from '../test-utils';
@@ -217,6 +217,158 @@ describe('GameScreen', () => {
       renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
       expect(screen.getByText('Nessuna carta estratta')).toBeInTheDocument();
+    });
+  });
+
+  describe('the draws are paused while a player chooses the jolly', () => {
+    const hold = (playerId, name, secondi = 20) => ({
+      playerId,
+      name,
+      tipo: 'tris',
+      scadenza: Date.now() + secondi * 1000,
+    });
+    const withHold = (me, jollyInCorso, overrides) => {
+      const state = stateFor(me, overrides);
+      state.game.game = { ...state.game.game, jollyInCorso };
+      return state;
+    };
+    const startJolly = () => fireEvent.click(screen.getByRole('button', { name: 'Usa il Jolly per TRIS' }));
+
+    beforeEach(() => {
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    afterEach(() => {
+      delete Element.prototype.scrollIntoView;
+      vi.useRealTimers();
+    });
+
+    test('declaring the jolly tells the server for which collection, and the pause is shown', async () => {
+      gameService.startJollyChoice.mockResolvedValue({ success: true, jollyInCorso: hold('carlo', 'Carlo') });
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      await waitFor(() => expect(gameService.startJollyChoice).toHaveBeenCalledWith('game-456', 'tris'));
+      await waitFor(() => expect(store.getState().game.game.jollyInCorso).toMatchObject({ playerId: 'carlo' }));
+      expect(screen.getAllByText(/Le estrazioni sono ferme: hai ancora/).length).toBeGreaterThan(0);
+    });
+
+    test('the mode opens at once, without waiting for the server', () => {
+      gameService.startJollyChoice.mockReturnValue(new Promise(() => {}));
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      expect(store.getState().game.jollyMode).toBe('tris');
+    });
+
+    test('if the server refuses, the mode closes and the reason is shown', async () => {
+      gameService.startJollyChoice.mockRejectedValue(new Error('Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo'));
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      await waitFor(() => expect(store.getState().game.jollyMode).toBeNull());
+      expect(store.getState().ui.toasts.map((t) => t.message)).toContain(
+        'Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo',
+      );
+    });
+
+    test('while another player chooses, the creator cannot draw and the jolly waits', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withHold('anna', hold('carlo', 'Carlo')) });
+
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      for (const bottone of screen.getAllByRole('button', { name: /Estrazione in pausa/ })) {
+        expect(bottone).toBeDisabled();
+      }
+      expect(screen.getAllByText(/Carlo sta scegliendo il Jolly/).length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole('button', { name: 'Jolly per TRIS: aspetta, Carlo sta scegliendo il Jolly' }),
+      ).toBeDisabled();
+    });
+
+    test('the other players are told who is choosing', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withHold('carlo', hold('anna', 'Anna')) });
+
+      expect(screen.getAllByText(/Anna sta scegliendo il Jolly/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Estrae Anna/).length).toBeGreaterThan(0);
+    });
+
+    test('when the time runs out the draws go on, with no action from anybody', () => {
+      vi.useFakeTimers();
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('anna', hold('carlo', 'Carlo', 3)),
+      });
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+      expect(screen.getAllByRole('button', { name: /Estrai Carta/ }).length).toBeGreaterThan(0);
+    });
+
+    test('when the own time runs out the mode closes and the player is told', () => {
+      vi.useFakeTimers();
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo', 2), { jollyMode: 'tris' }),
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(2100);
+      });
+
+      expect(store.getState().game.jollyMode).toBeNull();
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+      expect(store.getState().ui.toasts.map((t) => t.message).join(' ')).toMatch(/Tempo scaduto/);
+    });
+
+    test('after a reload the own pause is still running and the mode comes back with it', () => {
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo')),
+      });
+
+      expect(store.getState().game.jollyMode).toBe('tris');
+      expect(screen.getAllByText(/Jolly per TRIS: tocca una carta evidenziata/).length).toBeGreaterThan(0);
+    });
+
+    test('"Annulla" tells the server at once, so the draws can go on', () => {
+      gameService.cancelJollyChoice.mockResolvedValue({ success: true });
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo'), { jollyMode: 'tris' }),
+      });
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Annulla' })[0]);
+
+      expect(gameService.cancelJollyChoice).toHaveBeenCalledWith('game-456');
+      expect(store.getState().game.jollyMode).toBeNull();
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+      // The mode does not come back from the pause that was just given up
+      expect(screen.queryByRole('group', { name: 'Modalità Jolly' })).not.toBeInTheDocument();
+    });
+
+    test('using the jolly does not cancel: the server ends the pause by itself', async () => {
+      gameService.useJolly.mockResolvedValue({ convertedTo: { valore: 'Sei', seme: 'Denari' } });
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo'), { jollyMode: 'tris' }),
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Denari' }));
+      fireEvent.click(screen.getAllByRole('button', { name: 'Usa Jolly' })[0]);
+
+      await waitFor(() => expect(store.getState().game.game.jollyInCorso).toBeNull());
+      expect(gameService.cancelJollyChoice).not.toHaveBeenCalled();
+      expect(store.getState().game.jollyMode).toBeNull();
+    });
+
+    test('a finished game shows no pause', () => {
+      const stato = withHold('anna', hold('carlo', 'Carlo'));
+      stato.game.game.status = 'finished';
+      renderWithProviders(<GameScreen />, { preloadedState: stato });
+
+      expect(screen.queryByText(/sta scegliendo il Jolly/)).not.toBeInTheDocument();
     });
   });
 

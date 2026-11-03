@@ -20,6 +20,9 @@ describe('translateServerError', () => {
     ['Too many requests, please try again later.', 'Troppe richieste: riprova tra poco'],
     ['Too many requests from this IP, please try again later.', 'Troppe richieste: riprova tra poco'],
     ['Jolly already used', 'Hai già usato il Jolly'],
+    ['A player is choosing the jolly: wait a few seconds', 'Un giocatore sta scegliendo il Jolly: aspetta qualche secondo'],
+    ['Another player is choosing the jolly', 'Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo'],
+    ['Too many jolly declarations in this game', 'Hai già dichiarato il Jolly troppe volte in questa partita'],
     ['Invalid amount', 'Inserisci un importo valido'],
     ['Waiting for all players to confirm they read the rules', 'Aspetta che tutti i giocatori confermino di aver letto le regole'],
   ])('"%s" is shown as "%s"', (english, italian) => {

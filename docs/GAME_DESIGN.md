@@ -71,6 +71,18 @@ Each player has one Jolly per game. It is not a card on the sheet: it is an acti
 - The screen works this out in the browser (`frontend/src/utils/jolly.utils.js`, a mirror of `backend/src/services/jolly.service.js`) to offer the Jolly only where it can work, to enable only the cards it can turn, and to say which card becomes which before the player confirms. The server stays the judge.
 - After use, the card shows "USATO".
 
+### Draws pause while the Jolly is chosen
+
+Choosing the card takes time, and a card drawn meanwhile could change what the Jolly can do. So the draws wait.
+
+- Tapping "Jolly" on a collection **declares** it (`POST /api/games/:gameId/jolly/start`): the server stops the draws for everybody, the creator included, for **at most 30 seconds**. A draw during the pause is refused with a 409.
+- The pause ends when the player **uses** the Jolly, **gives it up** ("Annulla", `POST /api/games/:gameId/jolly/cancel`), **leaves** the game, or the **time runs out**. If the player's screen goes away the time simply runs out: nobody can hold the game still.
+- One player at a time. Another player who tries to declare meanwhile is refused, and each player can declare **at most 3 times per game**, so a pause cannot be renewed forever.
+- **What the screens show.** Everybody sees "Bruno sta scegliendo il Jolly" with the seconds left; the creator's draw button reads "Estrazione in pausa" and waits; the Jolly buttons of the others are off and say who is choosing. The player who chooses sees "Le estrazioni sono ferme: hai ancora N s per scegliere". When the time runs out the screen closes the mode and tells the player, who may declare again.
+- **Reloading the page** during the player's own pause brings the mode back, with the time that is left.
+- The pause is not saved with the game: a restart of the server never leaves a game paused. Events: `jollyInCorso` (a player declared), `jollyAnnullato` (the pause ended without the Jolly being used), `jollyUsato` (it was used).
+- For compatibility the server still accepts a Jolly that was never declared, when nobody else is choosing.
+
 ## 🧾 The sheet (cartella)
 
 The server gives each player 25 different cards in a 5x5 array. **The position in that array never matters:** every collection looks only at the values and suits of the covered cards.

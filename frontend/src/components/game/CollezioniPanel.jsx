@@ -37,6 +37,7 @@ function CollezioniPanel({
   game = null,
   currentPlayer = null,
   jollyPossibili = null,
+  jollyBloccatoDa = null,
   onJollyMode,
   isGameFinished = false,
 }) {
@@ -104,7 +105,16 @@ function CollezioniPanel({
               </div>
 
               {canJolly &&
-                (nonSubito ? (
+                (jollyBloccatoDa ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-label={`Jolly per ${label}: aspetta, ${jollyBloccatoDa} sta scegliendo il Jolly`}
+                    className="min-h-[44px] min-w-[64px] rounded-lg border-2 border-dashed border-linea px-3 text-sm font-bold text-testo-3"
+                  >
+                    Jolly
+                  </button>
+                ) : nonSubito ? (
                   <button
                     type="button"
                     disabled
@@ -153,6 +163,7 @@ CollezioniPanel.propTypes = {
     cartella: PropTypes.array,
   }),
   jollyPossibili: PropTypes.object,
+  jollyBloccatoDa: PropTypes.string,
   onJollyMode: PropTypes.func.isRequired,
   isGameFinished: PropTypes.bool,
 };
