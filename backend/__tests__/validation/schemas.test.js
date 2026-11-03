@@ -11,6 +11,7 @@ import {
   createGameSchema,
   claimCollectionSchema,
   useJollySchema,
+  startJollySchema,
 } from '../../src/validation/schemas.js';
 
 const isValid = (schema, body) => !schema.validate(body).error;
@@ -117,6 +118,16 @@ describe('useJollySchema', () => {
     [{ tipo: 'xxx' }],
   ])('rejects %j', (override) => {
     expect(isValid(useJollySchema, { ...base, ...override })).toBe(false);
+  });
+});
+
+describe('startJollySchema', () => {
+  test('accepts a collection type', () => {
+    expect(isValid(startJollySchema, { tipo: 'napola' })).toBe(true);
+  });
+
+  test.each([[{}], [{ tipo: 'xxx' }], [{ tipo: 3 }]])('rejects %j', (body) => {
+    expect(isValid(startJollySchema, body)).toBe(false);
   });
 });
 

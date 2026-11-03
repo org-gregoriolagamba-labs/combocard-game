@@ -186,7 +186,8 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
       game.requiredCredits,
       game.maxPlayers,
       game.montepremi,
-      JSON.stringify(game),
+      // A running jolly choice is a pause of a few seconds: it is not worth saving
+      JSON.stringify(game, (key, value) => (key === "jollyInCorso" ? undefined : value)),
       game.createdAt,
     ];
   }

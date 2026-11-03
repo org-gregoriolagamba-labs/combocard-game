@@ -48,6 +48,10 @@ export const claimCollectionSchema = Joi.object({
   tipo: collectionType.required(),
 });
 
+export const startJollySchema = Joi.object({
+  tipo: collectionType.required(),
+});
+
 export const useJollySchema = Joi.object({
   tipo: collectionType.required(),
   row: gridIndex.required(),

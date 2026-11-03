@@ -204,10 +204,12 @@ export function verificaCollezione(cartella, coperte, tipo) {
  * @returns {Object} Game as that player can see it
  */
 export function gameViewFor(game, playerId) {
-  const { mazzo, ...visible } = game;
+  const { mazzo, jollyInCorso, ...visible } = game;
 
   return {
     ...visible,
+    // A choice that has run out of time is already over, whoever reads the game
+    jollyInCorso: jollyInCorso && jollyInCorso.scadenza > Date.now() ? jollyInCorso : null,
     carteRimaste: mazzo.length,
     players: game.players.map((player) => {
       if (player.id === playerId) {

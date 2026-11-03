@@ -92,6 +92,16 @@ describe('createPostgresStore', () => {
     expect(JSON.parse(insert.params[6]).status).toBe('waiting');
   });
 
+  test('a running jolly choice is not saved: it is a pause of a few seconds', async () => {
+    const pool = createFakePool();
+    const g = { ...game('playing'), jollyInCorso: { playerId: 'p1', tipo: 'tris', scadenza: 1 } };
+
+    await createPostgresStore(pool).saveGame(g);
+
+    const insert = pool.log.find((q) => q.sql.startsWith('INSERT INTO games'));
+    expect(JSON.parse(insert.params[6])).not.toHaveProperty('jollyInCorso');
+  });
+
   test('recordRulesAccepted saves the date of the confirmation with the player', async () => {
     const pool = createFakePool();
 
