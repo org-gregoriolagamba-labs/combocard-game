@@ -193,6 +193,26 @@ test.describe('Game screen on a phone @mobile', () => {
     }
   });
 
+  test('the cards already drawn are in a section that opens, latest first, and the screen does not move', async ({ page, request }) => {
+    const { guest } = await startedGame(request);
+    await signIn(page, guest);
+    const barBefore = await page.getByTestId('barra-azione').boundingBox();
+    const tableTop = () => page.getByRole('table').evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
+    const tableBefore = await tableTop();
+
+    const toggle = page.getByRole('button', { name: /Carte uscite/ });
+    await expect(toggle).toContainText('6 su 40');
+    expect((await toggle.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await toggle.click();
+
+    const panel = page.locator(`#${await toggle.getAttribute('aria-controls')}`);
+    await expect(panel.getByRole('listitem')).toHaveCount(6);
+    expect(await panel.getByRole('listitem').first().textContent()).toMatch(NOME_CARTA);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await page.getByTestId('barra-azione').boundingBox()).toEqual(barBefore);
+    expect(await tableTop()).toBe(tableBefore);
+  });
+
   test('leaving a game in progress is asked in a dialog, and Esc stays', async ({ page, request }) => {
     const { guest } = await startedGame(request);
     let browserDialogs = 0;
