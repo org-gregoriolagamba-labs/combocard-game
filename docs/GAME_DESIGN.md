@@ -75,7 +75,7 @@ Each player has one Jolly per game. It is not a card on the sheet: it is an acti
 
 The server gives each player 25 different cards in a 5x5 array. **The position in that array never matters:** every collection looks only at the values and suits of the covered cards.
 
-The screen therefore lays the sheet out like a tombola sheet: the deck as a table of ten rows (values, Asso to Re) and four columns (suits: Denari, Coppe, Spade, Bastoni). The player's 25 cards are printed in their place, the other 15 places stay empty, and a dot marks a card that has been drawn but is not in the sheet. On this table a tris is a row, a sequenza is neighbouring rows, a scopa is a column, a napola is three places in a row and two in another, and a combocard reale is neighbouring rows of one column. A drawn card is covered with a bean (`frontend/src/utils/mazzo.utils.js`).
+The screen therefore lays the sheet out like a tombola sheet: the deck as a table of ten rows (values, Asso to Re) and four columns (suits: Denari, Coppe, Spade, Bastoni). The player's 25 cards are printed in their place, each as a small print of the real card with the number of its row (so a place is read on its own, without looking back at the row label), the other 15 places stay empty, and a dot marks a card that has been drawn but is not in the sheet. On this table a tris is a row, a sequenza is neighbouring rows, a scopa is a column, a napola is three places in a row and two in another, and a combocard reale is neighbouring rows of one column. A drawn card is covered with a bean (`frontend/src/utils/mazzo.utils.js`).
 
 ## 🎲 Game Flow
 

@@ -140,10 +140,62 @@ describe('Cartella', () => {
     });
   });
 
-  test('the suit is drawn with its Neapolitan illustration', () => {
-    const { container } = render(<Cartella cartella={griglia} coperte={[[false]]} />);
+  describe('every place shows the card itself', () => {
+    const quattroDiSpade = { valore: 'Quattro', seme: 'Spade', emoji: '', valoreNum: 4 };
+    const reDiCoppe = { valore: 'Re', seme: 'Coppe', emoji: '', valoreNum: 10 };
 
-    expect(container.querySelector('tbody img')).toHaveAttribute('src', '/semi/spade.webp');
+    test('is the small print of the real card, with the number of its row', () => {
+      // Row 4 (the Quattro), column Spade: the place of the Quattro di Spade
+      const { container } = render(<Cartella cartella={[[quattroDiSpade]]} coperte={[[false]]} />);
+      const tessera = screen.getByRole('button', { name: 'Quattro di Spade' });
+
+      expect(tessera.querySelector('img')).toHaveAttribute('src', '/carte-mini/spade-quattro.webp');
+      expect(tessera).toHaveTextContent('4');
+      // The suit art is no longer the only thing in the place: only the headers still use it
+      expect(container.querySelectorAll('tbody img[src^="/semi/"]')).toHaveLength(0);
+    });
+
+    test('a figure carries the number of its row too (Re is the tenth)', () => {
+      render(<Cartella cartella={[[reDiCoppe]]} coperte={[[false]]} />);
+      const tessera = screen.getByRole('button', { name: 'Re di Coppe' });
+
+      expect(tessera.querySelector('img')).toHaveAttribute('src', '/carte-mini/coppe-re.webp');
+      expect(tessera).toHaveTextContent('10');
+    });
+
+    test('the number is the one printed on the row label', () => {
+      render(<Cartella cartella={[[quattroDiSpade]]} coperte={[[false]]} />);
+      const riga = screen.getByRole('rowheader', { name: /Quattro/ });
+
+      expect(riga).toHaveTextContent('4');
+      expect(riga).toHaveTextContent('Quattro');
+    });
+
+    test('a covered card keeps its print and shows the seal instead of the number', () => {
+      render(<Cartella cartella={[[quattroDiSpade]]} coperte={[[true]]} />);
+      const tessera = screen.getByRole('button', { name: 'Quattro di Spade, coperta' });
+
+      expect(tessera.querySelector('img')).toHaveAttribute('src', '/carte-mini/spade-quattro.webp');
+      expect(tessera).not.toHaveTextContent('4');
+    });
+
+    test('the print is decoration: the name of the button says the card', () => {
+      render(<Cartella cartella={[[quattroDiSpade]]} coperte={[[false]]} />);
+      const stampa = screen.getByRole('button', { name: 'Quattro di Spade' }).querySelector('img');
+
+      expect(stampa).toHaveAttribute('alt', '');
+      expect(stampa.closest('[aria-hidden="true"]')).not.toBeNull();
+    });
+
+    test('if the print cannot be loaded the number is still there', () => {
+      render(<Cartella cartella={[[quattroDiSpade]]} coperte={[[false]]} />);
+      const tessera = screen.getByRole('button', { name: 'Quattro di Spade' });
+
+      fireEvent.error(tessera.querySelector('img'));
+
+      expect(tessera.querySelector('img')).toBeNull();
+      expect(tessera).toHaveTextContent('4');
+    });
   });
 
   test('the jolly card is marked', () => {
