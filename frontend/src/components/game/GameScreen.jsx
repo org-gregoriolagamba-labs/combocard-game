@@ -11,6 +11,9 @@
  *
  * The jolly is used in two steps, both in the bar: the player taps a card of
  * the sheet (only the cards it can turn are active), then confirms it by name.
+ * Declaring the jolly pauses the draws for everybody (the server holds them for
+ * at most 30 seconds): the others see who is choosing and for how long, and a
+ * player who gives up, runs out of time or uses the jolly lets the draws go on.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -19,8 +22,11 @@ import { DoorOpen } from "lucide-react";
 import {
   drawCard,
   playJolly,
+  declareJolly,
+  releaseJolly,
   leaveGame,
   setJollyMode,
+  clearJollyInCorso,
   decrementDrawCooldown,
   clearGame,
 } from "../../store/slices/gameSlice";
@@ -37,6 +43,7 @@ import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
+import { SECONDI_PAUSA_JOLLY } from "./ConteggioJolly";
 
 const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
 const SECONDI_LUCI = 6000;
@@ -81,6 +88,13 @@ function GameScreen() {
   const creatorName = game?.players?.[0]?.name || "";
   const isGameFinished = game?.status === "finished";
 
+  // The player who is choosing the jolly card now (the server holds the draws meanwhile)
+  const pausa = game?.status === "playing" ? game.jollyInCorso ?? null : null;
+  const pausaDi = pausa?.playerId;
+  const pausaScadenza = pausa?.scadenza;
+  const pausaTipo = pausa?.tipo;
+  const pausaMia = Boolean(pausa) && pausaDi === playerId;
+
   // Handle draw cooldown timer
   useEffect(() => {
     if (drawCooldown > 0) {
@@ -90,6 +104,33 @@ function GameScreen() {
       return () => clearTimeout(timer);
     }
   }, [drawCooldown, dispatch]);
+
+  // The pause ends by itself: the server lets the draws go on, and so does the screen
+  useEffect(() => {
+    if (!pausaScadenza) return undefined;
+    const ms = Math.min(Math.max(pausaScadenza - Date.now(), 0), SECONDI_PAUSA_JOLLY * 1000);
+    const timer = setTimeout(() => {
+      // The pause first, then the mode: the mode is never restored from a pause that has ended
+      dispatch(clearJollyInCorso(pausaDi));
+      if (pausaDi === playerId) {
+        dispatch(setJollyMode(null));
+        setJollyCarta(null);
+        dispatch(addToast({
+          message: "Tempo scaduto: le estrazioni sono ripartite. Puoi dichiarare di nuovo il Jolly.",
+          type: "warning",
+          duration: 6000,
+        }));
+      }
+    }, ms);
+    return () => clearTimeout(timer);
+  }, [pausaScadenza, pausaDi, playerId, dispatch]);
+
+  // After a reload the player's own pause is still running: the mode comes back with it
+  useEffect(() => {
+    if (pausaMia && pausaTipo && !jollyMode) {
+      dispatch(setJollyMode(pausaTipo));
+    }
+  }, [pausaMia, pausaTipo, jollyMode, dispatch]);
 
   // The places of a collection the player has just won stay lit for a few seconds
   useEffect(() => {
@@ -121,9 +162,17 @@ function GameScreen() {
   };
 
   // Leaving the mode forgets the card that was chosen
-  const esciDaJolly = () => {
+  const lasciaModalita = () => {
     dispatch(setJollyMode(null));
     setJollyCarta(null);
+  };
+
+  // Giving the jolly up also tells the server, so the draws can go on at once
+  const esciDaJolly = () => {
+    dispatch(clearJollyInCorso(playerId));
+    lasciaModalita();
+    // A failure changes nothing: the pause runs out by itself in a few seconds
+    dispatch(releaseJolly({ gameId }));
   };
 
   const scrollToGrid = () => {
@@ -160,9 +209,24 @@ function GameScreen() {
       return;
     }
 
+    if (pausa && !pausaMia) {
+      dispatch(addToast({ message: `${pausa.name} sta scegliendo il Jolly: aspetta qualche secondo`, type: "warning" }));
+      return;
+    }
+
     dispatch(setJollyMode(tipo));
     setJollyCarta(null);
     scrollToGrid();
+
+    // The mode opens at once; the server pauses the draws, and if it refuses the mode closes
+    if (!pausaMia) {
+      dispatch(declareJolly({ gameId, tipo }))
+        .unwrap()
+        .catch((error) => {
+          lasciaModalita();
+          dispatch(addToast({ message: error || "Non riesco a dichiarare il Jolly", type: "error", duration: 6000 }));
+        });
+    }
   };
 
   // Step one: the player taps a card, the bar asks for the confirmation
@@ -193,7 +257,7 @@ function GameScreen() {
         message: `Jolly usato: ora hai ${result.convertedTo.valore} di ${result.convertedTo.seme}`,
         type: "success",
       }));
-      esciDaJolly();
+      lasciaModalita();
     } catch (error) {
       // The mode stays on: the player can try with another card
       dispatch(addToast({ message: error || "Errore uso jolly", type: "error", duration: 6000 }));
@@ -250,6 +314,7 @@ function GameScreen() {
       jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
       jollyConversione={conversione}
       jollyScelte={carteJolly.length}
+      pausa={pausa ? { nome: pausa.name, scadenza: pausa.scadenza, mia: pausaMia } : null}
       onDraw={handleEstraiCarta}
       onCancelJolly={esciDaJolly}
       onConfirmJolly={handleConfermaJolly}
@@ -370,6 +435,7 @@ function GameScreen() {
             game={game}
             currentPlayer={currentPlayer}
             jollyPossibili={jollyPossibili}
+            jollyBloccatoDa={pausa && !pausaMia ? pausa.name : null}
             onJollyMode={isGameFinished ? () => {} : handleAttivaModalitaJolly}
             isGameFinished={isGameFinished}
           />

@@ -80,6 +80,29 @@ export const playJolly = createAsyncThunk(
   }
 );
 
+// Declaring the jolly pauses the draws for everybody while the player chooses the card
+export const declareJolly = createAsyncThunk(
+  "game/declareJolly",
+  async ({ gameId, tipo }, { rejectWithValue }) => {
+    try {
+      return await gameService.startJollyChoice(gameId, tipo);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const releaseJolly = createAsyncThunk(
+  "game/releaseJolly",
+  async ({ gameId }, { rejectWithValue }) => {
+    try {
+      return await gameService.cancelJollyChoice(gameId);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const leaveGame = createAsyncThunk(
   "game/leave",
   async ({ gameId }, { rejectWithValue }) => {
@@ -136,6 +159,20 @@ const gameSlice = createSlice({
     },
     setJollyMode: (state, action) => {
       state.jollyMode = action.payload;
+    },
+    // Who is choosing the jolly card now, or null. The server sends it with the game too.
+    setJollyInCorso: (state, action) => {
+      if (state.game) {
+        state.game.jollyInCorso = action.payload;
+      }
+    },
+    // The pause ends. With a player, only if it is that player's pause: an old message
+    // must not end the pause of someone else.
+    clearJollyInCorso: (state, action) => {
+      const playerId = action.payload;
+      if (state.game && (!playerId || state.game.jollyInCorso?.playerId === playerId)) {
+        state.game.jollyInCorso = null;
+      }
     },
     setDrawCooldown: (state, action) => {
       state.drawCooldown = action.payload;
@@ -217,6 +254,18 @@ const gameSlice = createSlice({
         state.ultimaCartaEstratta = action.payload.carta;
         state.drawCooldown = 8;
       })
+      // Declare the jolly: the answer carries the pause that has started
+      .addCase(declareJolly.fulfilled, (state, action) => {
+        if (state.game && action.payload?.jollyInCorso) {
+          state.game.jollyInCorso = action.payload.jollyInCorso;
+        }
+      })
+      // The jolly is used: the pause is over
+      .addCase(playJolly.fulfilled, (state) => {
+        if (state.game) {
+          state.game.jollyInCorso = null;
+        }
+      })
       // Leave game
       .addCase(leaveGame.fulfilled, (state) => {
         state.currentGameId = null;
@@ -234,6 +283,8 @@ export const {
   resumeGame,
   setUltimaCartaEstratta,
   setJollyMode,
+  setJollyInCorso,
+  clearJollyInCorso,
   setDrawCooldown,
   decrementDrawCooldown,
   updatePlayerCards,

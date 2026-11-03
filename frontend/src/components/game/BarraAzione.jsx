@@ -4,13 +4,16 @@
  * The main action of the game screen. The creator draws, the other players
  * see who draws, the jolly mode shows its instruction or asks for the
  * confirmation (saying which card becomes which), and a finished game offers
- * the way back to the hall. GameScreen puts it in a bar fixed at the bottom
+ * the way back to the hall. While a player chooses the card for the jolly the
+ * draws are paused: everybody is told who it is and for how long, and the draw
+ * button waits. GameScreen puts it in a bar fixed at the bottom
  * of a phone screen and inside the side panel on wide screens.
  */
 
 import React from "react";
 import PropTypes from "prop-types";
-import { Clock, Dices, Sparkles } from "lucide-react";
+import { Clock, Dices, Pause, Sparkles } from "lucide-react";
+import ConteggioJolly from "./ConteggioJolly";
 
 const COOLDOWN_SECONDS = 8;
 
@@ -26,6 +29,7 @@ function BarraAzione({
   jollyPending = null,
   jollyConversione = null,
   jollyScelte = null,
+  pausa = null,
   variant = "bar",
   onDraw,
   onCancelJolly,
@@ -51,7 +55,7 @@ function BarraAzione({
     );
   }
 
-  const canDraw = status === "playing" && drawCooldown === 0;
+  const canDraw = status === "playing" && drawCooldown === 0 && !pausa;
   const tipo = jollyMode ? jollyMode.toUpperCase().replace("_", " ") : "";
 
   // Esc takes one step back: from the question to the choice, from the choice out of the mode
@@ -114,7 +118,26 @@ function BarraAzione({
               </button>
             </div>
           )}
+          {pausa?.mia && (
+            <p className="mt-1 text-xs font-bold">
+              Le estrazioni sono ferme: hai ancora{" "}
+              <ConteggioJolly key={pausa.scadenza} scadenza={pausa.scadenza} /> per scegliere
+            </p>
+          )}
         </div>
+      )}
+
+      {pausa && !pausa.mia && (
+        <p
+          role="status"
+          className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-oro bg-notte-700 px-3 py-2 text-center text-sm font-bold text-testo"
+        >
+          <Pause size={18} aria-hidden="true" className="shrink-0 text-oro" />
+          <span>
+            {pausa.nome} sta scegliendo il Jolly:{" "}
+            <ConteggioJolly key={pausa.scadenza} scadenza={pausa.scadenza} />
+          </span>
+        </p>
       )}
 
       {isCreator ? (
@@ -122,7 +145,7 @@ function BarraAzione({
           type="button"
           onClick={onDraw}
           disabled={!canDraw}
-          className={`${PULSANTE} relative overflow-hidden bg-oro text-inchiostro-900 shadow-md hover:bg-oro-dark disabled:cursor-not-allowed disabled:bg-notte-600`}
+          className={`${PULSANTE} relative overflow-hidden bg-oro text-inchiostro-900 shadow-md hover:bg-oro-dark disabled:cursor-not-allowed disabled:bg-notte-600 disabled:text-testo-2`}
         >
           {drawCooldown > 0 && (
             <span
@@ -132,7 +155,12 @@ function BarraAzione({
             />
           )}
           <span className="relative flex items-center justify-center gap-2 tabular-nums">
-            {drawCooldown > 0 ? (
+            {pausa ? (
+              <>
+                <Pause size={20} aria-hidden="true" />
+                Estrazione in pausa
+              </>
+            ) : drawCooldown > 0 ? (
               <>
                 <Clock size={20} aria-hidden="true" />
                 Attendi {drawCooldown}s
@@ -179,6 +207,11 @@ BarraAzione.propTypes = {
     seme: PropTypes.string,
   }),
   jollyScelte: PropTypes.number,
+  pausa: PropTypes.shape({
+    nome: PropTypes.string,
+    scadenza: PropTypes.number,
+    mia: PropTypes.bool,
+  }),
   variant: PropTypes.oneOf(["bar", "panel"]),
   onDraw: PropTypes.func.isRequired,
   onCancelJolly: PropTypes.func.isRequired,

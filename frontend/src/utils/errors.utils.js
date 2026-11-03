@@ -34,6 +34,12 @@ const EXACT = {
   "Collection already won": "Questa collezione è già stata vinta",
   "Collection type not specified": "Scegli una collezione",
   "Jolly already used": "Hai già usato il Jolly",
+  "A player is choosing the jolly: wait a few seconds":
+    "Un giocatore sta scegliendo il Jolly: aspetta qualche secondo",
+  "Another player is choosing the jolly":
+    "Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo",
+  "Too many jolly declarations in this game":
+    "Hai già dichiarato il Jolly troppe volte in questa partita",
   "Waiting for all players to confirm they read the rules":
     "Aspetta che tutti i giocatori confermino di aver letto le regole",
   "Jolly cannot complete this collection or card already exists in grid":
