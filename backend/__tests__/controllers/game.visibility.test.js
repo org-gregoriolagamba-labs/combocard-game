@@ -15,11 +15,11 @@ import {
   claimCollection,
   useJolly,
 } from '../../src/controllers/game.controller.js';
-import { registerPlayer, buyCredits } from '../../src/services/player.service.js';
+import { registerPlayer, buyCredits, acceptRules } from '../../src/services/player.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 import { playerRoom } from '../../src/sockets/index.js';
 
-const PUBLIC_PLAYER_FIELDS = ['collezioni', 'gettoni', 'id', 'jollyUsato', 'name'];
+const PUBLIC_PLAYER_FIELDS = ['collezioni', 'gettoni', 'id', 'jollyUsato', 'name', 'regoleLette'];
 
 const card = (valore, seme) => ({ valore, seme, emoji: '', valoreNum: 0 });
 
@@ -68,7 +68,9 @@ describe('game visibility', () => {
   beforeEach(() => {
     gameState = { games: {}, players: {} };
     anna = registerPlayer(gameState, 'Anna');
+    acceptRules(gameState, anna.id);
     carlo = registerPlayer(gameState, 'Carlo');
+    acceptRules(gameState, carlo.id);
     buyCredits(gameState, anna.id, 500);
     buyCredits(gameState, carlo.id, 500);
 

@@ -3,19 +3,19 @@
  * 
  * Main game interface where the actual card game is played.
  *
- * On a phone the screen is one column in reading order: header, last drawn
- * card, the player's grid, collections, players. The main action lives in a
- * bar fixed at the bottom, within thumb reach. On wide screens the grid sits
- * on the left and the last card with its action, the collections and the
- * players on the right.
+ * On a phone the screen is one column: a header that stays on top with the
+ * last drawn card, the prize pool and the credits; the player's sheet laid out
+ * like a tombola sheet; the collections; the players. The main action lives in
+ * a bar fixed at the bottom, within thumb reach. On wide screens the sheet sits
+ * on the left and the collections and players on the right.
  *
  * The jolly is used in two steps, both in the bar: the player taps a card of
- * the grid, then confirms it by name.
+ * the sheet (only the cards it can turn are active), then confirms it by name.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Coins, ArrowLeft } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 import {
   drawCard,
   playJolly,
@@ -24,24 +24,49 @@ import {
   decrementDrawCooldown,
   clearGame,
 } from "../../store/slices/gameSlice";
-import { setScreen, addToast } from "../../store/slices/uiSlice";
+import { setScreen, addToast, clearVittoriaRecente } from "../../store/slices/uiSlice";
 import { fetchPlayer } from "../../store/slices/playerSlice";
 import Cartella from "./Cartella";
 import CartaNapoletana from "./CartaNapoletana";
 import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
+import GuidaPrimaPartita from "./GuidaPrimaPartita";
+import Credito from "./Credito";
+import RivelazioneCarta from "./RivelazioneCarta";
+import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
+import { carteConJolly, celleVincenti } from "../../utils";
 
-// Panels: thin border and tight padding on a phone, the full frame on wide screens
-const PANEL = "bg-amber-50 rounded-2xl shadow-2xl p-3 lg:p-6 border-2 lg:border-4 border-amber-600";
+const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
+const SECONDI_LUCI = 6000;
+
+// The glow of the table takes the colour of the suit of the last card
+const TINTE = {
+  Denari: "rgba(255, 207, 74, 0.22)",
+  Coppe: "rgba(255, 106, 85, 0.24)",
+  Spade: "rgba(111, 151, 255, 0.26)",
+  Bastoni: "rgba(61, 220, 151, 0.2)",
+};
+const CHIAVE_GUIDA = "combocard.guida-letta";
+
+// The device remembers that the guide was read; storage can be blocked, so it is only a convenience
+const guidaLetta = () => {
+  try {
+    return window.localStorage.getItem(CHIAVE_GUIDA) === "1";
+  } catch {
+    return false;
+  }
+};
 
 function GameScreen() {
   const dispatch = useDispatch();
   const gridRef = useRef(null);
   const [jollyCarta, setJollyCarta] = useState(null);
   const [confermaUscita, setConfermaUscita] = useState(false);
-  const { id: playerId, name: playerName } = useSelector((state) => state.player);
+  const [guidaChiusa, setGuidaChiusa] = useState(guidaLetta);
+  const { id: playerId } = useSelector((state) => state.player);
+  const vittoriaRecente = useSelector((state) => state.ui.vittoriaRecente);
   const {
     currentGameId: gameId,
     game,
@@ -65,6 +90,35 @@ function GameScreen() {
       return () => clearTimeout(timer);
     }
   }, [drawCooldown, dispatch]);
+
+  // The places of a collection the player has just won stay lit for a few seconds
+  useEffect(() => {
+    if (!vittoriaRecente) return undefined;
+    const timer = setTimeout(() => dispatch(clearVittoriaRecente()), SECONDI_LUCI);
+    return () => clearTimeout(timer);
+  }, [vittoriaRecente, dispatch]);
+
+  // What the jolly could do now: how many cards for each collection, and which ones for the chosen one
+  const jollyAttivabile = Boolean(currentPlayer) && !currentPlayer.jollyUsato && game?.status === "playing";
+  const jollyPossibili = useMemo(() => {
+    if (!jollyAttivabile) return null;
+    return Object.fromEntries(
+      TIPI.map((tipo) => [tipo, carteConJolly(currentPlayer.cartella, currentPlayer.coperte, tipo).length])
+    );
+  }, [jollyAttivabile, currentPlayer]);
+  const carteJolly = useMemo(
+    () => (jollyAttivabile && jollyMode ? carteConJolly(currentPlayer.cartella, currentPlayer.coperte, jollyMode) : []),
+    [jollyAttivabile, jollyMode, currentPlayer]
+  );
+
+  const chiudiGuida = () => {
+    setGuidaChiusa(true);
+    try {
+      window.localStorage.setItem(CHIAVE_GUIDA, "1");
+    } catch {
+      // The guide only stays closed until the page is reloaded
+    }
+  };
 
   // Leaving the mode forgets the card that was chosen
   const esciDaJolly = () => {
@@ -136,7 +190,7 @@ function GameScreen() {
     try {
       const result = await dispatch(playJolly({ gameId, row, col, tipo: jollyMode })).unwrap();
       dispatch(addToast({
-        message: `✨ Jolly attivato! Carta convertita in ${result.convertedTo.valore} di ${result.convertedTo.seme}`,
+        message: `Jolly usato: ora hai ${result.convertedTo.valore} di ${result.convertedTo.seme}`,
         type: "success",
       }));
       esciDaJolly();
@@ -173,13 +227,17 @@ function GameScreen() {
 
   if (!currentPlayer) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-700 flex items-center justify-center">
-        <div className="text-white text-xl">Caricamento...</div>
+      <div className="flex min-h-screen items-center justify-center tavolo">
+        <div className="titolo text-xl text-testo">Caricamento...</div>
       </div>
     );
   }
 
   const cartaScelta = jollyMode && jollyCarta ? currentPlayer.cartella[jollyCarta.row]?.[jollyCarta.col] : null;
+  const conversione = jollyCarta
+    ? carteJolly.find((x) => x.row === jollyCarta.row && x.col === jollyCarta.col)?.conversione ?? null
+    : null;
+  const luci = vittoriaRecente ? celleVincenti(currentPlayer.cartella, currentPlayer.coperte, vittoriaRecente.tipo) : [];
 
   const azione = (variant) => (
     <BarraAzione
@@ -190,6 +248,8 @@ function GameScreen() {
       drawCooldown={drawCooldown}
       jollyMode={isGameFinished ? null : jollyMode}
       jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
+      jollyConversione={conversione}
+      jollyScelte={carteJolly.length}
       onDraw={handleEstraiCarta}
       onCancelJolly={esciDaJolly}
       onConfirmJolly={handleConfermaJolly}
@@ -199,121 +259,124 @@ function GameScreen() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-green-900 via-green-800 to-green-700 p-3 pb-28 lg:p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <header className={`${PANEL} mb-3 lg:mb-4 lg:p-4`}>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div className="order-1 min-w-0 flex-1">
-              <h2 title={playerName} className="truncate text-lg lg:text-2xl font-bold text-green-900">
-                🎴 COMBOCARD - {playerName}
-              </h2>
-              <p className="text-xs lg:text-sm text-green-800">Codice: {gameId}</p>
-            </div>
-
-            <button
-              onClick={handleTornaAllaHall}
-              className="order-2 lg:order-3 min-h-[44px] bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-bold hover:bg-gray-400 transition flex items-center gap-2"
-            >
-              <ArrowLeft size={18} aria-hidden="true" />
-              Hall
-            </button>
-
-            <div className="order-3 lg:order-2 flex w-full items-center gap-5 lg:w-auto lg:gap-4">
-              <div className="flex items-center gap-1.5 lg:block">
-                <p className="text-xs lg:text-sm text-green-800">Montepremi</p>
-                <p className="text-lg lg:text-2xl font-bold tabular-nums text-amber-700 flex items-center gap-1">
-                  <Coins size={20} aria-hidden="true" />
-                  {montepremi}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 lg:block">
-                <p className="text-xs lg:text-sm text-green-800">I tuoi crediti</p>
-                <p className="text-lg lg:text-2xl font-bold tabular-nums text-green-700 flex items-center gap-1">
-                  <Coins size={20} aria-hidden="true" />
-                  {currentPlayer.gettoni}
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Main game area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
-          {/* Last drawn card: leads on a phone, top of the sidebar on wide screens */}
-          <section
-            className={`${PANEL} grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 lg:col-start-3 lg:grid-cols-[1fr_auto] lg:items-baseline lg:gap-y-4`}
-          >
-            <h3 className="col-start-2 row-start-1 self-end text-xs font-bold text-green-800 lg:col-start-1 lg:text-lg lg:text-green-900">
-              🎴 Ultima Carta
-            </h3>
-            <p className="col-start-3 row-start-1 self-end text-xs text-green-800 tabular-nums lg:col-start-2 lg:text-sm">
-              Carte rimaste: {game?.carteRimaste ?? 0}/40
-            </p>
-
+    <div
+      className="min-h-[100dvh] tavolo pb-32 lg:pb-6"
+      style={ultimaCartaEstratta ? { "--tinta": TINTE[ultimaCartaEstratta.seme] } : undefined}
+    >
+      <RivelazioneCarta carta={ultimaCartaEstratta} />
+      {vittoriaRecente && <Coriandoli id={vittoriaRecente.tipo} />}
+      {/* The header stays on top: the last card, the prize pool, the credits, the way out */}
+      <header className="sticky top-0 z-30 border-b border-linea-forte bg-notte-800/95 shadow-lg">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             {ultimaCartaEstratta ? (
-              <>
-                <CartaNapoletana
-                  valore={ultimaCartaEstratta.valore}
-                  seme={ultimaCartaEstratta.seme}
-                  className="col-start-1 row-span-2 row-start-1 h-[88px] w-auto rounded-md shadow-md lg:col-span-2 lg:row-span-1 lg:row-start-2 lg:mx-auto lg:h-60"
-                />
-                <p className="col-span-2 col-start-2 row-start-2 self-start lg:col-span-2 lg:col-start-1 lg:row-start-3 lg:text-center">
-                  <span className="text-2xl font-bold text-green-900 lg:block lg:text-3xl">{ultimaCartaEstratta.valore}</span>{" "}
-                  <span className="text-sm text-green-800 lg:block">di {ultimaCartaEstratta.seme}</span>
-                </p>
-              </>
-            ) : (
-              <p className="col-span-2 col-start-1 row-start-2 rounded-xl border-2 border-green-300 bg-green-100 p-3 text-center text-green-800 lg:col-span-2 lg:row-start-2 lg:p-8">
-                Nessuna carta estratta
-              </p>
-            )}
-
-            {/* On wide screens the action sits under the card; a phone has the bar below */}
-            <div className="hidden lg:col-span-2 lg:row-start-4 lg:block">{azione("panel")}</div>
-          </section>
-
-          {/* Player's card grid */}
-          <section
-            ref={gridRef}
-            className={`${PANEL} scroll-mt-3 lg:col-start-1 lg:col-span-2 lg:row-start-1 lg:row-span-3`}
-          >
-            <h3 className="text-base lg:text-xl font-bold mb-2 lg:mb-4 text-green-900">🎴 La Tua Cartella</h3>
-
-            <div className="mx-auto w-full max-w-sm lg:max-w-none">
-              <Cartella
-                cartella={currentPlayer.cartella}
-                coperte={currentPlayer.coperte}
-                jollyPos={currentPlayer.jollyPos}
-                jollyMode={isGameFinished ? null : jollyMode}
-                jollyUsato={currentPlayer.jollyUsato}
-                selected={jollyCarta}
-                onCardClick={handleSceglieCartaJolly}
+              <CartaNapoletana
+                key={`${ultimaCartaEstratta.seme}-${ultimaCartaEstratta.valore}`}
+                valore={ultimaCartaEstratta.valore}
+                seme={ultimaCartaEstratta.seme}
+                className="h-[52px] w-auto shrink-0 animate-estrai rounded-[3px] border border-linea-forte shadow-md"
               />
-            </div>
-
-            {!currentPlayer.jollyUsato && !jollyMode && !isGameFinished && (
-              <p className="text-xs text-green-800 mt-3 text-center">
-                💡 Il Jolly si usa una sola volta: tocca &quot;Jolly&quot; sulla collezione che vuoi completare, poi scegli la carta
-              </p>
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-linea"
+              />
             )}
-          </section>
-
-          {/* Collections panel */}
-          <div className="lg:col-start-3">
-            <CollezioniPanel
-              game={game}
-              currentPlayer={currentPlayer}
-              onJollyMode={isGameFinished ? () => {} : handleAttivaModalitaJolly}
-              isGameFinished={isGameFinished}
-            />
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold leading-tight tabular-nums text-testo-2">
+                <span className="sr-only">Ultima carta. </span>
+                {game?.carteRimaste ?? 0} carte rimaste
+              </p>
+              {ultimaCartaEstratta ? (
+                <p className="titolo truncate text-xl leading-tight text-testo" aria-live="polite">
+                  {ultimaCartaEstratta.valore}
+                  <span className="block truncate font-sans text-sm font-bold text-testo-2">
+                    di {ultimaCartaEstratta.seme}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm font-bold text-testo-2">Nessuna carta estratta</p>
+              )}
+            </div>
           </div>
 
-          {/* Players list */}
-          <div className="lg:col-start-3">
-            <PlayersList game={game} currentPlayerId={playerId} />
+          <dl className="shrink-0 text-right">
+            <div>
+              <dt className="text-xs leading-none text-testo-2">Montepremi</dt>
+              <dd className="titolo flex items-center justify-end gap-1 text-base leading-tight text-testo">
+                <Credito />
+                {montepremi}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs leading-none text-testo-2">I tuoi crediti</dt>
+              <dd
+                key={currentPlayer.gettoni}
+                className="titolo flex animate-conta items-center justify-end gap-1 text-base leading-tight text-testo"
+              >
+                <Credito />
+                {currentPlayer.gettoni}
+              </dd>
+            </div>
+          </dl>
+
+          <button
+            type="button"
+            onClick={handleTornaAllaHall}
+            aria-label="Lascia la partita"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-linea-forte bg-notte-700 text-testo transition hover:bg-notte-600"
+          >
+            <DoorOpen size={22} aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:p-6">
+        {!guidaChiusa && game?.status === "playing" && !(currentPlayer.collezioni?.length > 0) && (
+          <div className="lg:col-span-2">
+            <GuidaPrimaPartita onClose={chiudiGuida} />
           </div>
+        )}
+
+        {/* The player's sheet, laid out like a tombola sheet */}
+        <section ref={gridRef} className="superficie scroll-mt-20 p-2.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
+          <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
+            <h2 className="titolo text-lg text-testo">La tua cartella</h2>
+          </div>
+
+          <Cartella
+            cartella={currentPlayer.cartella}
+            coperte={currentPlayer.coperte}
+            estratte={game?.carteEstratte ?? []}
+            jollyPos={currentPlayer.jollyPos}
+            jollyMode={isGameFinished ? null : jollyMode}
+            jollyUsato={currentPlayer.jollyUsato}
+            selected={jollyCarta}
+            possibili={jollyMode ? carteJolly : null}
+            destinazione={conversione}
+            evidenziate={luci}
+            onCardClick={handleSceglieCartaJolly}
+          />
+
+          <p className="mt-2 px-1 text-[13px] leading-snug text-testo-2">
+            Posto vuoto: carta che non hai. Puntino: carta già uscita.
+          </p>
+
+          <div className="mt-3 hidden lg:block">{azione("panel")}</div>
+        </section>
+
+        <div className="lg:col-start-2">
+          <CollezioniPanel
+            game={game}
+            currentPlayer={currentPlayer}
+            jollyPossibili={jollyPossibili}
+            onJollyMode={isGameFinished ? () => {} : handleAttivaModalitaJolly}
+            isGameFinished={isGameFinished}
+          />
+        </div>
+
+        <div className="lg:col-start-2">
+          <PlayersList game={game} currentPlayerId={playerId} />
         </div>
       </div>
 
@@ -322,10 +385,10 @@ function GameScreen() {
         title="Uscire dalla partita?"
         onClose={() => setConfermaUscita(false)}
       >
-        <p className="text-green-900">
+        <p className="text-testo">
           La partita è ancora in corso. Se esci ora perdi i crediti spesi per partecipare e non potrai rientrare.
         </p>
-        <p className="mt-2 text-green-800">I crediti che hai adesso vengono salvati.</p>
+        <p className="mt-2 text-testo-2">I crediti che hai adesso vengono salvati.</p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
           <Button variant="danger" onClick={esciDallaPartita} className="flex-1">
             Esci dalla partita
@@ -337,7 +400,10 @@ function GameScreen() {
       </Modal>
 
       {/* Main action, fixed at the bottom of a phone screen */}
-      <div data-testid="barra-azione" className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-amber-600 bg-amber-50 px-3 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.25)] lg:hidden">
+      <div
+        data-testid="barra-azione"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-linea-forte bg-notte-800 px-3 py-3 shadow-[0_-6px_16px_rgba(5,8,30,0.45)] lg:hidden"
+      >
         <div className="mx-auto max-w-md">{azione("bar")}</div>
       </div>
     </div>

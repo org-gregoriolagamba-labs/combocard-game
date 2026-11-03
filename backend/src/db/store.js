@@ -107,6 +107,7 @@ export function createMemoryStore() {
       }
     },
     recordPurchase: async () => {},
+    recordRulesAccepted: async () => {},
     saveGame: async () => {},
     deleteGame: async () => {},
     findGame: async () => null,
@@ -283,7 +284,7 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
      */
     async loadState() {
       const [playerRows, gameRows] = await Promise.all([
-        pool.query("SELECT id, name, credits, created_at FROM players"),
+        pool.query("SELECT id, name, credits, created_at, rules_accepted_at FROM players"),
         pool.query("SELECT state FROM games WHERE status <> 'finished'"),
       ]);
 
@@ -294,6 +295,7 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
           name: row.name,
           credits: Number(row.credits),
           currentGameId: null,
+          regoleAccettateIl: row.rules_accepted_at ? row.rules_accepted_at.toISOString() : null,
           createdAt: row.created_at.toISOString(),
         };
       }
@@ -454,6 +456,18 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
      * @param {Object} game - Game object, serialized immediately
      * @param {Array} movements - Credit movements caused by this change
      */
+    /**
+     * Save that a player confirmed they read the rules
+     * @param {string} playerId - Player ID
+     * @param {string} isoDate - When it was confirmed
+     */
+    async recordRulesAccepted(playerId, isoDate) {
+      await pool.query(
+        "UPDATE players SET rules_accepted_at = $2, updated_at = now() WHERE id = $1",
+        [playerId, isoDate],
+      );
+    },
+
     saveGame(game, movements = []) {
       const entry = getEntry(game.id);
       entry.snapshot = buildSnapshot(game);

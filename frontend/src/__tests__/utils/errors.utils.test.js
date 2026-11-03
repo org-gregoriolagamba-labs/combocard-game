@@ -21,6 +21,7 @@ describe('translateServerError', () => {
     ['Too many requests from this IP, please try again later.', 'Troppe richieste: riprova tra poco'],
     ['Jolly already used', 'Hai già usato il Jolly'],
     ['Invalid amount', 'Inserisci un importo valido'],
+    ['Waiting for all players to confirm they read the rules', 'Aspetta che tutti i giocatori confermino di aver letto le regole'],
   ])('"%s" is shown as "%s"', (english, italian) => {
     expect(translateServerError(english)).toBe(italian);
   });

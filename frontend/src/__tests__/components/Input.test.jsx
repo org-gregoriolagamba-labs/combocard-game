@@ -40,7 +40,7 @@ describe('Input', () => {
     render(<Input name="test" error="Error message" />);
     
     const input = screen.getByRole('textbox');
-    expect(input).toHaveClass('border-red-700');
+    expect(input).toHaveClass('border-coppe');
   });
 
   test('is disabled when disabled prop is true', () => {

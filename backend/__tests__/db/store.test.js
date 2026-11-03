@@ -102,6 +102,31 @@ describe('createPostgresStore', () => {
     expect(JSON.parse(insert.params[6])).not.toHaveProperty('jollyInCorso');
   });
 
+  test('recordRulesAccepted saves the date of the confirmation with the player', async () => {
+    const pool = createFakePool();
+
+    await createPostgresStore(pool).recordRulesAccepted('p1', '2026-11-03T10:00:00.000Z');
+
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('rules_accepted_at = $2'), ['p1', '2026-11-03T10:00:00.000Z']);
+  });
+
+  test('loadState brings back who has confirmed the rules', async () => {
+    const pool = createFakePool();
+    pool.query = jest.fn(async (sql) => ({
+      rows: sql.includes('FROM players')
+        ? [
+            { id: 'p1', name: 'Anna', credits: '10', created_at: new Date('2026-01-01'), rules_accepted_at: new Date('2026-02-01T00:00:00.000Z') },
+            { id: 'p2', name: 'Bruno', credits: '0', created_at: new Date('2026-01-01'), rules_accepted_at: null },
+          ]
+        : [],
+    }));
+
+    const { players } = await createPostgresStore(pool).loadState();
+
+    expect(players.p1.regoleAccettateIl).toBe('2026-02-01T00:00:00.000Z');
+    expect(players.p2.regoleAccettateIl).toBeNull();
+  });
+
   test('writes for the same game do not overlap and the last state wins', async () => {
     let active = 0;
     let maxActive = 0;

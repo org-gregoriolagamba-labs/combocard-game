@@ -18,10 +18,43 @@ describe('playerSlice', () => {
     isLoading: false,
     error: null,
     sessionChecked: false,
+    regoleAccettateIl: null,
   };
 
   test('should return initial state', () => {
     expect(playerReducer(undefined, { type: 'unknown' })).toEqual(initialState);
+  });
+
+  describe('the rules confirmation', () => {
+    const player = { id: 'p1', name: 'Anna', credits: 0, currentGameId: null };
+
+    test('a player who never confirmed has no date, one who did has it', () => {
+      const nuovo = playerReducer(initialState, { type: 'player/login/fulfilled', payload: { player: { ...player, regoleAccettateIl: null } } });
+      const vecchio = playerReducer(initialState, { type: 'player/login/fulfilled', payload: { player: { ...player, regoleAccettateIl: '2026-11-03T10:00:00.000Z' } } });
+
+      expect(nuovo.regoleAccettateIl).toBeNull();
+      expect(vecchio.regoleAccettateIl).toBe('2026-11-03T10:00:00.000Z');
+    });
+
+    test('the date is restored with the session', () => {
+      const state = playerReducer(initialState, { type: 'player/restoreSession/fulfilled', payload: { ...player, regoleAccettateIl: '2026-11-03T10:00:00.000Z' } });
+
+      expect(state.regoleAccettateIl).toBe('2026-11-03T10:00:00.000Z');
+    });
+
+    test('confirming stores the date', () => {
+      const state = playerReducer({ ...initialState, id: 'p1' }, { type: 'player/acceptRules/fulfilled', payload: { regoleAccettateIl: '2026-11-03T10:00:00.000Z' } });
+
+      expect(state.regoleAccettateIl).toBe('2026-11-03T10:00:00.000Z');
+      expect(state.isLoading).toBe(false);
+    });
+
+    test('a failed confirmation keeps the player unconfirmed and says why', () => {
+      const state = playerReducer({ ...initialState, id: 'p1' }, { type: 'player/acceptRules/rejected', payload: 'Impossibile contattare il server' });
+
+      expect(state.regoleAccettateIl).toBeNull();
+      expect(state.error).toBe('Impossibile contattare il server');
+    });
   });
 
   test('should handle setPlayer', () => {

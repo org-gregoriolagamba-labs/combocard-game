@@ -20,6 +20,13 @@ const router = Router();
 router.get("/:playerId", requireAuth, requireSelf, playerController.getPlayer);
 
 /**
+ * @route   POST /api/players/:playerId/accept-rules
+ * @desc    Confirm that the player read and understood the rules
+ * @access  Authenticated, self only
+ */
+router.post("/:playerId/accept-rules", requireAuth, requireSelf, playerController.acceptRules);
+
+/**
  * @route   POST /api/players/:playerId/buy-credits
  * @desc    Buy credits for a player
  * @access  Authenticated, self only

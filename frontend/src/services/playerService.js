@@ -17,6 +17,16 @@ export const getPlayer = async (playerId) => {
 };
 
 /**
+ * Confirm that the player read and understood the rules
+ * @param {string} playerId - Player ID
+ * @returns {Promise} { success, regoleAccettateIl }
+ */
+export const acceptRules = async (playerId) => {
+  const response = await api.post(`/players/${playerId}/accept-rules`);
+  return response.data;
+};
+
+/**
  * Buy credits for a player
  * @param {string} playerId - Player ID
  * @param {number} amount - Amount to buy

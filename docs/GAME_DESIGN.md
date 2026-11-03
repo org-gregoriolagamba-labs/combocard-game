@@ -40,31 +40,58 @@ Players can claim the following collections:
 
 | Collection | Requirements | Prize | Description |
 |------------|--------------|-------|-------------|
-| **Tris** 🎯 | 3 same value | 20% pot | Three of a kind |
-| **Sequenza** 📊 | 4 consecutive | 20% pot | Four in a row |
-| **Scopa** 🎴 | 5 same suit | 25% pot | Flush |
-| **Napola** 💎 | 3+2 same values | 25% pot | Full house |
-| **Combocard Reale** 👑 | 4 consecutive same suit | 100% pot | Royal flush - INSTANT WIN! |
+| **Tris** | 3 same value | 10% of the pot | Three of a kind (a row of the sheet) |
+| **Sequenza** | 4 consecutive values, any suits | 15% of the pot | No wrap from Re to Asso |
+| **Scopa** | 5 same suit | 20% of the pot | Flush (a column of the sheet) |
+| **Napola** | 3 of one value + 2 of another | 25% of the pot | Full house |
+| **Combocard Reale** | 4 consecutive values, same suit | 30% of the pot | Royal flush: **ends the game** |
+
+The shares are the defaults of `config/index.js` and can be changed with `PRIZE_TRIS`, `PRIZE_SEQUENZA`, `PRIZE_SCOPA`, `PRIZE_NAPOLA` and `PRIZE_COMBOCARD_REALE`. The pot is the sum of the entry credits paid when the game starts.
+
+A collection is won once per game, by the first player (or players) who complete it on a draw. If several complete it on the same draw, the prize is divided equally between them. The server awards it by itself right after every draw and every jolly.
 
 ## 🃏 Jolly System
 
-Each player receives one Jolly card at the start of the game:
-- The Jolly is placed on a random covered card in the player's grid
-- When activated, the Jolly converts that card to any value needed to complete a collection
-- Each player can only use their Jolly once per game
-- After use, the Jolly position shows "USED"
+Each player has one Jolly per game. It is not a card on the sheet: it is an action.
+
+- The player chooses a collection and then **one card of the sheet that is not covered yet**.
+- The Jolly turns that card into the card that completes the collection, and covers it at once. The collection is then won automatically.
+- It works only when the collection is **exactly one card away**:
+
+| Collection | What the Jolly does to the chosen card | When it can work |
+|------------|----------------------------------------|------------------|
+| Tris | changes the value, keeps the suit | two covered cards of one value |
+| Sequenza | changes the value, keeps the suit | three of four consecutive values covered |
+| Napola | changes the value, keeps the suit | two pairs (one becomes a tris), or a tris and a single (the single becomes a pair) |
+| Scopa | changes the suit, keeps the value | four covered cards of one suit |
+| Combocard Reale | changes value and suit | three of four consecutive values of one suit covered |
+
+- The chosen card can never become a card that is already in the sheet.
+- A collection that has already been won cannot be aimed at.
+- The screen works this out in the browser (`frontend/src/utils/jolly.utils.js`, a mirror of `backend/src/services/jolly.service.js`) to offer the Jolly only where it can work, to enable only the cards it can turn, and to say which card becomes which before the player confirms. The server stays the judge.
+- After use, the card shows "USATO".
+
+## 🧾 The sheet (cartella)
+
+The server gives each player 25 different cards in a 5x5 array. **The position in that array never matters:** every collection looks only at the values and suits of the covered cards.
+
+The screen therefore lays the sheet out like a tombola sheet: the deck as a table of ten rows (values, Asso to Re) and four columns (suits: Denari, Coppe, Spade, Bastoni). The player's 25 cards are printed in their place, the other 15 places stay empty, and a dot marks a card that has been drawn but is not in the sheet. On this table a tris is a row, a sequenza is neighbouring rows, a scopa is a column, a napola is three places in a row and two in another, and a combocard reale is neighbouring rows of one column. A drawn card is covered with a bean (`frontend/src/utils/mazzo.utils.js`).
 
 ## 🎲 Game Flow
 
 ### 1. Registration
 - Player enters their name
-- Starts with 0 credits (credits are bought via the **Cassa**)
+- Starts with 0 credits (credits are taken with **Prendi crediti** (play money))
+
+### 1b. The rules
+- The first time a player uses the game, a screen shows the full rules ("Prima di giocare: le regole"). The player must scroll to the end, tick "Ho letto e compreso le regole e le meccaniche del gioco" and continue. The date is saved with the player (`players.rules_accepted_at`) and the question is not asked again. Existing accounts confirm at their next access.
+- **A game does not start until every player in it has confirmed.** The creator cannot start it (409), a full game waits instead of starting by itself, and the lobby tells everyone who the game is waiting for ("In attesa che Bruno confermi di aver letto le regole"). When the last player confirms, a full game starts by itself.
 
 ### 2. Hall (Game List)
 - View available public games waiting for players
 - Create a new game (choose required credits, max players, and public/private)
 - Join a public game or use a **private code** to join a private game
-- Buy credits via **Cassa** (preset cuts + reset, max purchase 10,000)
+- Take credits with **Prendi crediti** (preset cuts + reset, max purchase 10,000)
 
 ### 3. Lobby (Pre-game)
 - Wait for other players (2–10 players per game)
@@ -72,7 +99,7 @@ Each player receives one Jolly card at the start of the game:
 - **Auto-start** triggers when the max player limit is reached
 
 ### 4. Game
-- Each player gets a 5x5 grid of 25 random cards
+- Each player gets a sheet of 25 random, different cards (a 5x5 grid on the server, shown as a tombola sheet, see above)
 - One shared deck is drawn from by the game creator
 - When a card is drawn, all players who have it in their grid get it "covered"
 - **Draw cooldown**: 8 seconds between draws
@@ -84,11 +111,11 @@ Each player receives one Jolly card at the start of the game:
   the backend must allow that origin in its CORS configuration; otherwise, the UI may load but live updates
   (draws, covers, token changes) may not propagate correctly.
 
-### 5. Winning
-- First to claim **Combocard Reale** wins the entire pot
-- Otherwise, collections can be claimed individually for partial prizes
-- **Remaining undistributed prizes** are split evenly among players at game end
-- Game ends when pot is empty or deck is exhausted
+### 5. Winning and the end
+- Collections are won automatically, as soon as they are complete (see above)
+- The game ends when someone completes the **Combocard Reale**
+- At the end, the prizes of the collections nobody won are split equally among all players
+- Credits won are credited to the player when the game ends; a player who leaves a game in progress loses the entry credits
 
 ## 📁 Project Structure
 

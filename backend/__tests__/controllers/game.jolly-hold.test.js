@@ -17,7 +17,7 @@ import {
   startJollyChoice,
   cancelJollyChoice,
 } from '../../src/controllers/game.controller.js';
-import { registerPlayer, buyCredits } from '../../src/services/player.service.js';
+import { registerPlayer, buyCredits, acceptRules } from '../../src/services/player.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 import { GAME_DEFAULTS } from '../../src/config/constants.js';
 
@@ -76,6 +76,8 @@ describe('jolly hold: no draws while a player chooses the jolly card', () => {
     gameState = { games: {}, players: {} };
     anna = registerPlayer(gameState, 'Anna');
     carlo = registerPlayer(gameState, 'Carlo');
+    acceptRules(gameState, anna.id);
+    acceptRules(gameState, carlo.id);
     buyCredits(gameState, anna.id, 500);
     buyCredits(gameState, carlo.id, 500);
     emitted = [];
