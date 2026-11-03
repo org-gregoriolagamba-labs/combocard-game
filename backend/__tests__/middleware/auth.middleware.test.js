@@ -189,7 +189,7 @@ describe('requireRole', () => {
   });
 
   test('refuses a request that is not authenticated with 401, without reading the store', async () => {
-    const { next, store } = await run({ auth: undefined });
+    const { next, store } = await run({ auth: null });
 
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 401 });
     expect(store.findAccountById).not.toHaveBeenCalled();

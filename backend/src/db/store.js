@@ -16,9 +16,34 @@ const DEFAULT_RETRY_DELAY_MS = 5000;
 const PG_UNIQUE_VIOLATION = "23505";
 
 export const USERNAME_TAKEN = "USERNAME_TAKEN";
+export const LAST_ADMIN = "LAST_ADMIN";
+export const INVALID_ROLE = "INVALID_ROLE";
+
+const ACCOUNT_ROLES = ["player", "admin"];
+const ACTOR_TYPES = ["system", "player"];
+// Role changes are rare: one lock for all of them keeps the count of admins exact
+const ROLE_LOCK_ID = 7203115;
 
 function usernameTakenError() {
   return Object.assign(new Error("Username already taken"), { code: USERNAME_TAKEN });
+}
+
+function lastAdminError() {
+  return Object.assign(new Error("The last admin cannot be demoted"), { code: LAST_ADMIN });
+}
+
+/**
+ * A role change needs a role that exists and who is making it: nothing changes without a trace
+ * @param {string} role - New role
+ * @param {Object} actor - { type: 'system' } or { type: 'player', id }
+ */
+function assertRoleChange(role, actor) {
+  if (!ACCOUNT_ROLES.includes(role)) {
+    throw Object.assign(new Error(`Invalid role: ${role}`), { code: INVALID_ROLE });
+  }
+  if (!actor || !ACTOR_TYPES.includes(actor.type) || (actor.type === "player" && !actor.id)) {
+    throw new TypeError("A role change needs the actor: { type: 'system' } or { type: 'player', id }");
+  }
 }
 
 /**
@@ -52,6 +77,7 @@ export function decideRotation(record, graceSeconds, now = new Date()) {
 export function createMemoryStore() {
   const accounts = new Map();
   const refreshTokens = new Map();
+  const audit = [];
 
   return {
     enabled: false,
@@ -66,6 +92,37 @@ export function createMemoryStore() {
     findAccountByUsernameKey: async (usernameKey) => accounts.get(usernameKey) ?? null,
     async findAccountById(playerId) {
       return [...accounts.values()].find((a) => a.playerId === playerId) ?? null;
+    },
+    async setAccountRole(playerId, role, { actor } = {}) {
+      assertRoleChange(role, actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      const previousRole = account.role;
+      if (previousRole === role) {
+        return { playerId, role, previousRole, changed: false };
+      }
+      if (previousRole === "admin" && [...accounts.values()].filter((a) => a.role === "admin").length <= 1) {
+        throw lastAdminError();
+      }
+      account.role = role;
+      audit.push({
+        id: audit.length + 1,
+        actorType: actor.type,
+        actorId: actor.id ?? null,
+        action: "role_changed",
+        targetId: playerId,
+        details: { from: previousRole, to: role },
+        createdAt: new Date(),
+      });
+      return { playerId, role, previousRole, changed: true };
+    },
+    async countAdmins() {
+      return [...accounts.values()].filter((a) => a.role === "admin").length;
+    },
+    async listAuditEvents({ limit = 100 } = {}) {
+      return [...audit].reverse().slice(0, limit);
     },
     async createRefreshToken({ tokenHash, familyId, playerId, expiresAt }) {
       refreshTokens.set(tokenHash, {
@@ -370,6 +427,71 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
         [playerId],
       );
       return rows[0] ?? null;
+    },
+
+    /**
+     * Change the role of an account, and write who did it in the audit log, in one transaction.
+     * The last admin cannot be demoted, even by two requests at the same time.
+     * @param {string} playerId - Player of the account
+     * @param {string} role - 'player' or 'admin'
+     * @param {Object} options - { actor }: { type: 'system' } or { type: 'player', id }
+     * @returns {Promise<Object|null>} { playerId, role, previousRole, changed }, or null if there is no account
+     * @throws {Error} With code LAST_ADMIN or INVALID_ROLE
+     */
+    async setAccountRole(playerId, role, { actor } = {}) {
+      assertRoleChange(role, actor);
+      return withTransaction(async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock($1)", [ROLE_LOCK_ID]);
+        const { rows } = await client.query("SELECT role FROM user_accounts WHERE player_id = $1", [playerId]);
+        if (rows.length === 0) {
+          return null;
+        }
+
+        const previousRole = rows[0].role;
+        if (previousRole === role) {
+          return { playerId, role, previousRole, changed: false };
+        }
+        if (previousRole === "admin") {
+          const { rows: [{ count }] } = await client.query(
+            "SELECT count(*) AS count FROM user_accounts WHERE role = 'admin'",
+          );
+          if (Number(count) <= 1) {
+            throw lastAdminError();
+          }
+        }
+
+        await client.query("UPDATE user_accounts SET role = $2 WHERE player_id = $1", [playerId, role]);
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'role_changed', $3, $4)`,
+          [actor.type, actor.id ?? null, playerId, JSON.stringify({ from: previousRole, to: role })],
+        );
+        return { playerId, role, previousRole, changed: true };
+      });
+    },
+
+    /**
+     * Number of admins
+     * @returns {Promise<number>} Accounts with the admin role
+     */
+    async countAdmins() {
+      const { rows } = await pool.query("SELECT count(*) AS count FROM user_accounts WHERE role = 'admin'");
+      return Number(rows[0].count);
+    },
+
+    /**
+     * The latest events of the audit log
+     * @param {Object} options - { limit } (default 100)
+     * @returns {Promise<Object[]>} { id, actorType, actorId, action, targetId, details, createdAt }, latest first
+     */
+    async listAuditEvents({ limit = 100 } = {}) {
+      const { rows } = await pool.query(
+        `SELECT id, actor_type AS "actorType", actor_id AS "actorId", action,
+                target_id AS "targetId", details, created_at AS "createdAt"
+         FROM audit_log ORDER BY id DESC LIMIT $1`,
+        [limit],
+      );
+      return rows.map((row) => ({ ...row, id: Number(row.id) }));
     },
 
     /**

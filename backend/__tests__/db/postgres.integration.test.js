@@ -5,12 +5,25 @@
  * WARNING: they drop and recreate the tables, so use a dedicated database.
  */
 
+import { spawnSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
 import { createPostgresStore, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from '../../src/db/store.js';
 
+const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const url = process.env.TEST_DATABASE_URL;
 const describeWithDb = url ? describe : describe.skip;
+
+// npm run admin:promote, as the operator runs it, against the test database
+const run = (args, databaseUrl) =>
+  spawnSync(process.execPath, ['src/db/admin-promote.cli.js', ...args], {
+    cwd: backendDir,
+    env: { ...process.env, DATABASE_URL: databaseUrl, NODE_ENV: 'test' },
+    encoding: 'utf8',
+    timeout: 30000,
+  });
 
 const game = (overrides = {}) => ({
   id: 'g1',
@@ -242,6 +255,58 @@ describeWithDb('PostgreSQL store', () => {
     test('the audit log refuses an actor type that does not exist', async () => {
       await expect(pool.query("INSERT INTO audit_log (actor_type, action) VALUES ('robot', 'x')"))
         .rejects.toMatchObject({ code: '23514' });
+    });
+  });
+
+  describe('admin script', () => {
+    beforeEach(async () => {
+      await store.createAccount(
+        { id: 'p1', name: 'Anna', credits: 0, createdAt: '2026-01-01T00:00:00.000Z' },
+        { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' },
+      );
+    });
+
+    test('an unknown user: exits with 1', () => {
+      const result = run(['nobody'], url);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/not found/i);
+    });
+
+    test('promotes a user, and says so; again, it says it already is', async () => {
+      const first = run(['Anna'], url);
+      const second = run(['anna'], url);
+
+      expect(first.status).toBe(0);
+      expect(first.stdout).toMatch(/anna is now an admin/i);
+      expect(second.status).toBe(0);
+      expect(second.stdout).toMatch(/already an admin/i);
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ role: 'admin' });
+    });
+
+    test('records the change as done by the system, once', async () => {
+      run(['anna'], url);
+      run(['anna'], url);
+
+      await expect(store.listAuditEvents()).resolves.toEqual([
+        expect.objectContaining({ action: 'role_changed', actorType: 'system', targetId: 'p1' }),
+      ]);
+    });
+
+    test('--demote refuses to remove the last admin: exits with 1', async () => {
+      run(['anna'], url);
+
+      const result = run(['--demote', 'anna'], url);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/last admin/i);
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ role: 'admin' });
+    });
+
+    test('prints no password and no hash', () => {
+      const result = run(['anna'], url);
+
+      expect(result.stdout + result.stderr).not.toMatch(/hash|password/i);
     });
   });
 
