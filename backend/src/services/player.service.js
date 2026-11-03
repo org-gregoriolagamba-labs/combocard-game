@@ -26,6 +26,8 @@ export function registerPlayer(gameState, playerName) {
     name: playerName.trim(),
     credits: config.defaultCredits,
     currentGameId: null,
+    // When the player confirmed that they read the rules; null until then
+    regoleAccettateIl: null,
     createdAt: new Date().toISOString(),
   };
 
@@ -65,6 +67,20 @@ export function buyCredits(gameState, playerId, amount) {
   }
 
   player.credits += amount;
+  return player;
+}
+
+/**
+ * Mark that the player read and understood the rules. Only the first confirmation counts.
+ * @param {Object} gameState - Global game state
+ * @param {string} playerId - Player ID
+ * @returns {Object} Updated player
+ */
+export function acceptRules(gameState, playerId) {
+  const player = getPlayer(gameState, playerId);
+  if (!player.regoleAccettateIl) {
+    player.regoleAccettateIl = new Date().toISOString();
+  }
   return player;
 }
 

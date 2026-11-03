@@ -213,8 +213,8 @@ export function gameViewFor(game, playerId) {
       if (player.id === playerId) {
         return player;
       }
-      const { id, name, gettoni, collezioni, jollyUsato } = player;
-      return { id, name, gettoni, collezioni, jollyUsato };
+      const { id, name, gettoni, collezioni, jollyUsato, regoleLette } = player;
+      return { id, name, gettoni, collezioni, jollyUsato, regoleLette };
     }),
   };
 }
