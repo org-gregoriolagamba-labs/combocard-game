@@ -8,6 +8,7 @@ Per mantenere qualità, ordine e tracciabilità, seguiamo un workflow semplice m
 ## 🔒 Regole fondamentali
 
 - ❌ **È vietato fare push diretto su `main` e `develop`**
+- ✅ Ogni attività ha una **issue** associata, e ogni issue ha un **branch dedicato collegato** ad essa (vedi [Issue e branch](#-issue-e-branch))
 - ✅ Tutte le modifiche devono passare da:
   - un branch dedicato
   - una Pull Request
@@ -46,22 +47,38 @@ Esempi:
 
 ---
 
+## 🔗 Issue e branch
+
+Ogni attività ha la sua issue, e ogni issue ha il suo branch, **collegato** alla issue su GitHub.
+
+- **Prima di scrivere codice** apri la issue dell'attività (o individua quella giusta). Una issue "contenitore" che raccoglie più attività non basta: ogni attività ha la propria issue, che può citare quella più ampia ("Parte della #N").
+- **Crea il branch dalla issue**, così risulta collegato. Dalla pagina della issue (*Development* → *Create a branch*) oppure da terminale:
+    ```bash
+    gh issue develop <numero-issue> --name feature/descrizione-breve --base develop
+    git fetch origin
+    git checkout feature/descrizione-breve
+    ```
+  Per un hotfix usa `--base main` e un nome `hotfix/*`.
+- **Un branch per issue**: non riusare lo stesso branch per attività diverse.
+- **Nella PR** scrivi `Closes #<numero-issue>`: la issue si chiude da sola al merge. Se l'attività è parte di una issue più ampia, aggiungi anche `Part of #<numero>`.
+- **Eccezione**: le PR create in automatico (la sincronizzazione `main` → `develop` dopo un hotfix, gli aggiornamenti di Dependabot) non hanno bisogno di una issue.
+
+---
+
 ## 🔁 Workflow standard (feature / bugfix)
 
-1. Parti da `develop`:
+1. Apri (o individua) la issue dell'attività
+2. Crea il branch collegato alla issue, partendo da `develop` (vedi [Issue e branch](#-issue-e-branch)):
     ```bash
-    git checkout develop
-    git pull
-    ```
-2. Crea il tuo branch:
-    ```bash
-    git checkout -b feature/descrizione-breve
+    gh issue develop <numero-issue> --name feature/descrizione-breve --base develop
+    git fetch origin
+    git checkout feature/descrizione-breve
     ```
 3. Lavora, committa e pusha sul tuo branch:
     ```bash
     git push origin feature/descrizione-breve
     ```
-4. Apri una Pull Request verso develop
+4. Apri una Pull Request verso develop, con `Closes #<numero-issue>` nella descrizione
 
 5. Attendi:
     - almeno 1 approvazione
@@ -80,6 +97,7 @@ Esempi:
 Ogni PR deve:
 - avere un titolo chiaro
 - descrivere cosa cambia e perché
+- citare la sua issue (`Closes #N`)
 - essere limitata a una singola responsabilità
 - passare tutte le GitHub Actions
 
@@ -143,11 +161,11 @@ Gli hotfix vengono applicati **prima su `main`** e **solo successivamente** ripo
 
 ### Procedura corretta
 
-1. Crea un branch `hotfix/*` partendo da `main`
+1. Apri la issue del problema e crea da essa un branch `hotfix/*` collegato, partendo da `main`
    ```bash
-   git checkout main
-   git pull
-   git checkout -b hotfix/short-description
+   gh issue develop <numero-issue> --name hotfix/short-description --base main
+   git fetch origin
+   git checkout hotfix/short-description
    ```
 2. Applica la correzione e pusha il branch
 
