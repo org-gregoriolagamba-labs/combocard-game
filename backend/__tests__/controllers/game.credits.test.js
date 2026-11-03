@@ -106,16 +106,18 @@ describe('credit settlement', () => {
     expect(second.status).toBe('playing');
   });
 
-  test('a player who joins a game already started keeps their credits', async () => {
+  test('a player who tries to join a game already started is refused and keeps their credits', async () => {
     const game = await newStartedGame();
     const late = registerPlayer(gameState, 'Late');
     acceptRules(gameState, late.id);
     buyCredits(gameState, late.id, 200);
-    await call(joinGame, gameState, { params: { gameId: game.id }, playerId: late.id });
-    game.collezioniDistribuzione = { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 };
 
+    await expect(call(joinGame, gameState, { params: { gameId: game.id }, playerId: late.id }))
+      .rejects.toMatchObject({ statusCode: 400 });
+    game.collezioniDistribuzione = { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 };
     finishGame(game, game.id, io, gameState);
 
     expect(late.credits).toBe(200);
+    expect(game.players.map((p) => p.id)).not.toContain(late.id);
   });
 });
