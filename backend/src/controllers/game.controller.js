@@ -255,6 +255,32 @@ export const startGame = asyncHandler(async (req, res) => {
 });
 
 /**
+ * The player who is choosing the card for the jolly, or null. A choice that has run out of time
+ * is ended here, so the game never stays paused if the player has gone away.
+ */
+function activeJollyHold(game, gameId, io) {
+  const hold = game.jollyInCorso;
+  if (!hold) {
+    return null;
+  }
+
+  if (hold.scadenza <= Date.now()) {
+    endJollyHold(game, gameId, io);
+    return null;
+  }
+
+  return hold;
+}
+
+function endJollyHold(game, gameId, io) {
+  const hold = game.jollyInCorso;
+  game.jollyInCorso = null;
+  if (hold) {
+    io.to(gameId).emit("jollyAnnullato", { playerId: hold.playerId });
+  }
+}
+
+/**
  * Draw a card
  * POST /api/games/:gameId/draw
  */
@@ -276,6 +302,10 @@ export const drawCard = asyncHandler(async (req, res) => {
 
   if (req.auth.playerId !== game.players[0]?.id) {
     throw new AppError("Only the game creator can draw cards", 403);
+  }
+
+  if (activeJollyHold(game, gameId, req.io)) {
+    throw new AppError("A player is choosing the jolly: wait a few seconds", 409);
   }
 
   const creditMovements = trackCredits(req.gameState, game);
@@ -377,6 +407,79 @@ export const claimCollection = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Declare the jolly for a collection: the draws are paused until the jolly is used,
+ * cancelled, the player leaves, or the time runs out.
+ * POST /api/games/:gameId/jolly/start
+ */
+export const startJollyChoice = asyncHandler(async (req, res) => {
+  const { gameId } = req.params;
+  const { playerId } = req.auth;
+  const { tipo } = req.body;
+
+  const game = req.gameState.games[gameId];
+  if (!game) {
+    throw new AppError("Game not found", 404);
+  }
+
+  const player = game.players.find((p) => p.id === playerId);
+  if (!player) {
+    throw new AppError("Player not found", 404);
+  }
+
+  if (game.status !== GAME_STATUS.PLAYING) {
+    throw new AppError("Game not in playing state", 400);
+  }
+
+  if (player.jollyUsato) {
+    throw new AppError("Jolly already used", 400);
+  }
+
+  if (game.collezioni[tipo].vinto) {
+    throw new AppError("Collection already won", 400);
+  }
+
+  const hold = activeJollyHold(game, gameId, req.io);
+  if (hold && hold.playerId !== playerId) {
+    throw new AppError("Another player is choosing the jolly", 409);
+  }
+
+  game.jollyInCorso = {
+    playerId,
+    name: player.name,
+    tipo,
+    scadenza: Date.now() + GAME_DEFAULTS.JOLLY_HOLD_MS,
+  };
+
+  req.io.to(gameId).emit("jollyInCorso", game.jollyInCorso);
+
+  sendSuccess(res, { success: true, jollyInCorso: game.jollyInCorso });
+});
+
+/**
+ * Give the jolly choice up: the draws can go on
+ * POST /api/games/:gameId/jolly/cancel
+ */
+export const cancelJollyChoice = asyncHandler(async (req, res) => {
+  const { gameId } = req.params;
+  const { playerId } = req.auth;
+
+  const game = req.gameState.games[gameId];
+  if (!game) {
+    throw new AppError("Game not found", 404);
+  }
+
+  const hold = activeJollyHold(game, gameId, req.io);
+  if (hold) {
+    if (hold.playerId !== playerId) {
+      throw new AppError("Only the player who is choosing can cancel", 403);
+    }
+    endJollyHold(game, gameId, req.io);
+  }
+
+  sendSuccess(res, { success: true });
+});
+
+/**
  * Use jolly card
  * POST /api/games/:gameId/jolly
  */
@@ -393,6 +496,11 @@ export const useJolly = asyncHandler(async (req, res) => {
   const player = game.players.find((p) => p.id === playerId);
   if (!player) {
     throw new AppError("Player not found", 404);
+  }
+
+  const hold = activeJollyHold(game, gameId, req.io);
+  if (hold && hold.playerId !== playerId) {
+    throw new AppError("Another player is choosing the jolly", 409);
   }
 
   if (player.jollyUsato) {
@@ -434,6 +542,10 @@ export const useJolly = asyncHandler(async (req, res) => {
 
   player.jollyUsato = true;
   player.jollyPos = { row, col };
+  // The choice is over: the draws can go on (clients learn it from "jollyUsato")
+  if (game.jollyInCorso?.playerId === playerId) {
+    game.jollyInCorso = null;
+  }
   if (!player.coperte[row]) {
     player.coperte[row] = [];
   }
@@ -471,6 +583,10 @@ export const leaveGame = asyncHandler(async (req, res) => {
 
     if (gamePlayer && game.status === GAME_STATUS.PLAYING) {
       settleGamePlayer(gamePlayer, player);
+    }
+
+    if (game.jollyInCorso?.playerId === playerId) {
+      endJollyHold(game, gameId, req.io);
     }
 
     game.players = game.players.filter((p) => p.id !== playerId);
