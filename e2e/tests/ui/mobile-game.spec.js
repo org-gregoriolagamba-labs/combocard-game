@@ -338,4 +338,30 @@ test.describe('Login and credits on a phone @mobile', () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('Aggiunti 100 crediti');
   });
+
+  test('a numeric field can be emptied with backspace and typed again, in the credits and in the new game', async ({ page, request }) => {
+    const player = await registerPlayer(request, API_URL, 'Numeri');
+    await signInHall(page, player);
+
+    await page.getByRole('button', { name: 'Prendi crediti' }).click();
+    const importo = page.getByLabel('Quanti crediti vuoi?');
+    await importo.pressSequentially('250');
+    for (let i = 0; i < 3; i += 1) await importo.press('Backspace');
+    await expect(importo).toHaveValue('');
+    await importo.pressSequentially('7');
+    await expect(importo).toHaveValue('7');
+    await expect(page.getByRole('button', { name: 'Aggiungi 7 crediti' })).toBeEnabled();
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: /Crea Nuova Partita/ }).click();
+    for (const [nome, nuovo] of [['Crediti richiesti per partecipare', '25'], ['Numero massimo giocatori', '4']]) {
+      const campo = page.getByLabel(nome);
+      const vecchio = await campo.inputValue();
+      expect(vecchio).not.toBe('');
+      for (let i = 0; i < vecchio.length; i += 1) await campo.press('Backspace');
+      await expect(campo).toHaveValue('');
+      await campo.pressSequentially(nuovo);
+      await expect(campo).toHaveValue(nuovo);
+    }
+  });
 });
