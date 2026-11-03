@@ -8,6 +8,7 @@ Le carte in `carte/` e i semi in `semi/` derivano da un **mazzo napoletano stori
 
 ## Elaborazione
 - Ritaglio di ciascuna carta dal foglio (solo la parte interna, senza la bordura a righine) e ridimensionamento a 198×360 px, in formato WebP.
+- Le miniature in `carte-mini/` (54×98 px, WebP, circa 1,5 KB l'una) sono le stesse carte ridotte: servono alla cartella, che ne mostra venticinque insieme.
 - I semi della cartella sono ritagliati da carte numerate dello stesso mazzo, con fondo trasparente: Due di denari, Tre di coppe, Sei di spade, Sei di bastoni.
 
 ## Diritti
