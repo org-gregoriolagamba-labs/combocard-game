@@ -176,7 +176,7 @@ function BarraAzione({
       ) : (
         <p
           role="status"
-          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo"
+          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-linea-forte bg-notte-700 px-4 text-center font-bold text-testo [overflow-wrap:anywhere]"
         >
           <Clock size={20} aria-hidden="true" />
           Estrae {creatorName}
