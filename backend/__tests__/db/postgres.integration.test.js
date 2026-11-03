@@ -7,7 +7,7 @@
 
 import pg from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
-import { createPostgresStore, USERNAME_TAKEN } from '../../src/db/store.js';
+import { createPostgresStore, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from '../../src/db/store.js';
 
 const url = process.env.TEST_DATABASE_URL;
 const describeWithDb = url ? describe : describe.skip;
@@ -47,7 +47,7 @@ describeWithDb('PostgreSQL store', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'DROP TABLE IF EXISTS refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
+      'DROP TABLE IF EXISTS audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
     );
     await runMigrations(pool);
     store = createPostgresStore(pool);
@@ -158,6 +158,90 @@ describeWithDb('PostgreSQL store', () => {
       await store.createPlayer({ ...player, id: 'p2' });
 
       await expect(store.createAccount({ ...player, id: 'p3' }, account)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('roles and audit log', () => {
+    const system = { type: 'system' };
+    const makeAccount = (id) =>
+      store.createAccount({ ...player, id, name: id }, { username: id, usernameKey: id, passwordHash: 'hash' });
+
+    beforeEach(async () => {
+      await makeAccount('p1');
+      await makeAccount('p2');
+      await makeAccount('p3');
+    });
+
+    test('existing accounts stay players, and the database refuses a role that does not exist', async () => {
+      await expect(store.countAdmins()).resolves.toBe(0);
+      await expect(pool.query("UPDATE user_accounts SET role = 'root' WHERE player_id = 'p1'"))
+        .rejects.toMatchObject({ code: '23514' });
+    });
+
+    test('promotes and demotes, and the new role is the one found at the next request', async () => {
+      await expect(store.setAccountRole('p1', 'admin', { actor: system }))
+        .resolves.toEqual({ playerId: 'p1', role: 'admin', previousRole: 'player', changed: true });
+      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'admin' });
+      await expect(store.findAccountByUsernameKey('p1')).resolves.toMatchObject({ role: 'admin' });
+
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await expect(store.setAccountRole('p1', 'player', { actor: system })).resolves.toMatchObject({ changed: true });
+      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'player' });
+    });
+
+    test('an unknown player gives null, a role that does not exist is refused before the database', async () => {
+      await expect(store.setAccountRole('ghost', 'admin', { actor: system })).resolves.toBeNull();
+      await expect(store.setAccountRole('p1', 'root', { actor: system })).rejects.toMatchObject({ code: INVALID_ROLE });
+      await expect(store.setAccountRole('p1', 'admin')).rejects.toThrow();
+      await expect(store.countAdmins()).resolves.toBe(0);
+    });
+
+    test('the only admin cannot be demoted, and the refusal leaves no trace', async () => {
+      await store.setAccountRole('p1', 'admin', { actor: system });
+
+      await expect(store.setAccountRole('p1', 'player', { actor: system })).rejects.toMatchObject({ code: LAST_ADMIN });
+
+      await expect(store.countAdmins()).resolves.toBe(1);
+      await expect(store.listAuditEvents()).resolves.toHaveLength(1);
+    });
+
+    test('two demotions at the same time of the only two admins leave one', async () => {
+      await store.setAccountRole('p1', 'admin', { actor: system });
+      await store.setAccountRole('p2', 'admin', { actor: system });
+
+      const results = await Promise.allSettled([
+        store.setAccountRole('p1', 'player', { actor: system }),
+        store.setAccountRole('p2', 'player', { actor: system }),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected').map((r) => r.reason.code)).toEqual([LAST_ADMIN]);
+      await expect(store.countAdmins()).resolves.toBe(1);
+    });
+
+    test('the change and its audit row are one transaction, and the log keeps who did what to whom', async () => {
+      await store.setAccountRole('p1', 'admin', { actor: system });
+      await store.setAccountRole('p2', 'admin', { actor: { type: 'player', id: 'p1' } });
+      await store.setAccountRole('p2', 'admin', { actor: { type: 'player', id: 'p1' } });
+
+      const events = await store.listAuditEvents();
+
+      expect(events).toHaveLength(2);
+      expect(events[0]).toMatchObject({
+        action: 'role_changed',
+        actorType: 'player',
+        actorId: 'p1',
+        targetId: 'p2',
+        details: { from: 'player', to: 'admin' },
+      });
+      expect(events[0].createdAt).toBeInstanceOf(Date);
+      expect(events[1]).toMatchObject({ actorType: 'system', actorId: null, targetId: 'p1' });
+      await expect(store.listAuditEvents({ limit: 1 })).resolves.toHaveLength(1);
+    });
+
+    test('the audit log refuses an actor type that does not exist', async () => {
+      await expect(pool.query("INSERT INTO audit_log (actor_type, action) VALUES ('robot', 'x')"))
+        .rejects.toMatchObject({ code: '23514' });
     });
   });
 

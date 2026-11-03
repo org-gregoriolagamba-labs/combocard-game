@@ -3,7 +3,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { requireAuth, requireSelf } from '../../src/middleware/auth.middleware.js';
+import { requireAuth, requireRole, requireSelf } from '../../src/middleware/auth.middleware.js';
 import { authenticateSocket, initializeSocketHandlers, playerRoom } from '../../src/sockets/index.js';
 import { signAccessToken } from '../../src/services/auth.service.js';
 
@@ -139,5 +139,87 @@ describe('socket rooms', () => {
     handlers.leaveGame(playerRoom('p1'));
 
     expect(socket.leave).not.toHaveBeenCalled();
+  });
+});
+
+describe('requireRole', () => {
+  // The role is read from the store at every request: the one in the token can be 15 minutes old
+  const run = async ({ auth = { playerId: 'p1', role: 'player' }, account, storeError, ...request } = {}) => {
+    const store = {
+      findAccountById: jest.fn(async () => {
+        if (storeError) throw storeError;
+        return account;
+      }),
+    };
+    const req = { auth, store, body: {}, query: {}, headers: {}, ...request };
+    const next = jest.fn();
+    await requireRole('admin')(req, {}, next);
+    return { req, next, store };
+  };
+
+  test('lets an admin through', async () => {
+    const { next } = await run({ auth: { playerId: 'p1', role: 'admin' }, account: { playerId: 'p1', role: 'admin' } });
+
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  test('refuses a player with 403', async () => {
+    const { next } = await run({ account: { playerId: 'p1', role: 'player' } });
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+  });
+
+  test('refuses at once an admin who was demoted, even with a token that still says admin', async () => {
+    const { next } = await run({ auth: { playerId: 'p1', role: 'admin' }, account: { playerId: 'p1', role: 'player' } });
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+  });
+
+  test('lets through a player who was just promoted, even with a token that still says player', async () => {
+    const { req, next } = await run({ account: { playerId: 'p1', role: 'admin' } });
+
+    expect(next).toHaveBeenCalledWith();
+    expect(req.auth.role).toBe('admin');
+  });
+
+  test('refuses an account that no longer exists with 401', async () => {
+    const { next } = await run({ auth: { playerId: 'p1', role: 'admin' }, account: null });
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 401 });
+  });
+
+  test('refuses a request that is not authenticated with 401, without reading the store', async () => {
+    const { next, store } = await run({ auth: undefined });
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 401 });
+    expect(store.findAccountById).not.toHaveBeenCalled();
+  });
+
+  test('ignores a role written in the body, in the query or in a header', async () => {
+    const { next } = await run({
+      account: { playerId: 'p1', role: 'player' },
+      body: { role: 'admin' },
+      query: { role: 'admin' },
+      headers: { 'x-role': 'admin' },
+    });
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+  });
+
+  test('passes a store error on, and lets nobody through', async () => {
+    const failure = new Error('database down');
+    const { next } = await run({ storeError: failure });
+
+    expect(next).toHaveBeenCalledWith(failure);
+  });
+
+  test('accepts more than one role, and says which ones it asks for', async () => {
+    const guard = requireRole('admin', 'player');
+    const next = jest.fn();
+
+    await guard({ auth: { playerId: 'p1' }, store: { findAccountById: async () => ({ role: 'player' }) } }, {}, next);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(guard.requiredRoles).toEqual(['admin', 'player']);
   });
 });
