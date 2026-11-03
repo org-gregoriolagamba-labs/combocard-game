@@ -39,6 +39,7 @@ import PlayersList from "./PlayersList";
 import GuidaPrimaPartita from "./GuidaPrimaPartita";
 import Credito from "./Credito";
 import RivelazioneCarta from "./RivelazioneCarta";
+import StoricoCarte from "./StoricoCarte";
 import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
@@ -439,6 +440,10 @@ function GameScreen() {
             onJollyMode={isGameFinished ? () => {} : handleAttivaModalitaJolly}
             isGameFinished={isGameFinished}
           />
+        </div>
+
+        <div className="lg:col-start-2">
+          <StoricoCarte estratte={game?.carteEstratte ?? []} />
         </div>
 
         <div className="lg:col-start-2">
