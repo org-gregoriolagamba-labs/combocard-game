@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Cartella } from '../../components/game';
+import { calcolaProgresso } from '../../utils';
 
 const carta = { valore: 'Asso', seme: 'Spade', emoji: '⚔️', valoreNum: 1 };
 const griglia = [[carta]];
@@ -137,6 +138,63 @@ describe('Cartella', () => {
 
       expect(screen.getByRole('columnheader', { name: /Spade/ })).toHaveTextContent('3/5');
       expect(screen.getByRole('columnheader', { name: /Coppe/ })).not.toHaveTextContent('/5');
+    });
+  });
+
+  describe('the corner of the sheet shows how near the figures across the rows are', () => {
+    const spade = (valore, valoreNum) => ({ valore, seme: 'Spade', valoreNum });
+    const sequenza3 = [spade('Asso', 1), spade('Due', 2), spade('Tre', 3), spade('Re', 10)];
+
+    test('three consecutive values covered show SEQ 3/4 and REALE 3/4 when they are of one suit', () => {
+      render(<Cartella cartella={[sequenza3]} coperte={[[true, true, true, false]]} />);
+
+      expect(screen.getByText('SEQ 3/4')).toBeInTheDocument();
+      expect(screen.getByText('REALE 3/4')).toBeInTheDocument();
+      expect(screen.getByText('Sequenza: 3 carte su 4')).toBeInTheDocument();
+      expect(screen.getByText('Combocard reale: 3 carte su 4')).toBeInTheDocument();
+    });
+
+    test('a tris and a single of another value show NAPOLA 4/5', () => {
+      const sei = (seme) => ({ valore: 'Sei', seme, valoreNum: 6 });
+      const cartella = [[sei('Spade'), sei('Coppe'), sei('Denari'), { valore: 'Re', seme: 'Spade', valoreNum: 10 }]];
+      render(<Cartella cartella={cartella} coperte={[[true, true, true, true]]} />);
+
+      expect(screen.getByText('NAPOLA 4/5')).toBeInTheDocument();
+    });
+
+    test('a figure that is still far is not shown', () => {
+      render(<Cartella cartella={[sequenza3]} coperte={[[true, false, false, false]]} />);
+
+      expect(screen.queryByText(/^SEQ /)).not.toBeInTheDocument();
+      expect(screen.queryByText(/NAPOLA/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/REALE/)).not.toBeInTheDocument();
+    });
+
+    test('a figure already won is not shown, the others are', () => {
+      render(<Cartella cartella={[sequenza3]} coperte={[[true, true, true, false]]} vinte={['sequenza']} />);
+
+      expect(screen.queryByText(/^SEQ /)).not.toBeInTheDocument();
+      expect(screen.getByText('REALE 3/4')).toBeInTheDocument();
+    });
+
+    test('the numbers are the ones of the collections panel, on a full sheet', () => {
+      const valori = ['Asso', 'Due', 'Tre', 'Quattro', 'Cinque', 'Sei', 'Sette', 'Fante', 'Cavallo', 'Re'];
+      const mazzo = ['Spade', 'Coppe', 'Denari', 'Bastoni'].flatMap((seme) =>
+        valori.map((valore, i) => ({ valore, seme, valoreNum: i + 1 })),
+      );
+      const venticinque = mazzo.slice(0, 25);
+      const cartella = Array.from({ length: 5 }, (_, r) => venticinque.slice(r * 5, r * 5 + 5));
+      const coperte = cartella.map((riga, r) => riga.map((_, c) => (r * 5 + c) % 3 !== 0));
+      render(<Cartella cartella={cartella} coperte={coperte} />);
+
+      const giocatore = { cartella, coperte };
+      const attese = [['SEQ', 'sequenza'], ['NAPOLA', 'napola'], ['REALE', 'combocard_reale']];
+      attese.forEach(([nome, tipo]) => {
+        const { count, total } = calcolaProgresso(giocatore, tipo);
+        const testo = `${nome} ${count}/${total}`;
+        if (total - count <= 2) expect(screen.getByText(testo)).toBeInTheDocument();
+        else expect(screen.queryByText(new RegExp(`^${nome} `))).not.toBeInTheDocument();
+      });
     });
   });
 

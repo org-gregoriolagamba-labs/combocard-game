@@ -280,7 +280,7 @@ The guide strip ("Come si gioca") is a `notte-700` panel with a 2 px hairline, t
 
 ## Known limits and drift (not canonized)
 
-- Only tris and scopa are marked on the sheet as progress; other collections are not shown as tabs.
+- Tris and scopa are marked as progress tabs on their row and column; sequenza, napola and combocard reale are marked in the corner of the sheet (`SEQ`, `NAPOLA`, `REALE`, 11 px, gold when one card is missing), only while at most two cards are missing and nobody has won them. The corner keeps the height of the suit header: the labels never wrap.
 - The sheet legend is 13 px and the progress tabs 11 px (the jolly tag 10 px): below comfortable reading size on a phone.
 - Gold buttons rely on dark text for contrast; white text on gold would fail.
 - The 1875 card art is vintage on purpose against the modern UI.

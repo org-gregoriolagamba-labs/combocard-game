@@ -19,7 +19,14 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Check, Sparkles } from "lucide-react";
 import Seme from "./Seme";
-import { INCHIOSTRO_SEME, SEMI_IN_ORDINE, mappaCartella } from "../../utils";
+import { INCHIOSTRO_SEME, SEMI_IN_ORDINE, calcolaProgresso, mappaCartella } from "../../utils";
+
+// The figures that cross rows and columns: their progress is shown in the corner of the sheet
+const FIGURE_TRASVERSALI = [
+  { tipo: "sequenza", sigla: "SEQ", nome: "Sequenza" },
+  { tipo: "napola", sigla: "NAPOLA", nome: "Napola" },
+  { tipo: "combocard_reale", sigla: "REALE", nome: "Combocard reale" },
+];
 
 const nomeCarta = (carta, coperta) =>
   `${carta.valore} di ${carta.seme}${coperta ? ", coperta" : ""}`;
@@ -98,6 +105,7 @@ function Cartella({
   possibili = null,
   destinazione = null,
   evidenziate = [],
+  vinte = [],
   onCardClick = () => {},
 }) {
   const choosing = Boolean(jollyMode) && !jollyUsato;
@@ -105,6 +113,10 @@ function Cartella({
   // How near each row (a tris) and each column (a scopa) is: shown on the sheet itself
   const perRiga = righe.map((riga) => riga.filter((p) => p.coperta).length);
   const perColonna = SEMI_IN_ORDINE.map((_, c) => righe.filter((riga) => riga[c].coperta).length);
+  // The same count as the collections panel; a figure appears when at most two cards are missing
+  const vicine = FIGURE_TRASVERSALI.filter(({ tipo }) => !vinte.includes(tipo))
+    .map((figura) => ({ ...figura, ...calcolaProgresso({ cartella, coperte }, figura.tipo) }))
+    .filter(({ count, total }) => count > 0 && total - count <= 2);
   const luci = new Set(evidenziate.map((p) => `${p.row}-${p.col}`));
   // With the list, only the cards the jolly can turn are active; without it, every uncovered card is
   const attive = possibili ? new Set(possibili.map((p) => `${p.row}-${p.col}`)) : null;
@@ -121,7 +133,25 @@ function Cartella({
       </caption>
       <thead>
         <tr>
-          <td className="w-[5.6rem] p-0" />
+          <td className="w-[5.6rem] p-0 align-middle">
+            {vicine.length > 0 && (
+              <ul className="flex flex-col items-start gap-px pl-0.5">
+                {vicine.map(({ tipo, sigla, nome, count, total }) => (
+                  <li key={tipo}>
+                    <span
+                      aria-hidden="true"
+                      className={`block whitespace-nowrap rounded-sm px-1 text-[11px] font-bold leading-[14px] ${
+                        total - count <= 1 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
+                      }`}
+                    >
+                      {`${sigla} ${count}/${total}`}
+                    </span>
+                    <span className="sr-only">{`${nome}: ${count} carte su ${total}`}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </td>
           {SEMI_IN_ORDINE.map((seme, indiceSeme) => (
             <th
               key={seme}
@@ -265,6 +295,7 @@ Cartella.propTypes = {
   possibili: PropTypes.arrayOf(PropTypes.shape({ row: PropTypes.number, col: PropTypes.number })),
   destinazione: PropTypes.shape({ valore: PropTypes.string, seme: PropTypes.string }),
   evidenziate: PropTypes.arrayOf(PropTypes.shape({ row: PropTypes.number, col: PropTypes.number })),
+  vinte: PropTypes.arrayOf(PropTypes.string),
   onCardClick: PropTypes.func,
 };
 

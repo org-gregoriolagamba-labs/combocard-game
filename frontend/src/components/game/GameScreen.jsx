@@ -421,6 +421,7 @@ function GameScreen() {
             possibili={jollyMode ? carteJolly : null}
             destinazione={conversione}
             evidenziate={luci}
+            vinte={Object.keys(game?.collezioni ?? {}).filter((tipo) => game.collezioni[tipo]?.vinto)}
             onCardClick={handleSceglieCartaJolly}
           />
 

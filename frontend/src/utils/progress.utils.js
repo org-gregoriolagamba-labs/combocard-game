@@ -20,7 +20,7 @@ export function calcolaProgresso(currentPlayer, tipo) {
   const covered = [];
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
-      if (currentPlayer.coperte[r][c]) {
+      if (currentPlayer.coperte[r]?.[c]) {
         covered.push(currentPlayer.cartella[r][c]);
       }
     }
