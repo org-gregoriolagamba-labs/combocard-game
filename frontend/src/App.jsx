@@ -9,6 +9,7 @@ import { Provider } from "react-redux";
 import store from "./store";
 import AppContent from "./AppContent";
 import { Toast } from "./components/common";
+import "@fontsource-variable/bricolage-grotesque";
 import "./styles/index.css";
 
 function App() {

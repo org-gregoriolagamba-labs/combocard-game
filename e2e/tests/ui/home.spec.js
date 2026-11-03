@@ -93,7 +93,7 @@ test.describe('Homepage', () => {
   test('should log out and log back in as the same player @critical', async ({ page }) => {
     const username = await signUp(page);
 
-    await page.getByRole('button', { name: 'Esci', exact: true }).click();
+    await page.getByRole('button', { name: "Esci dall'account" }).click();
     await expect(usernameInput(page)).toBeVisible();
 
     await page.reload();

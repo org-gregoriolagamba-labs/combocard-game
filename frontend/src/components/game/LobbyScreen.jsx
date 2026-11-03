@@ -13,7 +13,6 @@ import { fetchPlayer } from "../../store/slices/playerSlice";
 import { gameService } from "../../services";
 import { Button } from "../common";
 import { copyText } from "../../utils";
-import Seme from "./Seme";
 
 function LobbyScreen() {
   const dispatch = useDispatch();
@@ -88,116 +87,96 @@ function LobbyScreen() {
   const canStart = isCreator && game?.players?.length >= 2;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-orange-800 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-amber-50 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 sm:border-4 border-amber-700">
-          <div className="flex justify-between items-start gap-3 mb-4">
+    <div className="min-h-[100dvh] tavolo p-4">
+      <div className="mx-auto max-w-3xl">
+        <section className="superficie p-4 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h2 className="text-xl sm:text-3xl font-bold text-green-900 flex items-center gap-2">
-                <Seme seme="Denari" className="h-8 w-8 shrink-0" />
-                Lobby COMBOCARD
-              </h2>
-              <p className="text-green-700 mt-1 break-words">Benvenuto, {playerName}!</p>
+              <h1 className="titolo flex items-center gap-2 text-xl text-testo sm:text-3xl">
+                Lobby
+              </h1>
+              <p className="mt-1 break-words text-testo-2">Benvenuto, {playerName}!</p>
             </div>
             <button
               onClick={handleTornaAllaHall}
-              className="bg-gray-300 text-gray-800 px-4 py-2 min-h-[44px] shrink-0 rounded-lg font-bold hover:bg-gray-400 transition flex items-center gap-2"
+              className="flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-lg border-2 border-linea-forte bg-notte-700 px-4 py-2 font-bold text-testo transition hover:bg-notte-600"
             >
-              <ArrowLeft size={18} />
-              Esci
+              <ArrowLeft size={18} aria-hidden="true" />
+              Lascia la partita
             </button>
           </div>
 
-          <div className="bg-green-100 p-4 rounded-xl mb-4 border-2 border-green-600">
-            <p className="font-bold text-green-900">
-              Codice Partita:{" "}
-              <span className="text-2xl font-mono text-green-700 break-all select-all">{gameId}</span>
-            </p>
+          <div className="mb-4 border-y-2 border-linea py-4">
+            <p className="text-sm font-bold text-testo-2">Codice partita</p>
+            <p className="titolo select-all break-all text-3xl text-testo">{gameId}</p>
             <button
               type="button"
               onClick={handleCopiaCodice}
               aria-label="Copia il codice della partita"
-              className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-green-700 bg-white px-4 font-bold text-green-900 hover:bg-green-50"
+              className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo hover:bg-notte-600"
             >
               <Copy size={18} aria-hidden="true" />
               Copia codice
             </button>
-            <p className="text-sm text-green-700 mt-2">
-              Costo partecipazione: {game?.requiredCredits} crediti
-            </p>
-            <p className="text-sm text-green-700">
-              {game?.isPrivate ? "Partita privata" : "Partita pubblica"}
+            <p className="mt-3 text-sm text-testo">
+              Costa {game?.requiredCredits} crediti a testa. {game?.isPrivate ? "Partita privata" : "Partita pubblica"}.
             </p>
             {game?.isPrivate && (
-              <p className="text-sm text-green-800 mt-2 [text-wrap:pretty]">
+              <p className="mt-1 text-sm text-testo-2 [text-wrap:pretty]">
                 Gli amici entrano dalla Hall con «Unisciti a Partita Privata» e questo codice.
               </p>
             )}
           </div>
 
-          {/* Players list */}
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-green-900 mb-3 flex items-center gap-2">
-              <Users size={24} />
-              Giocatori ({game?.players?.length || 0}/{game?.maxPlayers || 10})
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {game?.players?.map((player, index) => (
-                <div
-                  key={player.id}
-                  className={`p-3 rounded-xl ${
-                    player.id === playerId
-                      ? "bg-green-200 border-2 border-green-600"
-                      : "bg-white border-2 border-gray-200"
-                  }`}
-                >
-                  <p className="font-bold text-green-900 break-words">
-                    {player.name}
-                  </p>
-                  <p className="text-xs text-green-900">
-                    {[player.id === playerId && "Tu", index === 0 && "Creatore"].filter(Boolean).join(" · ")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <h2 className="titolo mb-3 flex items-center gap-2 text-xl text-testo">
+            <Users size={22} aria-hidden="true" />
+            Giocatori ({game?.players?.length || 0}/{game?.maxPlayers || 10})
+          </h2>
+          <ul className="mb-6 grid grid-cols-2 gap-x-4 md:grid-cols-3">
+            {game?.players?.map((player, index) => (
+              <li
+                key={player.id}
+                className={`border-t-2 border-linea py-2 ${
+                  player.id === playerId ? "rounded-md bg-notte-700 px-2" : "px-2"
+                }`}
+              >
+                <p className="break-words font-bold text-testo">{player.name}</p>
+                <p className="text-xs text-testo-2">
+                  {[player.id === playerId && "Tu", index === 0 && "Creatore"].filter(Boolean).join(" · ") || "\u00a0"}
+                </p>
+              </li>
+            ))}
+          </ul>
 
-          {/* Start button - only for creator */}
           {isCreator && (
-            <div className="text-center">
+            <div>
               {canStart ? (
                 <Button
                   onClick={handleIniziaPartita}
                   size="lg"
-                  className="flex items-center gap-2 mx-auto"
+                  className="mx-auto flex items-center gap-2"
                 >
-                  <PlayCircle size={24} />
+                  <PlayCircle size={24} aria-hidden="true" />
                   Inizia Partita
                 </Button>
               ) : (
-                <div className="bg-yellow-100 p-4 rounded-xl border-2 border-yellow-500">
-                  <p className="text-yellow-900 font-medium [text-wrap:balance]">
-                    In attesa di altri giocatori...
-                  </p>
-                  <p className="text-sm text-yellow-900">
-                    Servono almeno 2 giocatori per iniziare
-                  </p>
+                <div className="rounded-xl border-2 border-dashed border-linea p-4 text-center">
+                  <p className="font-bold text-testo [text-wrap:balance]">In attesa di altri giocatori...</p>
+                  <p className="text-sm text-testo-2">Servono almeno 2 giocatori per iniziare</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Waiting message for non-creators */}
           {!isCreator && (
-            <div className="text-center">
-              <div className="bg-blue-100 p-4 rounded-xl border-2 border-blue-500">
-                <p className="text-blue-900 font-medium [text-wrap:balance]">
-                  In attesa che il creatore avvii la partita...
-                </p>
-              </div>
+            <div className="rounded-xl border-2 border-dashed border-linea p-4 text-center">
+              <p className="font-bold text-testo [text-wrap:balance]">
+                In attesa che il creatore avvii la partita...
+              </p>
+              <p className="text-sm text-testo-2">Quando parte, la cartella ti arriva da sola.</p>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

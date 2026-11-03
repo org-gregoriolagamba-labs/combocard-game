@@ -41,24 +41,21 @@ describe('Button', () => {
     render(<Button>Primary</Button>);
     
     const button = screen.getByRole('button');
-    // Updated to match the gradient class used in component
-    expect(button).toHaveClass('from-green-700');
+    expect(button).toHaveClass('bg-oro');
   });
 
   test('applies secondary variant styles', () => {
     render(<Button variant="secondary">Secondary</Button>);
     
     const button = screen.getByRole('button');
-    // Updated to match the amber gradient used in component
-    expect(button).toHaveClass('from-yellow-400');
+    expect(button).toHaveClass('bg-notte-700');
   });
 
   test('applies danger variant styles', () => {
     render(<Button variant="danger">Danger</Button>);
     
     const button = screen.getByRole('button');
-    // Updated to match the gradient class
-    expect(button).toHaveClass('from-red-600');
+    expect(button).toHaveClass('bg-coppe');
   });
 
   test('renders with loading state', () => {

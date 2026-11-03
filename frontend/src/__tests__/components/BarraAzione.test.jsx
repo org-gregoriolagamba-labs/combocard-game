@@ -85,8 +85,29 @@ describe('BarraAzione', () => {
     test('asks about the chosen card by name instead of by coordinates', () => {
       render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
 
-      expect(screen.getByText(/Usare il Jolly per TRIS sulla carta Sei di Spade\?/)).toBeInTheDocument();
-      expect(screen.queryByText(/tocca una carta non coperta/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Per TRIS, il Jolly cambia Sei di Spade/)).toBeInTheDocument();
+      expect(screen.queryByText(/tocca una carta evidenziata/)).not.toBeInTheDocument();
+    });
+
+    test('says which card it becomes, so the rule is not a secret', () => {
+      render(
+        <BarraAzione
+          {...base}
+          jollyMode="tris"
+          jollyPending={pending}
+          jollyConversione={{ valore: 'Sei', seme: 'Denari' }}
+        />,
+      );
+
+      expect(
+        screen.getByText('Per TRIS, il Jolly cambia Sei di Spade in Sei di Denari. Usarlo?'),
+      ).toBeInTheDocument();
+    });
+
+    test('while choosing it says how many cards can be turned', () => {
+      render(<BarraAzione {...base} jollyMode="tris" jollyScelte={3} />);
+
+      expect(screen.getByText(/Jolly per TRIS: tocca una carta evidenziata \(3\)/)).toBeInTheDocument();
     });
 
     test('"Usa Jolly" confirms', () => {
@@ -147,7 +168,7 @@ describe('BarraAzione', () => {
     test('the question is announced to screen readers', () => {
       render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
 
-      expect(screen.getByText(/Usare il Jolly per TRIS/)).toHaveAttribute('aria-live', 'polite');
+      expect(screen.getByText(/Per TRIS, il Jolly cambia/)).toHaveAttribute('aria-live', 'polite');
     });
   });
 
@@ -156,7 +177,7 @@ describe('BarraAzione', () => {
       const onLeave = vi.fn();
       render(<BarraAzione {...base} status="finished" jollyMode="tris" onLeave={onLeave} />);
 
-      expect(screen.getByText(/PARTITA TERMINATA/)).toBeInTheDocument();
+      expect(screen.getByText(/Partita terminata/)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
       expect(screen.queryByText(/Jolly per/)).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Torna alla Hall/ }));
