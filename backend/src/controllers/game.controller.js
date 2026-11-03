@@ -443,6 +443,17 @@ export const startJollyChoice = asyncHandler(async (req, res) => {
     throw new AppError("Another player is choosing the jolly", 409);
   }
 
+  // Declaring again during the own choice changes nothing: the time is not renewed
+  if (hold) {
+    sendSuccess(res, { success: true, jollyInCorso: hold });
+    return;
+  }
+
+  if ((player.jollyDichiarazioni ?? 0) >= GAME_DEFAULTS.JOLLY_MAX_DECLARATIONS) {
+    throw new AppError("Too many jolly declarations in this game", 429);
+  }
+  player.jollyDichiarazioni = (player.jollyDichiarazioni ?? 0) + 1;
+
   game.jollyInCorso = {
     playerId,
     name: player.name,
@@ -466,6 +477,10 @@ export const cancelJollyChoice = asyncHandler(async (req, res) => {
   const game = req.gameState.games[gameId];
   if (!game) {
     throw new AppError("Game not found", 404);
+  }
+
+  if (!game.players.some((p) => p.id === playerId)) {
+    throw new AppError("Player not found", 404);
   }
 
   const hold = activeJollyHold(game, gameId, req.io);
@@ -496,6 +511,10 @@ export const useJolly = asyncHandler(async (req, res) => {
   const player = game.players.find((p) => p.id === playerId);
   if (!player) {
     throw new AppError("Player not found", 404);
+  }
+
+  if (game.status !== GAME_STATUS.PLAYING) {
+    throw new AppError("Game not in playing state", 400);
   }
 
   const hold = activeJollyHold(game, gameId, req.io);

@@ -117,6 +117,33 @@ describe('jolly hold: no draws while a player chooses the jolly card', () => {
       expect(view.jollyInCorso).toMatchObject({ playerId: carlo.id, tipo: 'tris' });
     });
 
+    test('declaring again while the own choice runs does not renew the time', async () => {
+      const { gameId, game } = await startedGame();
+      await call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } });
+      const scadenza = game.jollyInCorso.scadenza;
+
+      now += 10_000;
+      await call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'scopa' } });
+
+      expect(game.jollyInCorso.scadenza).toBe(scadenza);
+      expect(eventsNamed('jollyInCorso')).toHaveLength(1);
+    });
+
+    test('a player cannot pause the game over and over: the declarations are limited', async () => {
+      const { gameId } = await startedGame();
+
+      for (let i = 0; i < GAME_DEFAULTS.JOLLY_MAX_DECLARATIONS; i += 1) {
+        await call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } });
+        await call(cancelJollyChoice, carlo.id, { params: { gameId } });
+      }
+
+      await expect(
+        call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } }),
+      ).rejects.toMatchObject({ statusCode: 429 });
+      const { carta } = await call(drawCard, anna.id, { params: { gameId } });
+      expect(carta).toBeDefined();
+    });
+
     test('is refused when another player is already choosing', async () => {
       const { gameId } = await startedGame();
       await call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } });
@@ -226,6 +253,33 @@ describe('jolly hold: no draws while a player chooses the jolly card', () => {
 
       await expect(call(cancelJollyChoice, anna.id, { params: { gameId } })).rejects.toMatchObject({ statusCode: 403 });
       expect(game.jollyInCorso).not.toBeNull();
+    });
+
+    test('someone who is not in the game cannot cancel, nor learn that a choice is running', async () => {
+      const { gameId } = await startedGame();
+      const estraneo = registerPlayer(gameState, 'Estraneo');
+
+      await expect(call(cancelJollyChoice, estraneo.id, { params: { gameId } })).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    test('the jolly cannot be used once the game is over', async () => {
+      const { gameId, game } = await startedGame();
+      prepareTrisFor(game, carlo.id);
+      game.status = 'finished';
+
+      await expect(
+        call(useJolly, carlo.id, { params: { gameId }, body: { row: 0, col: 2, tipo: 'tris' } }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    test('a choice that has run out of time is not shown by the view of the game', async () => {
+      const { gameId } = await startedGame();
+      await call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } });
+
+      now += GAME_DEFAULTS.JOLLY_HOLD_MS + 1;
+      const view = await call(getGame, anna.id, { params: { gameId } });
+
+      expect(view.jollyInCorso ?? null).toBeNull();
     });
 
     test('cancelling when nobody is choosing does nothing', async () => {
