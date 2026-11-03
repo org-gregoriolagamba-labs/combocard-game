@@ -12,6 +12,7 @@ export { default as ConteggioJolly } from './ConteggioJolly';
 export { default as GameScreen } from './GameScreen';
 export { default as GuidaPrimaPartita } from './GuidaPrimaPartita';
 export { default as RivelazioneCarta } from './RivelazioneCarta';
+export { default as StoricoCarte } from './StoricoCarte';
 export { default as RegoleGioco } from './RegoleGioco';
 export { default as RegoleScreen } from './RegoleScreen';
 export { default as Coriandoli } from './Coriandoli';

@@ -182,6 +182,8 @@ A night-blue ground with warm-white text, one gold voice for action, and four su
 
 Phone: one column, 12 px page padding, `max-w-7xl` container. A sticky header (52 px card miniature, last card name, cards left, pot, credits, exit) sits above the sheet; the sheet fills a single `.superficie` with 10 px padding; a fixed bottom bar (`max-w-md`, `notte-800`, top hairline) holds the main action and the jolly banner. The page keeps 8 rem of bottom padding for it.
 
+The cards already drawn sit in a closed `Disclosure` ("Carte uscite", count "N su 40") below the collections: 48 px thumbnails from `public/carte-mini`, the latest first, each with its name for screen readers (the name is printed if the picture is missing). It is closed by default so the sheet, the last card and the action keep sharing one screen.
+
 Desktop (`lg`): two columns (26 rem sheet, fluid rest); the sheet is sticky at the top, the action moves into a panel under it and the bar is hidden.
 
 The sheet is a real table: a 5.6 rem row-head column plus four equal suit columns, 3 px cell gaps, 44 px rows. Spacing is Tailwind's 4 px steps (8, 12, 16 common); the grid gap and 44/52 px targets are the fixed rhythm.

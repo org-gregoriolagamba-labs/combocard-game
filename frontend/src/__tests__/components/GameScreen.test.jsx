@@ -220,6 +220,29 @@ describe('GameScreen', () => {
     });
   });
 
+  describe('history of the drawn cards', () => {
+    test('is a closed section that lists, once opened, what has come out, the latest first', () => {
+      const state = stateFor('carlo');
+      state.game.game = {
+        ...state.game.game,
+        carteEstratte: [
+          { valore: 'Asso', seme: 'Denari' },
+          { valore: 'Re', seme: 'Coppe' },
+        ],
+      };
+      renderWithProviders(<GameScreen />, { preloadedState: state });
+
+      const toggle = screen.getByRole('button', { name: /Carte uscite/ });
+      expect(toggle).toHaveTextContent('2 su 40');
+
+      fireEvent.click(toggle);
+
+      const pannello = document.getElementById(toggle.getAttribute('aria-controls'));
+      const nomi = within(pannello).getAllByRole('listitem').map((li) => li.textContent);
+      expect(nomi).toEqual(['Re di Coppe', 'Asso di Denari']);
+    });
+  });
+
   describe('the draws are paused while a player chooses the jolly', () => {
     const hold = (playerId, name, secondi = 20) => ({
       playerId,
