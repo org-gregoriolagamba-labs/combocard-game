@@ -12,7 +12,7 @@ import {
   drawCard,
   leaveGame,
 } from '../../src/controllers/game.controller.js';
-import { registerPlayer, buyCredits } from '../../src/services/player.service.js';
+import { registerPlayer, buyCredits, acceptRules } from '../../src/services/player.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 
 const room = { emit: () => {}, socketsJoin: () => {}, socketsLeave: () => {} };
@@ -55,7 +55,9 @@ describe('game authorization', () => {
   beforeEach(() => {
     gameState = { games: {}, players: {} };
     anna = registerPlayer(gameState, 'Anna');
+    acceptRules(gameState, anna.id);
     carlo = registerPlayer(gameState, 'Carlo');
+    acceptRules(gameState, carlo.id);
     buyCredits(gameState, anna.id, 500);
     buyCredits(gameState, carlo.id, 500);
   });
@@ -104,6 +106,7 @@ describe('game authorization', () => {
   test('a game can be read only by its creator and its players', async () => {
     const gameId = await newGame();
     const outsider = registerPlayer(gameState, 'Outsider');
+    acceptRules(gameState, outsider.id);
 
     await expect(call(getGame, anna.id, { params: { gameId } })).resolves.toMatchObject({ id: gameId });
     await expect(call(getGame, outsider.id, { params: { gameId } })).rejects.toMatchObject({ statusCode: 403 });

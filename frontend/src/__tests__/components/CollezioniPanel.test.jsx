@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { CollezioniPanel } from '../../components/game';
 
@@ -30,6 +30,23 @@ const renderPanel = (props = {}) =>
   );
 
 describe('CollezioniPanel', () => {
+  test('while another player chooses the jolly, the jolly button waits and says why', () => {
+    const onJollyMode = vi.fn();
+    renderPanel({ jollyBloccatoDa: 'Anna', onJollyMode });
+
+    const bottone = within(row('tris')).getByRole('button', { name: 'Jolly per TRIS: aspetta, Anna sta scegliendo il Jolly' });
+    fireEvent.click(bottone);
+
+    expect(bottone).toBeDisabled();
+    expect(onJollyMode).not.toHaveBeenCalled();
+  });
+
+  test('without a pause the jolly button is active as usual', () => {
+    renderPanel({ jollyBloccatoDa: null });
+
+    expect(within(row('tris')).getByRole('button', { name: 'Usa il Jolly per TRIS' })).toBeEnabled();
+  });
+
   test('lists the five collections, each with its prize', () => {
     renderPanel();
 
@@ -109,9 +126,60 @@ describe('CollezioniPanel', () => {
     expect(row('tris')).toHaveTextContent(/0\/3/);
   });
 
-  test('the rules stay in the panel, closed on a narrow screen', () => {
+  test('the jolly rules stay in the panel, closed on a narrow screen', () => {
     renderPanel();
 
     expect(screen.getByRole('button', { name: /Come si gioca/ })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  describe('the jolly says when it can work', () => {
+    test('is offered only for the collections where it can complete one card', () => {
+      renderPanel({ jollyPossibili: { tris: 3, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 } });
+
+      expect(within(row('tris')).getByRole('button', { name: 'Usa il Jolly per TRIS' })).toBeEnabled();
+      expect(
+        within(row('sequenza')).getByRole('button', { name: /Jolly per SEQUENZA: non ancora possibile/ }),
+      ).toBeDisabled();
+    });
+
+    test('a disabled jolly cannot start the mode', () => {
+      const onJollyMode = vi.fn();
+      renderPanel({ onJollyMode, jollyPossibili: { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 } });
+
+      fireEvent.click(within(row('tris')).getByRole('button', { name: /non ancora possibile/ }));
+
+      expect(onJollyMode).not.toHaveBeenCalled();
+    });
+
+    test('without the list every jolly is offered, as before', () => {
+      renderPanel();
+
+      expect(within(row('scopa')).getByRole('button', { name: 'Usa il Jolly per SCOPA' })).toBeEnabled();
+    });
+  });
+
+  test('each collection says its rule in words and draws its shape', () => {
+    renderPanel();
+
+    expect(row('sequenza')).toHaveTextContent('Quattro valori di fila, semi qualsiasi');
+    expect(within(row('scopa')).getByRole('img', { name: /cinque carte di un seme, in una colonna/ })).toBeInTheDocument();
+  });
+
+  test('tells when only one card is missing', () => {
+    const coperteQuasi = coperte.map((r) => [...r]);
+    coperteQuasi[0][0] = true;
+    coperteQuasi[0][1] = true;
+    renderPanel({ currentPlayer: player({ coperte: coperteQuasi }) });
+
+    expect(row('tris')).toHaveTextContent('ne manca 1');
+  });
+
+  test('explains what the jolly changes in the card', () => {
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: /Come si gioca/ }));
+
+    expect(screen.getByText(/una sola carta/)).toBeInTheDocument();
+    expect(screen.getByText(/Scopa: la carta cambia seme e tiene il valore/)).toBeInTheDocument();
   });
 });

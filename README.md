@@ -138,6 +138,7 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/players/:playerId` | Get your own player |
+| POST | `/api/players/:playerId/accept-rules` | Confirm that you read and understood the rules (once; a game does not start until all its players have) |
 | POST | `/api/players/:playerId/buy-credits` | Buy credits for your own player |
 
 ### Game Routes
@@ -150,7 +151,9 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 | POST | `/api/games/:gameId/start` | Start the game (creator only) |
 | POST | `/api/games/:gameId/draw` | Draw a card (creator only) |
 | POST | `/api/games/:gameId/claim` | Claim a collection |
-| POST | `/api/games/:gameId/jolly` | Use the jolly card |
+| POST | `/api/games/:gameId/jolly/start` | Declare the jolly for a collection: draws are paused for up to 30 seconds while the player chooses the card |
+| POST | `/api/games/:gameId/jolly/cancel` | Give the jolly choice up (only the player who is choosing) |
+| POST | `/api/games/:gameId/jolly` | Use the jolly card (ends the pause) |
 | POST | `/api/games/:gameId/leave` | Leave a game |
 
 ### Health Routes

@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GameScreen } from '../../components/game';
 import { renderWithProviders, mockGameState } from '../test-utils';
@@ -7,9 +7,21 @@ import * as gameService from '../../services/gameService';
 
 vi.mock('../../services/gameService');
 
-const carta = { valore: 'Asso', seme: 'Spade', emoji: '⚔️', valoreNum: 1 };
-const cartella = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => ({ ...carta })));
-const coperte = Array.from({ length: 5 }, () => Array(5).fill(false));
+// A real sheet: 25 different cards (all Spade, all Coppe, Asso to Cinque of Denari).
+// Sei di Spade and Sei di Coppe are covered, so a tris is one card away and the jolly can make
+// Sei di Denari out of any Denari that is still uncovered.
+const VALORI = ['Asso', 'Due', 'Tre', 'Quattro', 'Cinque', 'Sei', 'Sette', 'Fante', 'Cavallo', 'Re'];
+const mazzo = ['Spade', 'Coppe', 'Denari', 'Bastoni'].flatMap((seme) =>
+  VALORI.map((valore, i) => ({ valore, seme, emoji: '', valoreNum: i + 1 })),
+);
+const venticinque = mazzo.slice(0, 25);
+const cartella = Array.from({ length: 5 }, (_, r) => venticinque.slice(r * 5, r * 5 + 5));
+const coperte = Array.from({ length: 5 }, (_, r) =>
+  Array.from({ length: 5 }, (_, c) => {
+    const x = cartella[r][c];
+    return x.valore === 'Sei' && (x.seme === 'Spade' || x.seme === 'Coppe');
+  }),
+);
 
 const stateFor = (playerId, overrides = {}) => {
   const anna = { ...mockGameState.game.players[0], id: 'anna', name: 'Anna', gettoni: 80 };
@@ -28,6 +40,39 @@ const stateFor = (playerId, overrides = {}) => {
 };
 
 describe('GameScreen', () => {
+  describe('the guide for a first game', () => {
+    beforeEach(() => window.localStorage.clear());
+    afterAll(() => window.localStorage.clear());
+
+    test('tells in three lines what happens by itself, until the player has read it', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      const guida = screen.getByRole('region', { name: 'Come si gioca' });
+      expect(guida).toHaveTextContent('si copre da sola');
+      expect(guida).toHaveTextContent('la collezione si vince da sola');
+      expect(guida).toHaveTextContent('manca una sola carta');
+    });
+
+    test('"Ho capito" closes it, and the device remembers', () => {
+      const { unmount } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ho capito' }));
+      expect(screen.queryByRole('region', { name: 'Come si gioca' })).not.toBeInTheDocument();
+      unmount();
+
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+      expect(screen.queryByRole('region', { name: 'Come si gioca' })).not.toBeInTheDocument();
+    });
+
+    test('is not shown to a player who has already won a collection', () => {
+      const state = stateFor('carlo');
+      state.game.currentPlayer.collezioni = ['tris'];
+      renderWithProviders(<GameScreen />, { preloadedState: state });
+
+      expect(screen.queryByRole('region', { name: 'Come si gioca' })).not.toBeInTheDocument();
+    });
+  });
+
   test('the creator draws from the action bar', () => {
     renderWithProviders(<GameScreen />, { preloadedState: stateFor('anna') });
 
@@ -44,7 +89,7 @@ describe('GameScreen', () => {
   test('the number of cards left is shown once', () => {
     renderWithProviders(<GameScreen />, { preloadedState: stateFor('anna') });
 
-    expect(screen.getAllByText('Carte rimaste: 36/40')).toHaveLength(1);
+    expect(screen.getAllByText('36 carte rimaste')).toHaveLength(1);
   });
 
   test('the header keeps the pot, the own tokens and the way out', () => {
@@ -52,16 +97,23 @@ describe('GameScreen', () => {
 
     expect(screen.getByText('Montepremi')).toBeInTheDocument();
     expect(screen.getByText('I tuoi crediti')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Hall/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lascia la partita' })).toBeInTheDocument();
   });
 
-  test('every collection shows its progress and prize, and has a jolly button', () => {
+  test('every collection shows its progress and prize', () => {
     renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
-    for (const [tipo, label] of [['tris', 'TRIS'], ['sequenza', 'SEQUENZA'], ['scopa', 'SCOPA'], ['napola', 'NAPOLA'], ['combocard_reale', 'COMBOCARD REALE']]) {
+    for (const tipo of ['tris', 'sequenza', 'scopa', 'napola', 'combocard_reale']) {
       expect(screen.getByTestId(`collezione-${tipo}`)).toHaveTextContent(/Premio \d+/);
-      expect(screen.getByRole('button', { name: `Usa il Jolly per ${label}` })).toBeInTheDocument();
     }
+  });
+
+  test('the jolly is offered only where one card is missing, and says so where it is not', () => {
+    renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+    expect(screen.getByRole('button', { name: 'Usa il Jolly per TRIS' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Jolly per SCOPA: non ancora possibile/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Jolly per COMBOCARD REALE: non ancora possibile/ })).toBeDisabled();
   });
 
   test('the collections cannot be claimed by hand: the server wins them by itself', () => {
@@ -72,7 +124,7 @@ describe('GameScreen', () => {
   });
 
   describe('leaving the game', () => {
-    const leave = () => fireEvent.click(screen.getByRole('button', { name: /Hall/ }));
+    const leave = () => fireEvent.click(screen.getByRole('button', { name: 'Lascia la partita' }));
 
     beforeEach(() => {
       vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -138,7 +190,7 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /Giocatori \(2\)/ }));
 
     expect(screen.getByText('Carlo (Tu)')).toBeVisible();
-    expect(screen.getByText(/TRIS: 3 stesso valore/)).not.toBeVisible();
+    expect(screen.getByText(/Hai un Jolly a partita/)).not.toBeVisible();
   });
 
   test('a finished game shows the way back instead of the draw button', () => {
@@ -146,7 +198,7 @@ describe('GameScreen', () => {
     state.game.game.status = 'finished';
     renderWithProviders(<GameScreen />, { preloadedState: state });
 
-    expect(screen.getAllByText(/PARTITA TERMINATA/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Partita terminata/).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
   });
 
@@ -156,8 +208,9 @@ describe('GameScreen', () => {
       renderWithProviders(<GameScreen />, { preloadedState: state });
 
       expect(screen.getByRole('img', { name: 'Re di Coppe' })).toHaveAttribute('src', '/carte/coppe-re.webp');
-      expect(screen.getByText('Re')).toBeInTheDocument();
-      expect(screen.getByText('di Coppe')).toBeInTheDocument();
+      const header = screen.getByRole('banner');
+      expect(within(header).getByText('Re')).toBeInTheDocument();
+      expect(within(header).getByText('di Coppe')).toBeInTheDocument();
     });
 
     test('says so when nothing has been drawn yet', () => {
@@ -167,9 +220,161 @@ describe('GameScreen', () => {
     });
   });
 
+  describe('the draws are paused while a player chooses the jolly', () => {
+    const hold = (playerId, name, secondi = 20) => ({
+      playerId,
+      name,
+      tipo: 'tris',
+      scadenza: Date.now() + secondi * 1000,
+    });
+    const withHold = (me, jollyInCorso, overrides) => {
+      const state = stateFor(me, overrides);
+      state.game.game = { ...state.game.game, jollyInCorso };
+      return state;
+    };
+    const startJolly = () => fireEvent.click(screen.getByRole('button', { name: 'Usa il Jolly per TRIS' }));
+
+    beforeEach(() => {
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    afterEach(() => {
+      delete Element.prototype.scrollIntoView;
+      vi.useRealTimers();
+    });
+
+    test('declaring the jolly tells the server for which collection, and the pause is shown', async () => {
+      gameService.startJollyChoice.mockResolvedValue({ success: true, jollyInCorso: hold('carlo', 'Carlo') });
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      await waitFor(() => expect(gameService.startJollyChoice).toHaveBeenCalledWith('game-456', 'tris'));
+      await waitFor(() => expect(store.getState().game.game.jollyInCorso).toMatchObject({ playerId: 'carlo' }));
+      expect(screen.getAllByText(/Le estrazioni sono ferme: hai ancora/).length).toBeGreaterThan(0);
+    });
+
+    test('the mode opens at once, without waiting for the server', () => {
+      gameService.startJollyChoice.mockReturnValue(new Promise(() => {}));
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      expect(store.getState().game.jollyMode).toBe('tris');
+    });
+
+    test('if the server refuses, the mode closes and the reason is shown', async () => {
+      gameService.startJollyChoice.mockRejectedValue(new Error('Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo'));
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      await waitFor(() => expect(store.getState().game.jollyMode).toBeNull());
+      expect(store.getState().ui.toasts.map((t) => t.message)).toContain(
+        'Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo',
+      );
+    });
+
+    test('while another player chooses, the creator cannot draw and the jolly waits', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withHold('anna', hold('carlo', 'Carlo')) });
+
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      for (const bottone of screen.getAllByRole('button', { name: /Estrazione in pausa/ })) {
+        expect(bottone).toBeDisabled();
+      }
+      expect(screen.getAllByText(/Carlo sta scegliendo il Jolly/).length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole('button', { name: 'Jolly per TRIS: aspetta, Carlo sta scegliendo il Jolly' }),
+      ).toBeDisabled();
+    });
+
+    test('the other players are told who is choosing', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withHold('carlo', hold('anna', 'Anna')) });
+
+      expect(screen.getAllByText(/Anna sta scegliendo il Jolly/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Estrae Anna/).length).toBeGreaterThan(0);
+    });
+
+    test('when the time runs out the draws go on, with no action from anybody', () => {
+      vi.useFakeTimers();
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('anna', hold('carlo', 'Carlo', 3)),
+      });
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+      expect(screen.getAllByRole('button', { name: /Estrai Carta/ }).length).toBeGreaterThan(0);
+    });
+
+    test('when the own time runs out the mode closes and the player is told', () => {
+      vi.useFakeTimers();
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo', 2), { jollyMode: 'tris' }),
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(2100);
+      });
+
+      expect(store.getState().game.jollyMode).toBeNull();
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+      expect(store.getState().ui.toasts.map((t) => t.message).join(' ')).toMatch(/Tempo scaduto/);
+    });
+
+    test('after a reload the own pause is still running and the mode comes back with it', () => {
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo')),
+      });
+
+      expect(store.getState().game.jollyMode).toBe('tris');
+      expect(screen.getAllByText(/Jolly per TRIS: tocca una carta evidenziata/).length).toBeGreaterThan(0);
+    });
+
+    test('"Annulla" tells the server at once, so the draws can go on', () => {
+      gameService.cancelJollyChoice.mockResolvedValue({ success: true });
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo'), { jollyMode: 'tris' }),
+      });
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Annulla' })[0]);
+
+      expect(gameService.cancelJollyChoice).toHaveBeenCalledWith('game-456');
+      expect(store.getState().game.jollyMode).toBeNull();
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+      // The mode does not come back from the pause that was just given up
+      expect(screen.queryByRole('group', { name: 'Modalità Jolly' })).not.toBeInTheDocument();
+    });
+
+    test('using the jolly does not cancel: the server ends the pause by itself', async () => {
+      gameService.useJolly.mockResolvedValue({ convertedTo: { valore: 'Sei', seme: 'Denari' } });
+      const { store } = renderWithProviders(<GameScreen />, {
+        preloadedState: withHold('carlo', hold('carlo', 'Carlo'), { jollyMode: 'tris' }),
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Denari' }));
+      fireEvent.click(screen.getAllByRole('button', { name: 'Usa Jolly' })[0]);
+
+      await waitFor(() => expect(store.getState().game.game.jollyInCorso).toBeNull());
+      expect(gameService.cancelJollyChoice).not.toHaveBeenCalled();
+      expect(store.getState().game.jollyMode).toBeNull();
+    });
+
+    test('a finished game shows no pause', () => {
+      const stato = withHold('anna', hold('carlo', 'Carlo'));
+      stato.game.game.status = 'finished';
+      renderWithProviders(<GameScreen />, { preloadedState: stato });
+
+      expect(screen.queryByText(/sta scegliendo il Jolly/)).not.toBeInTheDocument();
+    });
+  });
+
   describe('guided jolly', () => {
     const startJolly = () => fireEvent.click(screen.getByRole('button', { name: 'Usa il Jolly per TRIS' }));
-    const firstCard = () => screen.getAllByRole('button', { name: 'Asso di Spade' })[0];
+    const firstCard = () => screen.getByRole('button', { name: 'Asso di Denari' });
     const confirmGroup = () => screen.getAllByRole('group', { name: 'Conferma Jolly' })[0];
 
     beforeEach(() => {
@@ -187,7 +392,7 @@ describe('GameScreen', () => {
       startJolly();
 
       expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
-      expect(screen.getAllByText(/Jolly per TRIS: tocca una carta non coperta/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Jolly per TRIS: tocca una carta evidenziata/).length).toBeGreaterThan(0);
     });
 
     test('before choosing a collection no card can be tapped', () => {
@@ -197,13 +402,21 @@ describe('GameScreen', () => {
     });
 
     test('a covered card cannot be chosen', () => {
-      const state = stateFor('carlo');
-      state.game.currentPlayer.coperte = coperte.map((row, r) => row.map((_, c) => r === 0 && c === 0));
-      renderWithProviders(<GameScreen />, { preloadedState: state });
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
       startJolly();
 
-      expect(screen.getByRole('button', { name: 'Asso di Spade, coperta' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Sei di Spade, coperta' })).toBeDisabled();
+    });
+
+    test('a card that cannot complete the collection is not active', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
+
+      startJolly();
+
+      // Sei di Spade is already in the sheet, so an Asso di Spade cannot become one
+      expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
+      expect(firstCard()).toBeEnabled();
     });
 
     test('tapping a card asks for confirmation in the bar, never with the browser dialog', () => {
@@ -212,7 +425,9 @@ describe('GameScreen', () => {
 
       fireEvent.click(firstCard());
 
-      expect(screen.getAllByText(/Usare il Jolly per TRIS sulla carta Asso di Spade\?/).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText('Per TRIS, il Jolly cambia Asso di Denari in Sei di Denari. Usarlo?').length,
+      ).toBeGreaterThan(0);
       expect(firstCard()).toHaveAttribute('aria-pressed', 'true');
       expect(window.confirm).not.toHaveBeenCalled();
       expect(gameService.useJolly).not.toHaveBeenCalled();
@@ -227,8 +442,8 @@ describe('GameScreen', () => {
       fireEvent.click(within(confirmGroup()).getByRole('button', { name: 'Usa Jolly' }));
 
       await waitFor(() => expect(store.getState().game.jollyMode).toBeNull());
-      expect(gameService.useJolly).toHaveBeenCalledWith('game-456', { row: 0, col: 0, tipo: 'tris' });
-      expect(store.getState().ui.toasts.map((t) => t.message).join(' ')).toMatch(/Jolly attivato.*Re di Spade/);
+      expect(gameService.useJolly).toHaveBeenCalledWith('game-456', { row: 4, col: 0, tipo: 'tris' });
+      expect(store.getState().ui.toasts.map((t) => t.message).join(' ')).toMatch(/Jolly usato.*Re di Spade/);
     });
 
     test('if the jolly cannot be used the mode stays on, so another card can be tried', async () => {
@@ -245,7 +460,7 @@ describe('GameScreen', () => {
       expect(error).toBe("Il Jolly non può completare questa collezione con quella carta. Scegli un'altra carta o un'altra collezione.");
       expect(store.getState().game.jollyMode).toBe('tris');
       expect(screen.queryAllByRole('group', { name: 'Conferma Jolly' })).toHaveLength(0);
-      expect(screen.getAllByText(/tocca una carta non coperta/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/tocca una carta evidenziata/).length).toBeGreaterThan(0);
     });
 
     test('"Cambia carta" goes back to choosing without using the jolly', () => {

@@ -64,4 +64,8 @@ export const GAME_DEFAULTS = {
   MAX_PLAYERS: 10,
   REQUIRED_CREDITS: 100,
   GRID_SIZE: 5,
+  // How long a player can take to choose the card for the jolly while the draws are paused
+  JOLLY_HOLD_MS: 30 * 1000,
+  // How many times a player can declare the jolly in one game: a bound on pausing the game
+  JOLLY_MAX_DECLARATIONS: 3,
 };

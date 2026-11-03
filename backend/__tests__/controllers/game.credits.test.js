@@ -12,7 +12,7 @@ import {
   leaveGame,
 } from '../../src/controllers/game.controller.js';
 import { finishGame } from '../../src/services/game.service.js';
-import { registerPlayer, buyCredits } from '../../src/services/player.service.js';
+import { registerPlayer, buyCredits, acceptRules } from '../../src/services/player.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 
 const room = { emit: () => {}, socketsJoin: () => {}, socketsLeave: () => {} };
@@ -50,7 +50,9 @@ describe('credit settlement', () => {
   beforeEach(() => {
     gameState = { games: {}, players: {} };
     anna = registerPlayer(gameState, 'Anna');
+    acceptRules(gameState, anna.id);
     carlo = registerPlayer(gameState, 'Carlo');
+    acceptRules(gameState, carlo.id);
     buyCredits(gameState, anna.id, 500);
     buyCredits(gameState, carlo.id, 300);
   });
@@ -107,6 +109,7 @@ describe('credit settlement', () => {
   test('a player who joins a game already started keeps their credits', async () => {
     const game = await newStartedGame();
     const late = registerPlayer(gameState, 'Late');
+    acceptRules(gameState, late.id);
     buyCredits(gameState, late.id, 200);
     await call(joinGame, gameState, { params: { gameId: game.id }, playerId: late.id });
     game.collezioniDistribuzione = { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 };

@@ -11,11 +11,20 @@ const usernameInput = (page) => page.getByLabel(/nome utente/i);
 const passwordInput = (page) => page.getByLabel(/password/i);
 const hallHeading = (page) => page.getByRole('heading', { name: /hall/i });
 
+/** The rules every new player reads: scroll to the end, declare, continue */
+async function confirmRules(page) {
+  await expect(page.getByRole('heading', { name: 'Prima di giocare: le regole' })).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('fine-regole').scrollIntoViewIfNeeded();
+  await page.getByLabel(/Ho letto e compreso le regole/).check();
+  await page.getByRole('button', { name: 'Confermo e continuo' }).click();
+}
+
 async function signUp(page, username = uniqueUsername('Ui')) {
   await page.getByRole('button', { name: /crea un account/i }).click();
   await usernameInput(page).fill(username);
   await passwordInput(page).fill(PASSWORD);
   await page.getByRole('button', { name: /registrati/i }).click();
+  await confirmRules(page);
   await expect(hallHeading(page)).toBeVisible({ timeout: 10000 });
   return username;
 }
@@ -93,7 +102,7 @@ test.describe('Homepage', () => {
   test('should log out and log back in as the same player @critical', async ({ page }) => {
     const username = await signUp(page);
 
-    await page.getByRole('button', { name: 'Esci', exact: true }).click();
+    await page.getByRole('button', { name: "Esci dall'account" }).click();
     await expect(usernameInput(page)).toBeVisible();
 
     await page.reload();

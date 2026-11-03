@@ -85,8 +85,29 @@ describe('BarraAzione', () => {
     test('asks about the chosen card by name instead of by coordinates', () => {
       render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
 
-      expect(screen.getByText(/Usare il Jolly per TRIS sulla carta Sei di Spade\?/)).toBeInTheDocument();
-      expect(screen.queryByText(/tocca una carta non coperta/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Per TRIS, il Jolly cambia Sei di Spade/)).toBeInTheDocument();
+      expect(screen.queryByText(/tocca una carta evidenziata/)).not.toBeInTheDocument();
+    });
+
+    test('says which card it becomes, so the rule is not a secret', () => {
+      render(
+        <BarraAzione
+          {...base}
+          jollyMode="tris"
+          jollyPending={pending}
+          jollyConversione={{ valore: 'Sei', seme: 'Denari' }}
+        />,
+      );
+
+      expect(
+        screen.getByText('Per TRIS, il Jolly cambia Sei di Spade in Sei di Denari. Usarlo?'),
+      ).toBeInTheDocument();
+    });
+
+    test('while choosing it says how many cards can be turned', () => {
+      render(<BarraAzione {...base} jollyMode="tris" jollyScelte={3} />);
+
+      expect(screen.getByText(/Jolly per TRIS: tocca una carta evidenziata \(3\)/)).toBeInTheDocument();
     });
 
     test('"Usa Jolly" confirms', () => {
@@ -147,7 +168,64 @@ describe('BarraAzione', () => {
     test('the question is announced to screen readers', () => {
       render(<BarraAzione {...base} jollyMode="tris" jollyPending={pending} />);
 
-      expect(screen.getByText(/Usare il Jolly per TRIS/)).toHaveAttribute('aria-live', 'polite');
+      expect(screen.getByText(/Per TRIS, il Jolly cambia/)).toHaveAttribute('aria-live', 'polite');
+    });
+  });
+
+  describe('while a player chooses the jolly card', () => {
+    const scadenza = Date.now() + 25_000;
+    const altro = { nome: 'Bruno', scadenza, mia: false };
+
+    test('the creator cannot draw and is told why', () => {
+      const onDraw = vi.fn();
+      render(<BarraAzione {...base} pausa={altro} onDraw={onDraw} />);
+
+      const bottone = screen.getByRole('button', { name: /Estrazione in pausa/ });
+      fireEvent.click(bottone);
+
+      expect(bottone).toBeDisabled();
+      expect(onDraw).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Bruno sta scegliendo il Jolly');
+    });
+
+    test('another player is told who is choosing, and still sees who draws', () => {
+      render(<BarraAzione {...base} isCreator={false} pausa={altro} />);
+
+      expect(screen.getByText(/Bruno sta scegliendo il Jolly/)).toBeInTheDocument();
+      expect(screen.getByText(/Estrae Anna/)).toBeInTheDocument();
+    });
+
+    test('the seconds left are shown, and are hidden from screen readers', () => {
+      render(<BarraAzione {...base} pausa={altro} />);
+
+      const secondi = screen.getByText(/^\d+ s$/);
+
+      expect(secondi).toHaveAttribute('aria-hidden', 'true');
+      expect(Number.parseInt(secondi.textContent, 10)).toBeGreaterThan(20);
+    });
+
+    test('the player who chooses sees the time to choose, and the draw waits for them too', () => {
+      render(
+        <BarraAzione
+          {...base}
+          jollyMode="tris"
+          jollyScelte={3}
+          pausa={{ nome: 'Anna', scadenza, mia: true }}
+        />,
+      );
+
+      expect(screen.getByText(/Le estrazioni sono ferme: hai ancora/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Estrazione in pausa/ })).toBeDisabled();
+      // The player is not told "who is choosing": it is the player
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    test('with no pause nothing about it is shown', () => {
+      render(<BarraAzione {...base} pausa={null} />);
+
+      expect(screen.queryByText(/sta scegliendo il Jolly/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Estrai Carta/ })).toBeEnabled();
     });
   });
 
@@ -156,7 +234,7 @@ describe('BarraAzione', () => {
       const onLeave = vi.fn();
       render(<BarraAzione {...base} status="finished" jollyMode="tris" onLeave={onLeave} />);
 
-      expect(screen.getByText(/PARTITA TERMINATA/)).toBeInTheDocument();
+      expect(screen.getByText(/Partita terminata/)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
       expect(screen.queryByText(/Jolly per/)).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Torna alla Hall/ }));

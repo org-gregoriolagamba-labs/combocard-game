@@ -11,10 +11,12 @@ import PropTypes from "prop-types";
 import { useToast } from "../../hooks";
 
 const STYLES = {
-  success: "bg-green-700 text-white",
-  error: "bg-red-700 text-white",
-  warning: "bg-yellow-500 text-black",
-  info: "bg-blue-700 text-white",
+  success: "border border-white/20 bg-bastoni text-inchiostro-900",
+  error: "border border-white/20 bg-coppe text-inchiostro-900",
+  warning: "border border-white/20 bg-oro text-inchiostro-900",
+  info: "border border-linea-forte bg-notte-700 text-testo",
+  // A win of the player: the only notice that is not a log line
+  win: "titolo border border-white/30 bg-oro text-inchiostro-900 shadow-alone",
 };
 
 function ToastItem({ toast, onRemove }) {
@@ -26,10 +28,10 @@ function ToastItem({ toast, onRemove }) {
   return (
     <div
       role={toast.type === "error" ? "alert" : "status"}
-      className={`px-4 py-3 rounded-lg shadow-lg max-w-xs animate-fade-in ${STYLES[toast.type] ?? STYLES.info}`}
+      className={`px-4 py-3 rounded-xl shadow-lg max-w-xs animate-estrai ${STYLES[toast.type] ?? STYLES.info}`}
       onClick={() => onRemove(toast.id)}
     >
-      <p className="text-sm font-medium [text-wrap:balance]">{toast.message}</p>
+      <p className={`[text-wrap:balance] ${toast.type === "win" ? "text-lg leading-snug" : "text-sm font-medium"}`}>{toast.message}</p>
     </div>
   );
 }

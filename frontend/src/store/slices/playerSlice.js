@@ -54,6 +54,17 @@ export const fetchPlayer = createAsyncThunk(
   }
 );
 
+export const acceptRules = createAsyncThunk(
+  "player/acceptRules",
+  async (playerId, { rejectWithValue }) => {
+    try {
+      return await playerService.acceptRules(playerId);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const buyCredits = createAsyncThunk(
   "player/buyCredits",
   async ({ playerId, amount }, { rejectWithValue }) => {
@@ -71,6 +82,8 @@ const initialState = {
   name: "",
   credits: 0,
   currentGameId: null,
+  // When the player confirmed that they read the rules; null until then (the game asks for it)
+  regoleAccettateIl: null,
   isLoading: false,
   error: null,
   // False until the first check for an existing session has finished
@@ -82,6 +95,7 @@ const applyPlayer = (state, player) => {
   state.name = player.name;
   state.credits = player.credits;
   state.currentGameId = player.currentGameId;
+  state.regoleAccettateIl = player.regoleAccettateIl ?? null;
 };
 
 const noSession = { ...initialState, sessionChecked: true };
@@ -154,8 +168,22 @@ const playerSlice = createSlice({
         state.name = action.payload.name;
         state.credits = action.payload.credits;
         state.currentGameId = action.payload.currentGameId;
+        state.regoleAccettateIl = action.payload.regoleAccettateIl ?? null;
       })
       .addCase(fetchPlayer.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+      // Rules confirmation
+      .addCase(acceptRules.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(acceptRules.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.regoleAccettateIl = action.payload.regoleAccettateIl;
+      })
+      .addCase(acceptRules.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })

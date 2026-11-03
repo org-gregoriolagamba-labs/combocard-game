@@ -12,6 +12,7 @@ import {
   createGameSchema,
   claimCollectionSchema,
   useJollySchema,
+  startJollySchema,
 } from "../validation/schemas.js";
 
 const router = Router();
@@ -74,6 +75,20 @@ router.post("/:gameId/claim", validate(claimCollectionSchema), gameController.cl
  * @access  Authenticated
  */
 router.post("/:gameId/jolly", validate(useJollySchema), gameController.useJolly);
+
+/**
+ * @route   POST /api/games/:gameId/jolly/start
+ * @desc    Declare the jolly for a collection: draws are paused while the player chooses the card
+ * @access  Authenticated
+ */
+router.post("/:gameId/jolly/start", validate(startJollySchema), gameController.startJollyChoice);
+
+/**
+ * @route   POST /api/games/:gameId/jolly/cancel
+ * @desc    Give the jolly choice up: draws can go on
+ * @access  Authenticated
+ */
+router.post("/:gameId/jolly/cancel", gameController.cancelJollyChoice);
 
 /**
  * @route   POST /api/games/:gameId/leave

@@ -85,6 +85,27 @@ export const useJolly = async (gameId, { row, col, tipo }) => {
 };
 
 /**
+ * Declare the jolly for a collection: the draws are paused while the player chooses the card
+ * @param {string} gameId - Game ID
+ * @param {string} tipo - Collection the jolly is meant for
+ * @returns {Promise} The pause that has started, with the time it runs out
+ */
+export const startJollyChoice = async (gameId, tipo) => {
+  const response = await api.post(`/games/${gameId}/jolly/start`, { tipo });
+  return response.data;
+};
+
+/**
+ * Give the jolly choice up: the draws can go on
+ * @param {string} gameId - Game ID
+ * @returns {Promise} Result
+ */
+export const cancelJollyChoice = async (gameId) => {
+  const response = await api.post(`/games/${gameId}/jolly/cancel`);
+  return response.data;
+};
+
+/**
  * Leave a game
  * @param {string} gameId - Game ID
  * @returns {Promise} Leave result

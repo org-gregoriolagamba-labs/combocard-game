@@ -8,6 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess } from "../utils/response.utils.js";
 import { AppError } from "../utils/AppError.js";
 import * as playerService from "../services/player.service.js";
+import { applyRulesConfirmation } from "./game.controller.js";
 
 const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
 
@@ -18,6 +19,30 @@ const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
 export const getPlayer = asyncHandler(async (req, res) => {
   const player = playerService.getPlayer(req.gameState, req.params.playerId);
   sendSuccess(res, player);
+});
+
+/**
+ * Confirm that the player read and understood the rules
+ * POST /api/players/:playerId/accept-rules
+ */
+export const acceptRules = asyncHandler(async (req, res) => {
+  const player = playerService.getPlayer(req.gameState, req.params.playerId);
+
+  if (!player.regoleAccettateIl) {
+    playerService.acceptRules(req.gameState, player.id);
+
+    try {
+      await req.store.recordRulesAccepted(player.id, player.regoleAccettateIl);
+    } catch (err) {
+      console.error(`❌ Could not save the rules confirmation of player ${player.id}: ${err.message}`);
+      player.regoleAccettateIl = null;
+      throw new AppError(STORAGE_UNAVAILABLE, 503);
+    }
+
+    applyRulesConfirmation(req.gameState, req.io, req.store, player);
+  }
+
+  sendSuccess(res, { success: true, regoleAccettateIl: player.regoleAccettateIl });
 });
 
 /**
