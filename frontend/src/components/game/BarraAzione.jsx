@@ -92,7 +92,7 @@ function BarraAzione({
                 <button
                   type="button"
                   onClick={onChangeJollyCard}
-                  className="min-h-[44px] flex-1 rounded-lg border-2 border-linea-forte bg-notte-700 px-3 text-sm font-bold text-testo transition hover:bg-white"
+                  className="min-h-[44px] flex-1 rounded-lg border-2 border-linea-forte bg-notte-700 px-3 text-sm font-bold text-testo transition hover:bg-notte-600"
                 >
                   Cambia carta
                 </button>
@@ -108,7 +108,7 @@ function BarraAzione({
                 type="button"
                 autoFocus
                 onClick={onCancelJolly}
-                className="min-h-[44px] shrink-0 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 text-sm font-bold text-testo transition hover:bg-white"
+                className="min-h-[44px] shrink-0 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 text-sm font-bold text-testo transition hover:bg-notte-600"
               >
                 Annulla
               </button>

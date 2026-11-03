@@ -21,8 +21,8 @@ function Button({
   const variantClasses = {
     primary: "bg-oro text-inchiostro-900 hover:bg-oro-dark",
     secondary: "border border-linea-forte bg-notte-700 text-testo hover:bg-notte-600",
-    danger: "bg-coppe text-white hover:bg-oro-dark",
-    outline: "border-2 border-linea-forte bg-notte-700 text-testo hover:bg-white",
+    danger: "bg-coppe text-inchiostro-900 hover:bg-errore-dark",
+    outline: "border-2 border-linea-forte bg-notte-700 text-testo hover:bg-notte-600",
   };
   
   const sizeClasses = {

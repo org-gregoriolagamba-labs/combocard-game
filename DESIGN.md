@@ -1,120 +1,115 @@
 ---
 name: ComboCard
-description: A tombola sheet on a cobalt table. Italian multiplayer card game, phone-first, where every player reads a printed sheet of 40 places and watches beans cover the drawn cards.
+description: A calm dark table where the 1875 cards are the only light, and the table takes the colour of the last suit drawn.
 colors:
-  notte-950: "#0b1236"
-  notte-900: "#101a4a"
-  notte-800: "#16236a"
-  notte-700: "#233792"
-  notte-300: "#aeb9ee"
-  cartone-50: "#fffaf0"
-  cartone-100: "#f0dd9c"
-  cartone-200: "#e4c96a"
-  cartone-300: "#d3b04a"
-  cartone-400: "#b8912c"
-  inchiostro-900: "#2a1a0f"
-  inchiostro-700: "#4d3522"
-  inchiostro-500: "#7a5b3f"
-  denari: "#8f6200"
-  denari-soft: "#f5d98a"
-  coppe: "#b92d1b"
-  coppe-soft: "#f3b9ad"
-  spade: "#1f3a99"
-  spade-soft: "#b9c5f2"
-  bastoni: "#236a3a"
-  bastoni-soft: "#b5dcc0"
-  fagiolo: "#b92d1b"
-  fagiolo-dark: "#8f1f12"
-  ocra: "#f2b632"
-  ocra-dark: "#c98f0c"
+  notte-950: "#070b1f"
+  notte-900: "#0b1130"
+  notte-800: "#0f1737"
+  notte-700: "#18224d"
+  notte-600: "#232f66"
+  linea: "#2a356b"
+  linea-forte: "#4a5aa6"
+  testo: "#f4f1ea"
+  testo-2: "#b7bfdc"
+  testo-3: "#8b94bb"
+  carta: "#f7f1e1"
+  carta-2: "#e9dfc4"
+  oro: "#ffcf4a"
+  oro-dark: "#e6b52e"
+  inchiostro: "#1a1208"
+  denari: "#ffcf4a"
+  coppe: "#ff6a55"
+  spade: "#6f97ff"
+  bastoni: "#3ddc97"
+  errore-dark: "#e0503c"
 typography:
-  title:
-    fontFamily: "Alfa Slab One, Rockwell, Georgia, serif"
+  titolo:
+    fontFamily: "Bricolage Grotesque Variable, system-ui, sans-serif"
     fontSize: "1.25rem"
-    fontWeight: 400
-    letterSpacing: "0.01em"
-  title-large:
-    fontFamily: "Alfa Slab One, Rockwell, Georgia, serif"
-    fontSize: "1.125rem"
-    fontWeight: 400
-    lineHeight: 1.375
+    fontWeight: 800
+    lineHeight: 1.25
+    letterSpacing: "-0.01em"
+  numeri:
+    fontFamily: "Bricolage Grotesque Variable, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 800
+    lineHeight: 1.25
+    letterSpacing: "-0.01em"
   body:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 400
-  body-small:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
     fontSize: "0.875rem"
-    fontWeight: 700
-  sheet-label:
+    fontWeight: 400
+    lineHeight: 1.625
+  label:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
     fontSize: "13px"
     fontWeight: 700
-  badge:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
-    fontSize: "11px"
-    fontWeight: 700
+    lineHeight: 1.25
 rounded:
-  sm: "4px"
-  md: "6px"
-  lg: "8px"
-  xl: "12px"
-  foglio: "14px"
+  tab: "4px"
+  tile: "8px"
+  button: "12px"
+  surface: "20px"
+  seal: "9999px"
 spacing:
-  xs: "2px"
+  grid-gap: "3px"
   sm: "8px"
   md: "12px"
   lg: "16px"
-  touch: "44px"
+  target: "44px"
   action: "52px"
 components:
   button-primary:
-    backgroundColor: "{colors.fagiolo}"
-    textColor: "#ffffff"
-    rounded: "{rounded.xl}"
+    backgroundColor: "{colors.oro}"
+    textColor: "{colors.inchiostro}"
+    rounded: "{rounded.button}"
     padding: "8px 16px"
     height: "44px"
   button-primary-hover:
-    backgroundColor: "{colors.fagiolo-dark}"
+    backgroundColor: "{colors.oro-dark}"
+  button-action:
+    backgroundColor: "{colors.oro}"
+    textColor: "{colors.inchiostro}"
+    rounded: "{rounded.button}"
+    height: "52px"
   button-secondary:
-    backgroundColor: "{colors.ocra}"
-    textColor: "{colors.inchiostro-900}"
-    rounded: "{rounded.xl}"
+    backgroundColor: "{colors.notte-700}"
+    textColor: "{colors.testo}"
+    rounded: "{rounded.button}"
     padding: "8px 16px"
     height: "44px"
   button-secondary-hover:
-    backgroundColor: "{colors.ocra-dark}"
+    backgroundColor: "{colors.notte-600}"
   button-outline:
-    backgroundColor: "{colors.cartone-50}"
-    textColor: "{colors.inchiostro-900}"
-    rounded: "{rounded.xl}"
-    padding: "8px 16px"
+    backgroundColor: "{colors.notte-700}"
+    textColor: "{colors.testo}"
+    rounded: "{rounded.button}"
     height: "44px"
-  button-disabled:
-    backgroundColor: "{colors.inchiostro-500}"
-    textColor: "{colors.cartone-50}"
-  action-bar-button:
-    backgroundColor: "{colors.fagiolo}"
-    textColor: "#ffffff"
-    rounded: "{rounded.xl}"
-    height: "52px"
+  surface:
+    backgroundColor: "{colors.notte-800}"
+    rounded: "{rounded.surface}"
   input:
-    backgroundColor: "{colors.cartone-50}"
-    textColor: "{colors.inchiostro-900}"
-    rounded: "{rounded.xl}"
+    backgroundColor: "{colors.notte-950}"
+    textColor: "{colors.testo}"
+    rounded: "{rounded.button}"
     padding: "12px 16px"
-  sheet:
-    backgroundColor: "{colors.cartone-100}"
-    textColor: "{colors.inchiostro-900}"
-    rounded: "{rounded.foglio}"
-  sheet-cell:
-    backgroundColor: "{colors.cartone-50}"
-    rounded: "{rounded.md}"
+  card-tile:
+    backgroundColor: "{colors.carta}"
+    rounded: "{rounded.tile}"
     height: "44px"
+  progress-tab:
+    backgroundColor: "{colors.notte-600}"
+    textColor: "{colors.testo}"
+    rounded: "{rounded.tab}"
+  progress-tab-complete:
+    backgroundColor: "{colors.oro}"
+    textColor: "{colors.inchiostro}"
+  header:
+    backgroundColor: "{colors.notte-800}"
   toast-win:
-    backgroundColor: "{colors.ocra}"
-    textColor: "{colors.inchiostro-900}"
-    rounded: "{rounded.xl}"
+    backgroundColor: "{colors.oro}"
+    textColor: "{colors.inchiostro}"
+    rounded: "{rounded.button}"
     padding: "12px 16px"
 ---
 
@@ -122,159 +117,171 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Tombola Sheet"**
+**Creative North Star: "The Cards Are the Light"**
 
-The screen is a cobalt-night table. On it lies a sheet of straw card stock printed in one brown ink with a thick outer rule and a fine inner rule. The player's sheet is a table: ten rows of values (Asso to Re) by four suit columns, 40 places. The player's 25 cards are printed in place; the other 15 stay empty with a dashed outline. A drawn card is covered by a vermilion bean. Collections read as shapes on the sheet: a tris is a row, a sequenza is neighbouring rows, a scopa is a column, a combocard reale is neighbouring rows in one column.
+ComboCard is a dark, calm table. The page ground is almost black blue, the surfaces on it are solid night blue, and the only light objects are the ivory cards of the 1875 deck. Everything else is quiet so that a drawn card, a sealed place, or a won collection is the brightest thing on screen. It is phone-first (390x844 is the reference) and built to be operated: a sticky header, the whole 4x10 sheet in view, a fixed action bar under the thumb.
 
-The voice is a printed poster: Alfa Slab One titles over system sans text, tabular figures, thick ink outlines, no emoji, no gradients. Each of the four suits has its own ink from the 1875 deck (cobalt, vermilion, ochre, green). Credits are play money drawn as a lentil, so they are never mistaken for the Denari suit.
+The table is alive in one way. A soft radial glow at the top of the page takes the colour of the suit of the last drawn card (`--tinta`, a registered CSS `@property`, so it cross-fades over 900 ms between suits). The draw itself is a scene: the card flips over in the middle of the screen in a halo of its suit ink, then flies up into the header. The sheet keeps the layout of a tombola card (values down the rows, suits across the columns); the look is modern and luminous, the card art is vintage on purpose.
 
-Key Characteristics:
-- Cobalt table (`#101a4a`), straw sheet (`#f0dd9c`), brown-black ink (`#2a1a0f`); no pure black or white surfaces besides ivory cells (`#fffaf0`).
-- Every surface that holds content is a `.foglio` sheet or an ivory cell with an ink border.
-- One action at a time, in the fixed bottom bar on a phone.
-- Icons are single-stroke drawn SVGs (lucide line icons, the bean, the lentil, the suit marks); no emoji.
+The world rejects the retired look: straw paper, double rules, poster slabs, cream and orange. It also has no blur or glass; depth comes from solid layers, a hairline and a light on the top edge.
+
+**Key Characteristics:**
+- Dark table (`notte-950` to `notte-600`), solid surfaces, no backdrop blur.
+- Ivory card tiles are the only light objects.
+- Four luminous suit inks carry meaning; gold carries action and reward.
+- Titles and numbers in Bricolage Grotesque 800; text in the system sans.
+- Drawn icons (lucide line icons, the lentil credit token, suit art); no emoji.
+- Motion is staged for the draw and the win, and is removed under reduced motion.
 
 ## Colors
 
-A cobalt night, warm card stock and ink, and four suit inks. Vermilion is both the bean and the primary action; ochre is the secondary action and the win.
+A night-blue ground with warm-white text, one gold voice for action, and four suit inks that are never used decoratively.
 
 ### Primary
-- **Vermilion Bean** (`fagiolo` #b92d1b, dark #8f1f12): the bean on covered cards, the primary button, the draw action, "complete" badges (3/3, 5/5), progress segments. Bean outline stroke is `#7c1a0e` (drawn in the SVG only).
+- **Oro / Gold** (`oro`, #ffcf4a; hover `oro-dark` #e6b52e): the main action ("Estrai Carta", "Torna alla Hall"), the completed progress tabs, the focus ring, the win toast, the jolly banner, the lit winning cells, the text selection. Always carries dark text (`inchiostro`, #1a1208).
 
-### Secondary
-- **Ochre Action** (`ocra` #f2b632, dark #c98f0c): secondary buttons (Jolly), the Jolly confirmation panel, the win toast, the lentil credit fill, the focus ring on the table, highlighted and selectable cells.
-
-### Tertiary: the four suit inks
-- **Denari Ochre** (#8f6200, soft #f5d98a), **Coppe Vermilion** (#b92d1b, soft #f3b9ad), **Spade Cobalt** (#1f3a99, soft #b9c5f2), **Bastoni Green** (#236a3a, soft #b5dcc0). Used for the column headers (soft fill, ink text), the prizes and the collection strokes. Success toasts use Bastoni green; error uses Coppe.
+### Secondary (the four suits)
+- **Denari gold** (#ffcf4a), **Coppe coral** (#ff6a55), **Spade electric blue** (#6f97ff), **Bastoni emerald** (#3ddc97). Each has a soft tint at 16-18% alpha for column heads. They colour: the suit name in the column head, the seal on a covered card, the reveal halo, and the table glow (glow alphas 0.22 / 0.24 / 0.26 / 0.20). Coral doubles as the error colour.
 
 ### Neutral
-- **Table**: Notte 950 #0b1236 (backdrop), 900 #101a4a (page ground), 800 #16236a (scrollbar track), 700 #233792 (info toast), 300 #aeb9ee (light text on the table).
-- **Straw stock**: Cartone 50 #fffaf0 (ivory cells, inputs), 100 #f0dd9c (sheet, bars), 200 #e4c96a (row number discs, status pill), 300 #d3b04a, 400 #b8912c (dashed empty-place outline at 70%).
-- **Ink**: Inchiostro 900 #2a1a0f (text, all outlines), 700 #4d3522 (secondary text, disabled draw button), 500 #7a5b3f (placeholders, disabled fill).
+- **Notte 950** (#070b1f): page ground, input fill, backdrop at 50-70% alpha.
+- **Notte 900** (#0b1130): scrollbar track.
+- **Notte 800** (#0f1737): surfaces, header (at 95%), action bar, dialogs.
+- **Notte 700** (#18224d): secondary buttons, row-number discs, the first-game guide, the waiting state.
+- **Notte 600** (#232f66): hover of secondary, incomplete progress tabs, disabled buttons.
+- **Linea** (#2a356b) hairline; **Linea forte** (#4a5aa6) stronger border and scrollbar thumb.
+- **Testo** (#f4f1ea) warm white; **Testo 2** (#b7bfdc) and **Testo 3** (#8b94bb) the two muted levels (3 is for placeholders and disabled text).
+- **Carta** (#f7f1e1) and **Carta 2** (#e9dfc4): card tiles.
 
 ### Named Rules
-**The One Ink Rule.** Text and outlines on straw are ink-brown, never black. Colour carries only suits, the bean and the action.
-**The Bean Is Vermilion Rule.** Vermilion marks "covered" and "primary action" and nothing decorative.
-**The Suit Ink Rule.** A suit colour appears only where a suit is named (header, prize, stroke). It never colours a generic state.
+**The Cards Are the Light Rule.** Ivory is reserved for cards and card tiles. No panel, button or badge is ivory or white at rest.
+
+**The One Gold Rule.** Gold means "act here" or "you earned this". One gold action per screen state; suit inks never stand in for it.
+
+**The Suit Ink Rule.** A suit colour appears only where its suit is meant: head, seal, halo, glow. Never as a status colour (coral as error is the one shared case, and the credit token is a lentil, not a Denari coin, so gold-for-money never reads as the suit).
 
 ## Typography
 
-**Display Font:** Alfa Slab One (with Rockwell, Georgia, serif), hosted in the project, class `.titolo`, `text-wrap: balance`.
-**Body Font:** the system sans (system-ui, Segoe UI, Roboto, Arial), tabular figures set on `body`.
+**Display Font:** Bricolage Grotesque Variable (self-hosted via `@fontsource-variable/bricolage-grotesque`, fallback system-ui)
+**Body Font:** system sans (system-ui, Segoe UI, Roboto, Helvetica Neue, Arial)
 
-**Character:** a poster slab for names and numbers that matter, a quiet system sans for everything read in sentences.
+**Character:** Bricolage is warm and slightly idiosyncratic and speaks for titles and every number that matters (pot, credits, row numbers, card value). The system sans does the reading. Tabular numerals are on for the whole body.
 
 ### Hierarchy
-- **Title** (400, 1.25rem): dialog titles, panel headings ("La tua cartella", "Collezioni", "Giocatori").
-- **Title large** (400, 1.125rem, 1.375): the win toast; "Partita terminata".
-- **Counter** (Alfa, 1rem): prize pool and credits in the header, with the lentil.
-- **Body** (400, 1rem): page text and input text.
-- **Body small** (700, 0.875rem): buttons in the Jolly panel, toast lines, field labels, collection descriptions.
-- **Sheet label** (700, 13px): row names, suit names in column headers, and the sheet legend ("Posto vuoto: carta che non hai. Puntino: carta già uscita.").
-- **Badge** (700, 11px): row (n/3) and column (n/5) progress tabs; the 10px "JOLLY"/"USATO" tag on a cell.
+- **Title** (800, `.titolo`, 20-24 px, 1.25, -0.01em, balanced wrap): dialog titles, screen headings, "Partita terminata".
+- **Figure** (800, 16 px, 1.25): pot and credits in the header, row-number discs (12 px).
+- **Subtitle** (800, 16-18 px): "Come si gioca", rule section headings.
+- **Body** (400, 14 px, 1.625, pretty wrap): rules text, guide lines, hints; muted `testo-2`.
+- **Label** (700, 13 px): column heads, row value names, header caption; 12 px for header terms ("Montepremi", "I tuoi crediti").
+- **Tab** (700, 11 px): progress tabs `n/3` and `n/5`; the jolly tag is 10 px.
 
 ### Named Rules
-**The Slab For Names Rule.** Alfa Slab One is for titles, the credits and the win line; running text never uses it.
+**The Two Voices Rule.** Bricolage only for titles and numbers; running text and controls stay in the system sans.
 
 ## Layout
 
-Phone-first (390x844 reference). A sticky header on top (last drawn card as a 52 px miniature with its name, "N carte rimaste", Montepremi and "I tuoi crediti" counters, the exit button). Below, the sheet at full width, then Collezioni, then Giocatori (a disclosure) and "Come si gioca". The one action sits in a fixed bottom bar (`bg #f0dd9c`, 4 px ink top border, 52 px button, content max 28rem) with the page padded 8rem at the bottom so nothing hides behind it. From the `lg` breakpoint (1024 px) the bar disappears: the sheet is sticky in a 26rem left column, the action moves into the sheet panel, collections and players fill the right column (max width 80rem, padding 1.5rem).
+Phone: one column, 12 px page padding, `max-w-7xl` container. A sticky header (52 px card miniature, last card name, cards left, pot, credits, exit) sits above the sheet; the sheet fills a single `.superficie` with 10 px padding; a fixed bottom bar (`max-w-md`, `notte-800`, top hairline) holds the main action and the jolly banner. The page keeps 8 rem of bottom padding for it.
 
-The sheet grid: a 4 column table with a 5.6rem row-label column, cells 44 px tall, 2 px border-spacing. Page padding 12 px, gaps 16 px. Spacing in use is Tailwind's 4 px steps (2, 6, 8, 12, 16, 24).
+Desktop (`lg`): two columns (26 rem sheet, fluid rest); the sheet is sticky at the top, the action moves into a panel under it and the bar is hidden.
+
+The sheet is a real table: a 5.6 rem row-head column plus four equal suit columns, 3 px cell gaps, 44 px rows. Spacing is Tailwind's 4 px steps (8, 12, 16 common); the grid gap and 44/52 px targets are the fixed rhythm.
 
 ## Elevation & Depth
 
-Depth is printed, not blurred: a card sheet lying on a table. Surfaces are flat with ink outlines; only the sheet and the fixed bars lift.
+Tonal layering with one soft shadow vocabulary; no blur anywhere.
 
-### Shadow Vocabulary
-- **Foglio double rule** (`.foglio`: 3 px solid #2a1a0f border, 14 px radius, `box-shadow: inset 0 0 0 4px #f0dd9c, inset 0 0 0 5px #2a1a0f, 0 14px 28px -12px rgba(5,8,30,0.7)`): the thick outer rule, a straw gap, a fine inner rule, then a soft table shadow. Used for the sheet, panels and dialogs.
-- **Pulsante** (`0 3px 0 rgba(42,26,15,0.9)`): defined, a hard ink edge for press buttons; the shipped Button uses `shadow-md`.
-- **Bottom bar** (`0 -6px 16px rgba(5,8,30,0.45)`) and header (`shadow-lg`) over the scrolling content.
-- **Win toast** reuses the foglio shadow token.
+- **Surface** (`0 18px 40px -18px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`): panels and dialogs: depth plus a light on the top edge.
+- **Card** (`0 10px 24px -8px rgba(0,0,0,0.7)`): ivory tiles lift off the table.
+- **Halo** (`0 0 0 1px rgba(255,255,255,0.08), 0 8px 30px -6px var(--alone, rgba(255,207,74,0.45))`): the win toast; the reveal uses `0 0 80px 10px` in the suit ink; seals glow with `0 0 14px` in their ink.
+- Header uses `shadow-lg`; the action bar a `0 -6px 16px` upward shadow.
 
-### Named Rules
-**The Double Rule Rule.** Anything that is a sheet carries the thick-plus-fine ink rule; nothing else does.
+**The Solid Surface Rule.** Surfaces are opaque. Glow belongs to the table ground, the seal, the reveal and the win; never to ordinary panels.
 
 ## Shapes
 
-Soft but inked: sheet 14 px, buttons/inputs/toasts 12 px (`rounded-xl`), Jolly buttons and the panel inner buttons 8 px, sheet cells and headers 6 px, tabs and badges 2 to 4 px, bean and lentil are organic ovals. Every control on straw has a 2 px ink border (3 px on the sheet). Empty places are dashed 2 px `cartone-400`. The drawn card miniature is a 3 px-radius 1 px ink-bordered image of the 1875 card.
+Soft but not bubbly: surfaces 20 px, buttons and inputs 12 px, card tiles 8 px, progress tabs 4 px, the header card miniature 3 px, seals and row discs fully round. Empty places on the sheet are dashed outlines (`linea`), the language of "a place still to fill". Hairlines are 1 px `linea` or `linea-forte`; secondary buttons and the guide use 1-2 px `linea-forte`.
 
 ## Components
 
 ### Buttons
-- **Shape:** 12 px radius, min height 44 px, bold, `shadow-md`.
-- **Primary:** vermilion `#b92d1b`, white text; hover `#8f1f12`. The draw action ("Estrai Carta") is a 52 px full-width version with a dice icon; during the cooldown it shows "Attendi Ns", a black 25% fill draining over 8 s, and a clock icon.
-- **Secondary:** ochre `#f2b632` fill, ink text, 2 px ink border; hover `#c98f0c`. On the straw sheet it relies on its ink outline to separate from the stock (ochre against straw is low contrast by itself).
-- **Outline:** ivory `#fffaf0` fill, 2 px ink border; hover white.
-- **Danger:** Coppe red, white text.
-- **Disabled:** `#7a5b3f` fill, `#fffaf0` text, no border. A disabled Jolly is a dashed outline.
-- **Focus:** see Accessibility below.
+- **Primary:** gold fill, `inchiostro` text, 800-weight-bold label, 12 px radius, min 44 px, shadow-md; hover `oro-dark`. The main action bar button is 52 px and full width, with a cooldown fill (black 25%, linear 1 s) and an "Attendi Ns" label.
+- **Secondary:** `notte-700` fill, `linea-forte` hairline, `testo`; hover `notte-600`.
+- **Outline (gold in the brief, as built):** `notte-700` fill with 2 px `linea-forte` border; the gold ring appears on focus. Hover is `bg-white`, see limits.
+- **Danger:** coral fill, white text.
+- **Disabled:** `notte-600` fill, `testo-3` text, no border.
 
-### Inputs / Fields
-Ivory fill, 2 px ink border, 12 px radius, 16x12 padding, ink-500 placeholder. Label above (14 px bold), required star in Coppe. Focus: 2 px Spade ring. Error: Coppe border and a bold 14 px message with `role="alert"`; hints are 12 px ink-700.
-
-### Dialogs
-A `.foglio` panel (max 28rem, 24 px padding, max height 90dvh) over a `#0b1236` 70% backdrop. Alfa title, a 44x44 "Chiudi" button with a × glyph. Role dialog, modal, labelled by the title; focus moves in and is trapped, Esc or a tap outside closes, focus returns to the opener.
-
-### Toasts
-A polite live region (`Notifiche`) over the action bar (bottom 10rem on a phone, bottom right on desktop), max 20rem, 12 px radius, entering with the "estrai" animation, tap to dismiss, 3 s default.
-- **success** Bastoni green, white text (another player's win: "<name> ha vinto SCOPA: 40 crediti", 4 s).
-- **error** Coppe red, white text, `role="alert"`.
-- **warning** ochre, ink text, ink border.
-- **info** Notte 700, white text.
-- **win** (first person): ochre, Alfa Slab 18 px, ink border, foglio shadow, 6 s: "Hai vinto SCOPA: +40 crediti" or "Hai vinto … insieme ad altri: +N crediti". The only notice that is not a log line.
-
-### The Sheet (signature component)
-A `<table>` with a screen-reader caption, column headers and row headers (`scope`). Header row: the four suits, each in its soft suit fill with an ink border, suit mark (24 px) and the suit name in suit ink (13 px). Row headers: an Alfa number disc (1 to 10, `#e4c96a`, ink border) and the value name. Cells: an ivory 44 px button with a 32 px suit mark, named "Re di Bastoni" or "..., coperta". Places not in the player's sheet are dashed empties; a place whose card has been drawn but which the player lacks shows a small dot. The legend beneath explains both.
-- **Beans:** a 30x22 vermilion SVG bean at the bottom right of a covered cell, tilted from a fixed set (-12, 6, -3, 12, 3 degrees). It drops in with the "fagiolo-giu" animation only when newly covered; beans present on first render do not fall.
-- **Progress tabs:** a row shows "n/3" from 2 covered (ink tab, vermilion at 3); a column shows "n/5" at its top right from 3 covered (ink, vermilion at 5). These are the only progress marks on the sheet: tris and scopa. Sequenza and combocard reale progress is shown only in the collection list, not on the sheet.
-- **Jolly selection:** selectable cells get an ochre ring; a selected one a 4 px ink ring and scale 1.10; others fade to 40%. A destination place turns ochre with a sparkle icon; a "JOLLY"/"USATO" tag sits at the cell's top left.
+### The Sheet (Cartella)
+The signature object. Header row: suit art plus suit name in its ink on a soft tint, 13 px. Each row: a numbered disc (1-10), the value name, and a progress tab. Each cell is an ivory tile with the suit art (`h-8 w-8`); the 15 places not held are dashed empties (drawn-but-not-held shows a small dot). When a held card is drawn a **seal** closes it: the tile dims under `notte-950` at 50% and a 24 px round badge in the suit ink with a check sits bottom-right, with a one-time spreading ring (`onda`) and pop (`sigillo`) the first time only. **Progress tabs:** `n/3` on a row from 2 covered, `n/5` on a column from 3 covered; `notte-600` while open, gold with dark text when complete. Only tris and scopa are shown as progress. Jolly choice: eligible tiles get a 2 px gold ring, the picked one a white ring; the rest drop to 35% opacity. Winning cells are lit with a 4 px gold ring and gold glow. The jolly tile wears a "JOLLY" or "USATO" gold tag.
 
 ### Collection figures
-Each collection (Sequenza, Scopa, Napola, Combocard Reale) is a list row: a small dotted grid figure showing its shape on the 4x10 sheet (ink squares; vermilion squares for the combocard reale), the name in bold caps with "Premio N" in the suit ink weight, a one-line rule in Italian, a progress bar of vermilion segments with "3/4 · ne manca 1", the winner line in green ("Vinta da Anna"), and a Jolly action (ochre, or dashed when unavailable).
+Tiny SVG maps (4 columns x 6 rows of 7 px squares): filled places ivory (gold for combocard reale), empty ones dashed `testo-3`. Each has `role="img"` and an Italian label.
 
-### Credits and the last card
-The lentil (`Credito`): a tilted ochre oval with an ink outline and a seam stroke, 16 px by default. It sits next to Montepremi and I tuoi crediti. The counter pops (`conta`) when the value changes. The last card is a 52 px miniature of the 1875 card with a "Re / di Bastoni" caption.
+### Header
+Sticky, `notte-800` at 95%, bottom hairline. Last-card miniature (enters with `estrai`), value in Bricolage over "di Seme", "N carte rimaste", a definition list of "Montepremi" and "I tuoi crediti" each with the **lentil token** (a gold oval on a dark outline, deliberately not a round coin), and a 44 px exit button. Credits count down or up with the `conta` pop.
 
-## Motion
+### Action bar
+Fixed bottom on phones, `notte-800` with top hairline and upward shadow. The creator sees the gold "Estrai Carta"; others see a bordered status "Estrae {name}". The jolly flow adds a gold banner above with two 44 px buttons ("Usa Jolly" dark, "Cambia carta"/"Annulla" outline).
 
-All motion eases with `cubic-bezier(0.22, 1, 0.36, 1)`.
-- **Bean drop** `fagiolo-giu` 380 ms: from 10 px above, scale 1.25, to rest.
-- **Last-card entrance** `estrai` 420 ms: from 12 px above and -6 degrees; also used by toasts.
-- **Counter pop** `conta` 500 ms: scale 1.35 to 1.
-- Cell transitions and the cooldown fill use `transition`, with `motion-reduce:transition-none` on cells.
-- `prefers-reduced-motion: reduce` forces every animation and transition to 0.01 ms, one iteration, auto scroll.
+### Dialogs
+`.superficie` card, `max-w-md`, 24 px padding, on a `notte-950` 70% backdrop. Title in `.titolo`, 44 px close button, Esc and outside tap close, focus is trapped and returned.
 
-## Accessibility
+### Inputs
+`notte-950` fill, `linea-forte` border, 12 px radius, `testo` text, `testo-3` placeholder; focus is a 2 px gold ring; error switches the border to coral and shows a bold coral `role="alert"` message; hint in `testo-2`. Labels are bold 14 px.
 
-- Touch targets: every interactive control is at least 44 px (sheet cells 44 px tall, buttons 44 px, the action bar button 52 px, dialog close 44x44).
-- Table semantics on the sheet (caption, `th scope="col"` and `scope="row"`), each card named "Valore di Seme[, coperta]"; progress tabs are `aria-hidden` and the same state is in the collection list.
-- Focus ring: 3 px solid ochre `#f2b632`, offset 2 px, with a 5 px `#101a4a` halo, on the table. Inside a `.foglio` it becomes 3 px Spade `#1f3a99` with a 5 px `#f0dd9c` halo.
-- Live regions: toast region is polite, errors are alerts; Jolly prompts are polite. Esc steps back out of Jolly mode and dialogs.
-- Selection highlight is ochre with ink text; checkbox accent is vermilion.
+### Toasts
+Region always present, polite live. **Success** emerald, **error** coral (both with dark text), **warning** gold, **info** `notte-700` with hairline, **win** gold with the Bricolage voice, 18 px, first person, halo shadow. Tap dismisses; default 3 s. Enter with `estrai`.
 
-### Known limits
-- Only tris (rows) and scopa (columns) are marked on the sheet as progress; sequenza and combocard reale are not.
-- The sheet legend and row/suit labels are 13 px, the progress tabs 11 px and the Jolly tag 10 px: small for a phone.
-- The lobby code is set in Alfa Slab One, where a lowercase "l" and the digit "1" can be confused.
-- The ochre actions (secondary buttons, Jolly) rely on their ink outlines to separate from the straw sheet; ochre against straw alone is low contrast.
-- The `pulsante` shadow token is defined but the shipped buttons use `shadow-md`.
+### Draw reveal (RivelazioneCarta)
+Fixed full-screen scene, `pointer-events: none`, `aria-hidden`. A `notte-950` 60% veil, then the card (46 vh, max 420 px) flips in (`rotateY`), holds, and flies up to the header while fading, in a halo of its suit ink. 1700 ms. Not shown for the card already drawn when the screen opened, and not shown at all under reduced motion.
+
+### Confetti
+28 rectangles in the five palette colours (four inks plus warm white) burst from 38% height; deterministic positions, 1400 ms, `pointer-events: none`, hidden under reduced motion.
+
+### First-game guide and rules
+The guide strip ("Come si gioca") is a `notte-700` panel with a 2 px hairline, three numbered lines, and a 44 px "Ho capito"; remembered per device. The full rules ("Come si gioca" section, `RegoleGioco`) are body text on the surface, headed by Bricolage subtitles, with the figure maps beside each collection.
+
+### Motion
+| Name | Duration | Use |
+| --- | --- | --- |
+| `rivela` / `velo` | 1700 ms | draw reveal card and veil |
+| `sigillo` | 420 ms, cubic-bezier(0.22,1,0.36,1) | seal pop |
+| `onda` | 700 ms ease-out | seal ring |
+| `estrai` | 420 ms | header card, toasts |
+| `conta` | 500 ms | credits change |
+| `coriandolo` | 1400 ms | confetti |
+| `--tinta` | 900 ms ease | table glow cross-fade |
+| cooldown fill | 1000 ms linear | draw button |
+
+**The Reduced Motion Rule.** Under `prefers-reduced-motion: reduce`, every animation and transition drops to 0.01 ms, the reveal scene is skipped in code, and confetti is hidden. State must still be readable without movement (seal, tab, and toast carry it).
+
+### Accessibility
+44 px minimum targets (52 px for the main action). The sheet is a table with a caption, column and row headers; every tile is a button named "{valore} di {seme}" with ", coperta" when covered. A 3 px gold focus ring with 2 px offset reads on both dark and ivory. Decoration (seal, reveal, confetti, credit token, icons) is `aria-hidden`. Toast region is a live region; errors are `role="alert"`. Dialogs are `aria-modal` with a focus trap.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep the cobalt table (`#101a4a`) as the page ground and put content on `.foglio` sheets or ivory cells.
-- **Do** outline every control on straw with 2 px `#2a1a0f`.
-- **Do** keep the sheet shape: values in rows Asso to Re, suits in columns, 44 px minimum cells.
-- **Do** cover a drawn card with the vermilion bean, and drop it only when it is new.
-- **Do** announce a player's own win in the first person ("Hai vinto ...") with the ochre `win` toast and the pop on the credit counter.
-- **Do** write UI strings in Italian and use single-stroke drawn icons (bean, lentil, suit marks, line icons).
-- **Do** guard every animation with `prefers-reduced-motion`.
+- **Do** keep the table dark and let ivory cards be the only light objects.
+- **Do** make the main action gold with `inchiostro` (#1a1208) text, and 44 px or taller.
+- **Do** tint the table glow from the last drawn suit and nothing else.
+- **Do** use `.titolo` (Bricolage 800) for titles and figures, the system sans for the rest.
+- **Do** use solid `.superficie` panels: hairline, top-edge light, 20 px radius.
+- **Do** give any new motion a reduced-motion fallback and keep scenes at `pointer-events: none`.
+- **Do** mark decoration `aria-hidden` and name interactive tiles in Italian.
 
 ### Don't:
-- **Don't** use emoji or a round coin for credits; the credit is the lentil, and it is never the Denari suit.
-- **Don't** use a cream panel with an orange border, or pure black and white surfaces.
-- **Don't** use a suit colour for a generic state, or vermilion for decoration.
-- **Don't** set running text in Alfa Slab One.
-- **Don't** put an action in a place other than the fixed bottom bar (phone) or the sheet panel (desktop).
-- **Don't** hide a state in colour alone; pair it with text ("n/5", "Attendi 8s", "coperta").
+- **Don't** return to the retired look: straw paper, cream, orange, double rules, poster slabs.
+- **Don't** use backdrop blur or frosted glass.
+- **Don't** use emoji or glyph icons; use drawn icons and suit art.
+- **Don't** use a suit ink as a status or brand colour, or draw credits as a round gold coin.
+- **Don't** put white or ivory on non-card surfaces, and don't set text on gold in anything but `inchiostro`.
+- **Don't** let the reveal or confetti capture a tap.
+
+## Known limits and drift (not canonized)
+
+- Only tris and scopa are marked on the sheet as progress; other collections are not shown as tabs.
+- The sheet legend is 13 px and the progress tabs 11 px (the jolly tag 10 px): below comfortable reading size on a phone.
+- Gold buttons rely on dark text for contrast; white text on gold would fail.
+- The 1875 card art is vintage on purpose against the modern UI.
+- The lobby code is set in Bricolage; whether `l` and `1` are distinguishable was not re-checked.
+- The win moment (confetti, lit cells, win toast) has no screenshot, only tests.
+- Drift in the build, recorded as defects and not as rules: outline and some secondary buttons use `hover:bg-white` with light text (unreadable on hover) and the danger button hovers to `oro-dark`; the first-game guide still says "con un fagiolo" although the covering is now a seal.

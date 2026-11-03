@@ -207,7 +207,7 @@ function HallScreen() {
                 setPrivateError(null);
                 setShowJoinPrivate(true);
               }}
-              className="min-h-[52px] rounded-xl border-2 border-linea-forte bg-notte-700 px-6 py-3 font-bold text-testo transition hover:bg-white"
+              className="min-h-[52px] rounded-xl border-2 border-linea-forte bg-notte-700 px-6 py-3 font-bold text-testo transition hover:bg-notte-600"
             >
               Unisciti a Partita Privata
             </button>

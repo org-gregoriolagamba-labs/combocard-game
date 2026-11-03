@@ -324,7 +324,7 @@ function GameScreen() {
             type="button"
             onClick={handleTornaAllaHall}
             aria-label="Lascia la partita"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-linea-forte bg-notte-700 text-testo transition hover:bg-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-linea-forte bg-notte-700 text-testo transition hover:bg-notte-600"
           >
             <DoorOpen size={22} aria-hidden="true" />
           </button>

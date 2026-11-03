@@ -99,7 +99,7 @@ function LobbyScreen() {
             </div>
             <button
               onClick={handleTornaAllaHall}
-              className="flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-lg border-2 border-linea-forte bg-notte-700 px-4 py-2 font-bold text-testo transition hover:bg-white"
+              className="flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-lg border-2 border-linea-forte bg-notte-700 px-4 py-2 font-bold text-testo transition hover:bg-notte-600"
             >
               <ArrowLeft size={18} aria-hidden="true" />
               Lascia la partita
@@ -113,7 +113,7 @@ function LobbyScreen() {
               type="button"
               onClick={handleCopiaCodice}
               aria-label="Copia il codice della partita"
-              className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo hover:bg-white"
+              className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo hover:bg-notte-600"
             >
               <Copy size={18} aria-hidden="true" />
               Copia codice
