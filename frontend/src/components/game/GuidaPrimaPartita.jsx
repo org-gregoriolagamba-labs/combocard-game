@@ -13,7 +13,7 @@ function GuidaPrimaPartita({ onClose }) {
   return (
     <section
       aria-label="Come si gioca"
-      className="rounded-xl border-2 border-inchiostro-900 bg-cartone-50 p-3 text-inchiostro-900"
+      className="rounded-xl border-2 border-linea-forte bg-notte-700 p-3 text-testo"
     >
       <p className="titolo text-base">Come si gioca</p>
       <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm [text-wrap:pretty]">
@@ -24,7 +24,7 @@ function GuidaPrimaPartita({ onClose }) {
       <button
         type="button"
         onClick={onClose}
-        className="mt-2 min-h-[44px] rounded-lg border-2 border-inchiostro-900 bg-cartone-50 px-4 text-sm font-bold transition hover:bg-white"
+        className="mt-2 min-h-[44px] rounded-lg border-2 border-linea-forte bg-notte-700 px-4 text-sm font-bold transition hover:bg-white"
       >
         Ho capito
       </button>

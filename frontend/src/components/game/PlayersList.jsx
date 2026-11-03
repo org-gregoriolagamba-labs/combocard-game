@@ -15,7 +15,7 @@ const NOME_COLLEZIONE = (col) => col.toUpperCase().replace("_", " ");
 
 function PlayersList({ game = null, currentPlayerId = null }) {
   return (
-    <div className="foglio px-4 py-1 lg:px-6 lg:py-3">
+    <div className="superficie px-4 py-1 lg:px-6 lg:py-3">
       <Disclosure
         openOnDesktop
         title={
@@ -28,14 +28,14 @@ function PlayersList({ game = null, currentPlayerId = null }) {
           {game?.players?.map((player) => (
             <li
               key={player.id}
-              className={`rounded-xl p-3 ${player.id === currentPlayerId ? "bg-cartone-200" : ""}`}
+              className={`rounded-xl p-3 ${player.id === currentPlayerId ? "bg-notte-700" : ""}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="min-w-0 break-words font-bold text-inchiostro-900">
+                <p className="min-w-0 break-words font-bold text-testo">
                   {player.name}
                   {player.id === currentPlayerId && " (Tu)"}
                 </p>
-                <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-inchiostro-900">
+                <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-testo">
                   <Credito />
                   {player.gettoni}
                 </p>
@@ -46,7 +46,7 @@ function PlayersList({ game = null, currentPlayerId = null }) {
                   {player.collezioni.map((col) => (
                     <span
                       key={col}
-                      className="rounded-full border border-inchiostro-900 bg-ocra px-2 py-0.5 text-xs font-bold text-inchiostro-900"
+                      className="rounded-full bg-oro px-2 py-0.5 text-xs font-bold text-inchiostro-900"
                     >
                       {NOME_COLLEZIONE(col)}
                     </span>
@@ -55,7 +55,7 @@ function PlayersList({ game = null, currentPlayerId = null }) {
               )}
 
               {player.jollyUsato && (
-                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-inchiostro-700">
+                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-testo-2">
                   <Sparkles size={12} aria-hidden="true" />
                   Jolly usato
                 </p>

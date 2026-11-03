@@ -32,12 +32,22 @@ import CollezioniPanel from "./CollezioniPanel";
 import PlayersList from "./PlayersList";
 import GuidaPrimaPartita from "./GuidaPrimaPartita";
 import Credito from "./Credito";
+import RivelazioneCarta from "./RivelazioneCarta";
+import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
 
 const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
 const SECONDI_LUCI = 6000;
+
+// The glow of the table takes the colour of the suit of the last card
+const TINTE = {
+  Denari: "rgba(255, 207, 74, 0.22)",
+  Coppe: "rgba(255, 106, 85, 0.24)",
+  Spade: "rgba(111, 151, 255, 0.26)",
+  Bastoni: "rgba(61, 220, 151, 0.2)",
+};
 const CHIAVE_GUIDA = "combocard.guida-letta";
 
 // The device remembers that the guide was read; storage can be blocked, so it is only a convenience
@@ -217,8 +227,8 @@ function GameScreen() {
 
   if (!currentPlayer) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-notte-900">
-        <div className="titolo text-xl text-cartone-100">Caricamento...</div>
+      <div className="flex min-h-screen items-center justify-center tavolo">
+        <div className="titolo text-xl text-testo">Caricamento...</div>
       </div>
     );
   }
@@ -249,9 +259,14 @@ function GameScreen() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-notte-900 pb-32 lg:pb-6">
+    <div
+      className="min-h-[100dvh] tavolo pb-32 lg:pb-6"
+      style={ultimaCartaEstratta ? { "--tinta": TINTE[ultimaCartaEstratta.seme] } : undefined}
+    >
+      <RivelazioneCarta carta={ultimaCartaEstratta} />
+      {vittoriaRecente && <Coriandoli id={vittoriaRecente.tipo} />}
       {/* The header stays on top: the last card, the prize pool, the credits, the way out */}
-      <header className="sticky top-0 z-30 border-b-4 border-inchiostro-900 bg-cartone-100 shadow-lg">
+      <header className="sticky top-0 z-30 border-b border-linea-forte bg-notte-800/95 shadow-lg">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-1.5">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             {ultimaCartaEstratta ? (
@@ -259,45 +274,45 @@ function GameScreen() {
                 key={`${ultimaCartaEstratta.seme}-${ultimaCartaEstratta.valore}`}
                 valore={ultimaCartaEstratta.valore}
                 seme={ultimaCartaEstratta.seme}
-                className="h-[52px] w-auto shrink-0 animate-estrai rounded-[3px] border border-inchiostro-900 shadow-md"
+                className="h-[52px] w-auto shrink-0 animate-estrai rounded-[3px] border border-linea-forte shadow-md"
               />
             ) : (
               <span
                 aria-hidden="true"
-                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-inchiostro-500"
+                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-linea"
               />
             )}
             <div className="min-w-0">
-              <p className="text-[13px] font-bold leading-tight tabular-nums text-inchiostro-700">
+              <p className="text-[13px] font-bold leading-tight tabular-nums text-testo-2">
                 <span className="sr-only">Ultima carta. </span>
                 {game?.carteRimaste ?? 0} carte rimaste
               </p>
               {ultimaCartaEstratta ? (
-                <p className="titolo truncate text-xl leading-tight text-inchiostro-900" aria-live="polite">
+                <p className="titolo truncate text-xl leading-tight text-testo" aria-live="polite">
                   {ultimaCartaEstratta.valore}
-                  <span className="block truncate font-sans text-sm font-bold text-inchiostro-700">
+                  <span className="block truncate font-sans text-sm font-bold text-testo-2">
                     di {ultimaCartaEstratta.seme}
                   </span>
                 </p>
               ) : (
-                <p className="text-sm font-bold text-inchiostro-700">Nessuna carta estratta</p>
+                <p className="text-sm font-bold text-testo-2">Nessuna carta estratta</p>
               )}
             </div>
           </div>
 
           <dl className="shrink-0 text-right">
             <div>
-              <dt className="text-xs leading-none text-inchiostro-700">Montepremi</dt>
-              <dd className="titolo flex items-center justify-end gap-1 text-base leading-tight text-inchiostro-900">
+              <dt className="text-xs leading-none text-testo-2">Montepremi</dt>
+              <dd className="titolo flex items-center justify-end gap-1 text-base leading-tight text-testo">
                 <Credito />
                 {montepremi}
               </dd>
             </div>
             <div>
-              <dt className="text-xs leading-none text-inchiostro-700">I tuoi crediti</dt>
+              <dt className="text-xs leading-none text-testo-2">I tuoi crediti</dt>
               <dd
                 key={currentPlayer.gettoni}
-                className="titolo flex animate-conta items-center justify-end gap-1 text-base leading-tight text-inchiostro-900"
+                className="titolo flex animate-conta items-center justify-end gap-1 text-base leading-tight text-testo"
               >
                 <Credito />
                 {currentPlayer.gettoni}
@@ -309,7 +324,7 @@ function GameScreen() {
             type="button"
             onClick={handleTornaAllaHall}
             aria-label="Lascia la partita"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-2 border-inchiostro-900 bg-cartone-50 text-inchiostro-900 transition hover:bg-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-linea-forte bg-notte-700 text-testo transition hover:bg-white"
           >
             <DoorOpen size={22} aria-hidden="true" />
           </button>
@@ -324,9 +339,9 @@ function GameScreen() {
         )}
 
         {/* The player's sheet, laid out like a tombola sheet */}
-        <section ref={gridRef} className="foglio scroll-mt-20 p-2.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
+        <section ref={gridRef} className="superficie scroll-mt-20 p-2.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
           <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
-            <h2 className="titolo text-lg text-inchiostro-900">La tua cartella</h2>
+            <h2 className="titolo text-lg text-testo">La tua cartella</h2>
           </div>
 
           <Cartella
@@ -343,7 +358,7 @@ function GameScreen() {
             onCardClick={handleSceglieCartaJolly}
           />
 
-          <p className="mt-2 px-1 text-[13px] leading-snug text-inchiostro-700">
+          <p className="mt-2 px-1 text-[13px] leading-snug text-testo-2">
             Posto vuoto: carta che non hai. Puntino: carta già uscita.
           </p>
 
@@ -370,10 +385,10 @@ function GameScreen() {
         title="Uscire dalla partita?"
         onClose={() => setConfermaUscita(false)}
       >
-        <p className="text-inchiostro-900">
+        <p className="text-testo">
           La partita è ancora in corso. Se esci ora perdi i crediti spesi per partecipare e non potrai rientrare.
         </p>
-        <p className="mt-2 text-inchiostro-700">I crediti che hai adesso vengono salvati.</p>
+        <p className="mt-2 text-testo-2">I crediti che hai adesso vengono salvati.</p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
           <Button variant="danger" onClick={esciDallaPartita} className="flex-1">
             Esci dalla partita
@@ -387,7 +402,7 @@ function GameScreen() {
       {/* Main action, fixed at the bottom of a phone screen */}
       <div
         data-testid="barra-azione"
-        className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-inchiostro-900 bg-cartone-100 px-3 py-3 shadow-[0_-6px_16px_rgba(5,8,30,0.45)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-linea-forte bg-notte-800 px-3 py-3 shadow-[0_-6px_16px_rgba(5,8,30,0.45)] lg:hidden"
       >
         <div className="mx-auto max-w-md">{azione("bar")}</div>
       </div>

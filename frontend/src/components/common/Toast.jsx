@@ -11,12 +11,12 @@ import PropTypes from "prop-types";
 import { useToast } from "../../hooks";
 
 const STYLES = {
-  success: "border-2 border-cartone-50/40 bg-bastoni text-white",
-  error: "border-2 border-cartone-50/40 bg-coppe text-white",
-  warning: "border-2 border-inchiostro-900 bg-ocra text-inchiostro-900",
-  info: "border-2 border-cartone-50/40 bg-notte-700 text-white",
+  success: "border border-white/20 bg-bastoni text-inchiostro-900",
+  error: "border border-white/20 bg-coppe text-inchiostro-900",
+  warning: "border border-white/20 bg-oro text-inchiostro-900",
+  info: "border border-linea-forte bg-notte-700 text-testo",
   // A win of the player: the only notice that is not a log line
-  win: "titolo border-2 border-inchiostro-900 bg-ocra text-inchiostro-900 shadow-foglio",
+  win: "titolo border border-white/30 bg-oro text-inchiostro-900 shadow-alone",
 };
 
 function ToastItem({ toast, onRemove }) {

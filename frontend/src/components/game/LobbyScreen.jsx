@@ -87,48 +87,48 @@ function LobbyScreen() {
   const canStart = isCreator && game?.players?.length >= 2;
 
   return (
-    <div className="min-h-[100dvh] bg-notte-900 p-4">
+    <div className="min-h-[100dvh] tavolo p-4">
       <div className="mx-auto max-w-3xl">
-        <section className="foglio p-4 sm:p-6">
+        <section className="superficie p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="titolo flex items-center gap-2 text-xl text-inchiostro-900 sm:text-3xl">
+              <h1 className="titolo flex items-center gap-2 text-xl text-testo sm:text-3xl">
                 Lobby
               </h1>
-              <p className="mt-1 break-words text-inchiostro-700">Benvenuto, {playerName}!</p>
+              <p className="mt-1 break-words text-testo-2">Benvenuto, {playerName}!</p>
             </div>
             <button
               onClick={handleTornaAllaHall}
-              className="flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-lg border-2 border-inchiostro-900 bg-cartone-50 px-4 py-2 font-bold text-inchiostro-900 transition hover:bg-white"
+              className="flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-lg border-2 border-linea-forte bg-notte-700 px-4 py-2 font-bold text-testo transition hover:bg-white"
             >
               <ArrowLeft size={18} aria-hidden="true" />
               Lascia la partita
             </button>
           </div>
 
-          <div className="mb-4 border-y-2 border-inchiostro-900/20 py-4">
-            <p className="text-sm font-bold text-inchiostro-700">Codice partita</p>
-            <p className="titolo select-all break-all text-3xl text-inchiostro-900">{gameId}</p>
+          <div className="mb-4 border-y-2 border-linea py-4">
+            <p className="text-sm font-bold text-testo-2">Codice partita</p>
+            <p className="titolo select-all break-all text-3xl text-testo">{gameId}</p>
             <button
               type="button"
               onClick={handleCopiaCodice}
               aria-label="Copia il codice della partita"
-              className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-inchiostro-900 bg-cartone-50 px-4 font-bold text-inchiostro-900 hover:bg-white"
+              className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo hover:bg-white"
             >
               <Copy size={18} aria-hidden="true" />
               Copia codice
             </button>
-            <p className="mt-3 text-sm text-inchiostro-900">
+            <p className="mt-3 text-sm text-testo">
               Costa {game?.requiredCredits} crediti a testa. {game?.isPrivate ? "Partita privata" : "Partita pubblica"}.
             </p>
             {game?.isPrivate && (
-              <p className="mt-1 text-sm text-inchiostro-700 [text-wrap:pretty]">
+              <p className="mt-1 text-sm text-testo-2 [text-wrap:pretty]">
                 Gli amici entrano dalla Hall con «Unisciti a Partita Privata» e questo codice.
               </p>
             )}
           </div>
 
-          <h2 className="titolo mb-3 flex items-center gap-2 text-xl text-inchiostro-900">
+          <h2 className="titolo mb-3 flex items-center gap-2 text-xl text-testo">
             <Users size={22} aria-hidden="true" />
             Giocatori ({game?.players?.length || 0}/{game?.maxPlayers || 10})
           </h2>
@@ -136,12 +136,12 @@ function LobbyScreen() {
             {game?.players?.map((player, index) => (
               <li
                 key={player.id}
-                className={`border-t-2 border-inchiostro-900/20 py-2 ${
-                  player.id === playerId ? "rounded-md bg-cartone-200 px-2" : "px-2"
+                className={`border-t-2 border-linea py-2 ${
+                  player.id === playerId ? "rounded-md bg-notte-700 px-2" : "px-2"
                 }`}
               >
-                <p className="break-words font-bold text-inchiostro-900">{player.name}</p>
-                <p className="text-xs text-inchiostro-700">
+                <p className="break-words font-bold text-testo">{player.name}</p>
+                <p className="text-xs text-testo-2">
                   {[player.id === playerId && "Tu", index === 0 && "Creatore"].filter(Boolean).join(" · ") || "\u00a0"}
                 </p>
               </li>
@@ -160,20 +160,20 @@ function LobbyScreen() {
                   Inizia Partita
                 </Button>
               ) : (
-                <div className="rounded-xl border-2 border-dashed border-inchiostro-500 p-4 text-center">
-                  <p className="font-bold text-inchiostro-900 [text-wrap:balance]">In attesa di altri giocatori...</p>
-                  <p className="text-sm text-inchiostro-700">Servono almeno 2 giocatori per iniziare</p>
+                <div className="rounded-xl border-2 border-dashed border-linea p-4 text-center">
+                  <p className="font-bold text-testo [text-wrap:balance]">In attesa di altri giocatori...</p>
+                  <p className="text-sm text-testo-2">Servono almeno 2 giocatori per iniziare</p>
                 </div>
               )}
             </div>
           )}
 
           {!isCreator && (
-            <div className="rounded-xl border-2 border-dashed border-inchiostro-500 p-4 text-center">
-              <p className="font-bold text-inchiostro-900 [text-wrap:balance]">
+            <div className="rounded-xl border-2 border-dashed border-linea p-4 text-center">
+              <p className="font-bold text-testo [text-wrap:balance]">
                 In attesa che il creatore avvii la partita...
               </p>
-              <p className="text-sm text-inchiostro-700">Quando parte, la cartella ti arriva da sola.</p>
+              <p className="text-sm text-testo-2">Quando parte, la cartella ti arriva da sola.</p>
             </div>
           )}
         </section>

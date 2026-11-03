@@ -66,29 +66,29 @@ function HomePage() {
   };
 
   const campo =
-    "w-full rounded-xl border-2 border-inchiostro-900 bg-cartone-50 px-4 py-3 text-inchiostro-900 placeholder:text-inchiostro-500 focus:outline-none focus:ring-2 focus:ring-spade";
+    "w-full rounded-xl border-2 border-linea-forte bg-notte-700 px-4 py-3 text-testo placeholder:text-testo-3 focus:outline-none focus:ring-2 focus:ring-oro";
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-notte-900 p-4">
-      <div className="foglio w-full max-w-md p-5 sm:p-8">
+    <div className="flex min-h-[100dvh] items-center justify-center tavolo p-4">
+      <div className="superficie w-full max-w-md p-5 sm:p-8">
         <div className="mb-6 text-center">
           <div className="mb-4 grid grid-cols-4 gap-2" aria-hidden="true">
             {["Denari", "Coppe", "Spade", "Bastoni"].map((seme) => (
               <span
                 key={seme}
-                className={`flex h-14 items-center justify-center rounded-md border-2 border-inchiostro-900 ${INCHIOSTRO_SEME[seme].soft}`}
+                className={`flex h-14 items-center justify-center rounded-md border-2 border-linea-forte ${INCHIOSTRO_SEME[seme].soft}`}
               >
                 <Seme seme={seme} className="h-10 w-10" />
               </span>
             ))}
           </div>
-          <h1 className="titolo break-words text-4xl text-inchiostro-900 sm:text-5xl">COMBOCARD</h1>
-          <p className="mt-2 font-medium text-inchiostro-700">Colleziona, combina, conquista!</p>
+          <h1 className="titolo break-words text-4xl text-testo sm:text-5xl">COMBOCARD</h1>
+          <p className="mt-2 font-medium text-testo-2">Colleziona, combina, conquista!</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="mb-2 block text-sm font-bold text-inchiostro-900">
+            <label htmlFor="username" className="mb-2 block text-sm font-bold text-testo">
               Nome utente
             </label>
             <input
@@ -111,7 +111,7 @@ function HomePage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-bold text-inchiostro-900">
+            <label htmlFor="password" className="mb-2 block text-sm font-bold text-testo">
               Password
             </label>
             <input
@@ -131,7 +131,7 @@ function HomePage() {
               disabled={isLoading}
             />
             {isRegistering && (
-              <p id="password-hint" className="mt-1 text-xs text-inchiostro-700">
+              <p id="password-hint" className="mt-1 text-xs text-testo-2">
                 Almeno {MIN_PASSWORD_LENGTH} caratteri.
               </p>
             )}
@@ -144,7 +144,7 @@ function HomePage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="min-h-[48px] w-full rounded-xl bg-fagiolo py-3 font-bold text-white shadow-md transition hover:bg-fagiolo-dark disabled:opacity-50"
+            className="min-h-[48px] w-full rounded-xl bg-oro py-3 font-bold text-inchiostro-900 shadow-md transition hover:bg-oro-dark disabled:opacity-50"
           >
             {isLoading && "Caricamento..."}
             {!isLoading && (isRegistering ? "Registrati" : "Accedi")}
@@ -155,12 +155,12 @@ function HomePage() {
           type="button"
           onClick={handleToggleMode}
           disabled={isLoading}
-          className="mt-4 min-h-[44px] w-full text-sm font-bold text-inchiostro-900 underline decoration-2 underline-offset-4 hover:text-fagiolo"
+          className="mt-4 min-h-[44px] w-full text-sm font-bold text-testo underline decoration-2 underline-offset-4 hover:text-coppe"
         >
           {isRegistering ? "Hai già un account? Accedi" : "Non hai un account? Crea un account"}
         </button>
 
-        <p className="mt-4 text-center text-xs text-inchiostro-700 [text-wrap:balance]">
+        <p className="mt-4 text-center text-xs text-testo-2 [text-wrap:balance]">
           Si gioca con crediti di gioco, senza pagamenti e senza valore reale.
         </p>
       </div>

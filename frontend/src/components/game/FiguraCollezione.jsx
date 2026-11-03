@@ -57,9 +57,9 @@ function FiguraCollezione({ tipo, className = "" }) {
               width={LATO}
               height={LATO}
               rx="1.5"
-              fill={pieno ? (reale ? "#b92d1b" : "#2a1a0f") : "none"}
-              stroke="#2a1a0f"
-              strokeOpacity={pieno ? 1 : 0.5}
+              fill={pieno ? (reale ? "#ffcf4a" : "#f4f1ea") : "none"}
+              stroke="#8b94bb"
+              strokeOpacity={pieno ? 0 : 0.7}
               strokeWidth="1"
               strokeDasharray={pieno ? undefined : "1.5 1.5"}
             />

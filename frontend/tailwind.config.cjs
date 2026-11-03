@@ -1,5 +1,5 @@
-// Palette of the game: the inks of the 1875 Neapolitan deck on the card stock of a tombola sheet.
-// The table is a deep cobalt, the sheet is straw-coloured card, the ink is a warm brown-black.
+// Palette of the game: a dark, calm table on which the cards are the light.
+// The four suits keep the inks of the 1875 deck, made luminous for a dark ground.
 module.exports = {
   content: [
     './src/**/*.{js,jsx,ts,tsx}',
@@ -8,33 +8,43 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Table (page ground)
-        notte: { 950: '#0b1236', 900: '#101a4a', 800: '#16236a', 700: '#233792', 300: '#aeb9ee' },
-        // Straw card stock of the sheet
-        cartone: { 50: '#fffaf0', 100: '#f0dd9c', 200: '#e4c96a', 300: '#d3b04a', 400: '#b8912c' },
-        // Printing ink
-        inchiostro: { 900: '#2a1a0f', 700: '#4d3522', 500: '#7a5b3f' },
-        // The four suits, each with its own ink
-        denari: { DEFAULT: '#8f6200', soft: '#f5d98a' },
-        coppe: { DEFAULT: '#b92d1b', soft: '#f3b9ad' },
-        spade: { DEFAULT: '#1f3a99', soft: '#b9c5f2' },
-        bastoni: { DEFAULT: '#236a3a', soft: '#b5dcc0' },
-        // The bean that covers a drawn card, and the action colour
-        fagiolo: { DEFAULT: '#b92d1b', dark: '#8f1f12' },
-        ocra: { DEFAULT: '#f2b632', dark: '#c98f0c' },
+        // The table (page ground) and the surfaces that sit on it
+        notte: { 950: '#070b1f', 900: '#0b1130', 800: '#0f1737', 700: '#18224d', 600: '#232f66' },
+        // Hairlines
+        linea: { DEFAULT: '#2a356b', forte: '#4a5aa6' },
+        // Text on the table
+        testo: { DEFAULT: '#f4f1ea', 2: '#b7bfdc', 3: '#8b94bb' },
+        // The card: the only light object
+        carta: { DEFAULT: '#f7f1e1', 2: '#e9dfc4' },
+        // The four suits, luminous
+        denari: { DEFAULT: '#ffcf4a', soft: 'rgba(255, 207, 74, 0.16)' },
+        coppe: { DEFAULT: '#ff6a55', soft: 'rgba(255, 106, 85, 0.16)' },
+        spade: { DEFAULT: '#6f97ff', soft: 'rgba(111, 151, 255, 0.18)' },
+        bastoni: { DEFAULT: '#3ddc97', soft: 'rgba(61, 220, 151, 0.16)' },
+        // Action and prize
+        oro: { DEFAULT: '#ffcf4a', dark: '#e6b52e' },
+        inchiostro: { 900: '#1a1208' },
+        // Error / destructive
+        errore: { DEFAULT: '#ff6a55', dark: '#e0503c' },
       },
       fontFamily: {
-        display: ['"Alfa Slab One"', 'Rockwell', 'Georgia', 'serif'],
+        display: ['"Bricolage Grotesque Variable"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        foglio: '0 14px 28px -12px rgba(5, 8, 30, 0.7), 0 2px 0 rgba(255, 255, 255, 0.08) inset',
-        pulsante: '0 3px 0 rgba(42, 26, 15, 0.9)',
+        // Depth: a soft shadow and a light on the top edge
+        superficie: '0 18px 40px -18px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+        carta: '0 10px 24px -8px rgba(0, 0, 0, 0.7)',
+        alone: '0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 30px -6px var(--alone, rgba(255, 207, 74, 0.45))',
       },
       keyframes: {
-        'fagiolo-giu': {
-          '0%': { transform: 'translateY(-10px) scale(1.25)', opacity: '0' },
-          '60%': { transform: 'translateY(1px) scale(0.95)', opacity: '1' },
-          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        sigillo: {
+          '0%': { transform: 'scale(0.2)', opacity: '0' },
+          '55%': { transform: 'scale(1.18)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        onda: {
+          '0%': { transform: 'scale(0.6)', opacity: '0.7' },
+          '100%': { transform: 'scale(2.2)', opacity: '0' },
         },
         estrai: {
           '0%': { transform: 'translateY(-12px) rotate(-6deg)', opacity: '0' },
@@ -44,11 +54,32 @@ module.exports = {
           '0%': { transform: 'scale(1.35)' },
           '100%': { transform: 'scale(1)' },
         },
+        rivela: {
+          '0%': { transform: 'perspective(900px) rotateY(95deg) scale(0.6)', opacity: '0' },
+          '28%': { transform: 'perspective(900px) rotateY(-8deg) scale(1.04)', opacity: '1' },
+          '40%': { transform: 'perspective(900px) rotateY(0) scale(1)', opacity: '1' },
+          '82%': { transform: 'perspective(900px) rotateY(0) scale(1)', opacity: '1' },
+          '100%': { transform: 'perspective(900px) rotateY(0) scale(0.55) translateY(-46vh)', opacity: '0' },
+        },
+        velo: {
+          '0%': { opacity: '0' },
+          '20%': { opacity: '1' },
+          '80%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
+        coriandolo: {
+          '0%': { transform: 'translate(0, 0) rotate(0)', opacity: '1' },
+          '100%': { transform: 'translate(var(--dx), var(--dy)) rotate(var(--rot))', opacity: '0' },
+        },
       },
       animation: {
-        'fagiolo-giu': 'fagiolo-giu 380ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        sigillo: 'sigillo 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        onda: 'onda 700ms ease-out both',
         estrai: 'estrai 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
         conta: 'conta 500ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        rivela: 'rivela 1700ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        velo: 'velo 1700ms ease-out both',
+        coriandolo: 'coriandolo 1400ms cubic-bezier(0.2, 0.8, 0.3, 1) both',
       },
     },
   },

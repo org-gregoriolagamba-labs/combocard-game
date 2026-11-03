@@ -26,7 +26,7 @@ function Input({
       {label && (
         <label 
           htmlFor={id} 
-          className="block text-sm font-bold text-inchiostro-900 mb-2"
+          className="block text-sm font-bold text-testo mb-2"
         >
           {label}
           {props.required && <span className="text-coppe ml-1">*</span>}
@@ -36,13 +36,13 @@ function Input({
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : hint ? hintId : undefined}
-        className={`w-full px-4 py-3 border-2 border-inchiostro-900 rounded-xl placeholder:text-inchiostro-500 focus:outline-none focus:ring-2 focus:ring-spade bg-cartone-50 text-inchiostro-900 ${
+        className={`w-full px-4 py-3 border border-linea-forte rounded-xl placeholder:text-testo-3 focus:outline-none focus:ring-2 focus:ring-oro bg-notte-950 text-testo ${
           error ? "border-coppe" : ""
         } ${className}`}
         {...props}
       />
       {hint && !error && (
-        <p id={hintId} className="mt-1 text-xs text-inchiostro-700">{hint}</p>
+        <p id={hintId} className="mt-1 text-xs text-testo-2">{hint}</p>
       )}
       {error && (
         <p id={errorId} role="alert" className="mt-1 text-sm font-bold text-coppe">{error}</p>

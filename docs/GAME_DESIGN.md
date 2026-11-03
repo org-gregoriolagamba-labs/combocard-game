@@ -40,11 +40,15 @@ Players can claim the following collections:
 
 | Collection | Requirements | Prize | Description |
 |------------|--------------|-------|-------------|
-| **Tris** 🎯 | 3 same value | 20% pot | Three of a kind |
-| **Sequenza** 📊 | 4 consecutive | 20% pot | Four in a row |
-| **Scopa** 🎴 | 5 same suit | 25% pot | Flush |
-| **Napola** 💎 | 3+2 same values | 25% pot | Full house |
-| **Combocard Reale** 👑 | 4 consecutive same suit | 100% pot | Royal flush - INSTANT WIN! |
+| **Tris** | 3 same value | 10% of the pot | Three of a kind (a row of the sheet) |
+| **Sequenza** | 4 consecutive values, any suits | 15% of the pot | No wrap from Re to Asso |
+| **Scopa** | 5 same suit | 20% of the pot | Flush (a column of the sheet) |
+| **Napola** | 3 of one value + 2 of another | 25% of the pot | Full house |
+| **Combocard Reale** | 4 consecutive values, same suit | 30% of the pot | Royal flush: **ends the game** |
+
+The shares are the defaults of `config/index.js` and can be changed with `PRIZE_TRIS`, `PRIZE_SEQUENZA`, `PRIZE_SCOPA`, `PRIZE_NAPOLA` and `PRIZE_COMBOCARD_REALE`. The pot is the sum of the entry credits paid when the game starts.
+
+A collection is won once per game, by the first player (or players) who complete it on a draw. If several complete it on the same draw, the prize is divided equally between them. The server awards it by itself right after every draw and every jolly.
 
 ## 🃏 Jolly System
 
@@ -103,11 +107,11 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
   the backend must allow that origin in its CORS configuration; otherwise, the UI may load but live updates
   (draws, covers, token changes) may not propagate correctly.
 
-### 5. Winning
-- First to claim **Combocard Reale** wins the entire pot
-- Otherwise, collections can be claimed individually for partial prizes
-- **Remaining undistributed prizes** are split evenly among players at game end
-- Game ends when pot is empty or deck is exhausted
+### 5. Winning and the end
+- Collections are won automatically, as soon as they are complete (see above)
+- The game ends when someone completes the **Combocard Reale**
+- At the end, the prizes of the collections nobody won are split equally among all players
+- Credits won are credited to the player when the game ends; a player who leaves a game in progress loses the entry credits
 
 ## 📁 Project Structure
 

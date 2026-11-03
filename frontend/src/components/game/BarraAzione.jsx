@@ -37,13 +37,13 @@ function BarraAzione({
     return (
       <div className="flex flex-col gap-2">
         <div>
-          <p className="titolo text-lg text-inchiostro-900">Partita terminata</p>
-          <p className="text-sm text-inchiostro-700">Torna alla Hall per iniziare una nuova partita</p>
+          <p className="titolo text-lg text-testo">Partita terminata</p>
+          <p className="text-sm text-testo-2">Torna alla Hall per iniziare una nuova partita</p>
         </div>
         <button
           type="button"
           onClick={onLeave}
-          className={`${PULSANTE} bg-fagiolo text-white shadow-md hover:bg-fagiolo-dark`}
+          className={`${PULSANTE} bg-oro text-inchiostro-900 shadow-md hover:bg-oro-dark`}
         >
           Torna alla Hall
         </button>
@@ -68,7 +68,7 @@ function BarraAzione({
           role="group"
           aria-label={jollyPending ? "Conferma Jolly" : "Modalità Jolly"}
           onKeyDown={handleKeyDown}
-          className="rounded-xl border-2 border-inchiostro-900 bg-ocra px-3 py-2 text-inchiostro-900"
+          className="rounded-xl bg-oro px-3 py-2 text-inchiostro-900"
         >
           {jollyPending ? (
             <>
@@ -84,7 +84,7 @@ function BarraAzione({
                   type="button"
                   autoFocus
                   onClick={onConfirmJolly}
-                  className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-inchiostro-900 px-3 text-sm font-bold text-cartone-50 transition hover:bg-inchiostro-700"
+                  className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-inchiostro-900 px-3 text-sm font-bold text-testo transition hover:bg-notte-600"
                 >
                   <Sparkles size={16} aria-hidden="true" />
                   Usa Jolly
@@ -92,7 +92,7 @@ function BarraAzione({
                 <button
                   type="button"
                   onClick={onChangeJollyCard}
-                  className="min-h-[44px] flex-1 rounded-lg border-2 border-inchiostro-900 bg-cartone-50 px-3 text-sm font-bold text-inchiostro-900 transition hover:bg-white"
+                  className="min-h-[44px] flex-1 rounded-lg border-2 border-linea-forte bg-notte-700 px-3 text-sm font-bold text-testo transition hover:bg-white"
                 >
                   Cambia carta
                 </button>
@@ -108,7 +108,7 @@ function BarraAzione({
                 type="button"
                 autoFocus
                 onClick={onCancelJolly}
-                className="min-h-[44px] shrink-0 rounded-lg border-2 border-inchiostro-900 bg-cartone-50 px-4 text-sm font-bold text-inchiostro-900 transition hover:bg-white"
+                className="min-h-[44px] shrink-0 rounded-lg border-2 border-linea-forte bg-notte-700 px-4 text-sm font-bold text-testo transition hover:bg-white"
               >
                 Annulla
               </button>
@@ -122,7 +122,7 @@ function BarraAzione({
           type="button"
           onClick={onDraw}
           disabled={!canDraw}
-          className={`${PULSANTE} relative overflow-hidden bg-fagiolo text-white shadow-md hover:bg-fagiolo-dark disabled:cursor-not-allowed disabled:bg-inchiostro-700`}
+          className={`${PULSANTE} relative overflow-hidden bg-oro text-inchiostro-900 shadow-md hover:bg-oro-dark disabled:cursor-not-allowed disabled:bg-notte-600`}
         >
           {drawCooldown > 0 && (
             <span
@@ -148,7 +148,7 @@ function BarraAzione({
       ) : (
         <p
           role="status"
-          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-inchiostro-900 bg-cartone-200 px-4 font-bold text-inchiostro-900"
+          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo"
         >
           <Clock size={20} aria-hidden="true" />
           Estrae {creatorName}
@@ -156,7 +156,7 @@ function BarraAzione({
       )}
 
       {variant === "panel" && drawCooldown > 0 && (
-        <p className="text-center text-xs font-bold text-inchiostro-700">
+        <p className="text-center text-xs font-bold text-testo-2">
           Usa questo tempo per valutare il Jolly
         </p>
       )}

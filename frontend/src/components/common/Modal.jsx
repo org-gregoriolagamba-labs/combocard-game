@@ -74,11 +74,11 @@ function ModalDialog({ onClose, title, children, className = "" }) {
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className={`foglio relative p-6 max-w-md w-full mx-4 max-h-[90dvh] overflow-y-auto focus:outline-none ${className}`}
+        className={`superficie relative p-6 max-w-md w-full mx-4 max-h-[90dvh] overflow-y-auto focus:outline-none ${className}`}
       >
         <div className="flex justify-between items-start gap-3 mb-4">
           {title && (
-            <h2 id={titleId} className="titolo text-xl text-inchiostro-900 break-words">
+            <h2 id={titleId} className="titolo text-xl text-testo break-words">
               {title}
             </h2>
           )}
@@ -86,7 +86,7 @@ function ModalDialog({ onClose, title, children, className = "" }) {
             type="button"
             aria-label="Chiudi"
             onClick={onClose}
-            className="ml-auto -mr-2 -mt-2 min-h-[44px] min-w-[44px] rounded-lg text-3xl leading-none text-inchiostro-700 hover:text-inchiostro-900"
+            className="ml-auto -mr-2 -mt-2 min-h-[44px] min-w-[44px] rounded-lg text-3xl leading-none text-testo-2 hover:text-testo"
           >
             <span aria-hidden="true">×</span>
           </button>

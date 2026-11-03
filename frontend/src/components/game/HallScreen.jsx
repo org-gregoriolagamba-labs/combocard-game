@@ -165,28 +165,28 @@ function HallScreen() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-notte-900 p-4">
+    <div className="min-h-[100dvh] tavolo p-4">
       <div className="mx-auto max-w-3xl space-y-4">
         {/* Header and the two ways into a game */}
-        <section className="foglio p-4 sm:p-6">
+        <section className="superficie p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="titolo flex items-center gap-2 text-2xl text-inchiostro-900 sm:text-3xl">
+              <h1 className="titolo flex items-center gap-2 text-2xl text-testo sm:text-3xl">
                 Hall
               </h1>
-              <p className="break-words text-inchiostro-700">Benvenuto, {playerName}!</p>
+              <p className="break-words text-testo-2">Benvenuto, {playerName}!</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="sm:text-right">
-                <p className="text-sm text-inchiostro-700">I tuoi crediti</p>
-                <p className="titolo flex items-center gap-2 text-2xl text-inchiostro-900 sm:text-3xl">
+                <p className="text-sm text-testo-2">I tuoi crediti</p>
+                <p className="titolo flex items-center gap-2 text-2xl text-testo sm:text-3xl">
                   <Credito className="h-6 w-6" />
                   {playerCredits}
                 </p>
               </div>
               <button
                 onClick={handleApriCassa}
-                className="flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-inchiostro-900 bg-ocra px-5 py-3 font-bold text-inchiostro-900 transition hover:bg-ocra-dark"
+                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-oro bg-transparent px-5 py-3 font-bold text-oro transition hover:bg-oro/10"
               >
                 <Credito className="h-6 w-6" />
                 Prendi crediti
@@ -194,10 +194,10 @@ function HallScreen() {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 border-t-2 border-inchiostro-900/20 pt-4 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t-2 border-linea pt-4 sm:grid-cols-2">
             <button
               onClick={() => setShowCreaPartita(true)}
-              className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-fagiolo px-6 py-3 font-bold text-white shadow-md transition hover:bg-fagiolo-dark"
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-oro px-6 py-3 font-bold text-inchiostro-900 shadow-md transition hover:bg-oro-dark"
             >
               <Plus size={22} aria-hidden="true" />
               Crea Nuova Partita
@@ -207,7 +207,7 @@ function HallScreen() {
                 setPrivateError(null);
                 setShowJoinPrivate(true);
               }}
-              className="min-h-[52px] rounded-xl border-2 border-inchiostro-900 bg-cartone-50 px-6 py-3 font-bold text-inchiostro-900 transition hover:bg-white"
+              className="min-h-[52px] rounded-xl border-2 border-linea-forte bg-notte-700 px-6 py-3 font-bold text-testo transition hover:bg-white"
             >
               Unisciti a Partita Privata
             </button>
@@ -216,7 +216,7 @@ function HallScreen() {
           <div className="mt-3 text-right">
             <button
               onClick={handleEsci}
-              className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-inchiostro-700 underline decoration-2 underline-offset-4 hover:text-inchiostro-900"
+              className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
             >
               Esci dall&apos;account
             </button>
@@ -224,11 +224,11 @@ function HallScreen() {
         </section>
 
         {/* Games waiting for players */}
-        <section className="foglio p-4 sm:p-6">
-          <h2 className="titolo mb-3 text-xl text-inchiostro-900 sm:text-2xl">Partite in attesa</h2>
+        <section className="superficie p-4 sm:p-6">
+          <h2 className="titolo mb-3 text-xl text-testo sm:text-2xl">Partite in attesa</h2>
 
           {lobbies.length === 0 ? (
-            <p className="py-6 text-center text-inchiostro-700 [text-wrap:pretty]">
+            <p className="py-6 text-center text-testo-2 [text-wrap:pretty]">
               Nessuna partita in attesa. Creane una nuova!
             </p>
           ) : (
@@ -238,11 +238,11 @@ function HallScreen() {
                 return (
                   <li
                     key={lobby.id}
-                    className="flex items-center justify-between gap-3 border-t-2 border-inchiostro-900/20 py-3 first:border-t-0 first:pt-0"
+                    className="flex items-center justify-between gap-3 border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
                   >
                     <div className="min-w-0">
-                      <p className="font-bold text-inchiostro-900">Partita di {lobby.creatorName}</p>
-                      <p className="text-sm text-inchiostro-700">
+                      <p className="font-bold text-testo">Partita di {lobby.creatorName}</p>
+                      <p className="text-sm text-testo-2">
                         {lobby.playerCount}/{lobby.maxPlayers} giocatori · costa {lobby.requiredCredits} crediti
                         {mancano <= 0 && ` · te ne restano ${playerCredits - lobby.requiredCredits}`}
                       </p>
@@ -253,7 +253,7 @@ function HallScreen() {
                     <button
                       onClick={() => handleUniscitiPartita(lobby.id)}
                       disabled={mancano > 0}
-                      className="min-h-[44px] shrink-0 rounded-lg bg-fagiolo px-4 py-2 font-bold text-white transition hover:bg-fagiolo-dark disabled:cursor-not-allowed disabled:bg-inchiostro-500"
+                      className="min-h-[44px] shrink-0 rounded-lg bg-oro px-4 py-2 font-bold text-inchiostro-900 transition hover:bg-oro-dark disabled:cursor-not-allowed disabled:text-testo-3 disabled:bg-notte-600"
                     >
                       Unisciti
                     </button>
@@ -272,7 +272,7 @@ function HallScreen() {
         title="Prendi crediti di gioco"
       >
         <div className="space-y-4">
-          <p className="text-sm text-inchiostro-900">
+          <p className="text-sm text-testo">
             Sono crediti di gioco: non hanno valore reale e non serve nessun pagamento.
           </p>
           <Input
@@ -290,7 +290,7 @@ function HallScreen() {
                 key={amount}
                 type="button"
                 onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
-                className="min-h-[44px] rounded-lg border-2 border-inchiostro-900 bg-cartone-200 py-2 text-sm font-bold text-inchiostro-900 transition hover:bg-cartone-300"
+                className="min-h-[44px] rounded-lg border-2 border-linea-forte bg-notte-700 py-2 text-sm font-bold text-testo transition hover:bg-notte-600"
               >
                 +{amount}
               </button>
@@ -299,7 +299,7 @@ function HallScreen() {
           <button
             type="button"
             onClick={() => setCreditiDaAcquistare(0)}
-            className="min-h-[44px] w-full rounded-lg py-2 text-sm font-bold text-inchiostro-700 underline decoration-2 underline-offset-4 transition hover:text-inchiostro-900"
+            className="min-h-[44px] w-full rounded-lg py-2 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 transition hover:text-testo"
           >
             Azzera
           </button>
@@ -355,7 +355,7 @@ function HallScreen() {
               onChange={(e) => setIsPrivate(e.target.checked)}
               className="h-5 w-5"
             />
-            <label htmlFor="isPrivate" className="text-inchiostro-900">
+            <label htmlFor="isPrivate" className="text-testo">
               Partita Privata
             </label>
           </div>

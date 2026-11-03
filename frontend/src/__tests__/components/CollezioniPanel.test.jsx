@@ -163,6 +163,6 @@ describe('CollezioniPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /Come si gioca/ }));
 
     expect(screen.getByText(/una sola carta/)).toBeInTheDocument();
-    expect(screen.getByText(/SCOPA: la carta cambia seme e tiene il valore/)).toBeInTheDocument();
+    expect(screen.getByText(/Scopa: la carta cambia seme e tiene il valore/)).toBeInTheDocument();
   });
 });
