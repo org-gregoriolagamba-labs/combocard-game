@@ -140,9 +140,20 @@ export const joinGame = asyncHandler(async (req, res) => {
 
   const player = req.gameState.players[playerId];
 
-  // Allow joining if status is waiting or just auto-started
-  if (game.status !== GAME_STATUS.WAITING && game.status !== GAME_STATUS.PLAYING) {
+  // Who is already in the game gets the same answer again when it started by itself (a retry
+  // after the last seat was taken). Nobody else gets in after the start: the entry fees are
+  // charged at the start and the prizes fixed, so a late player would share them for free.
+  const existingPlayer = game.players.find((p) => p.id === playerId);
+  if (existingPlayer && game.status === GAME_STATUS.PLAYING) {
+    return sendSuccess(res, { success: true, player: existingPlayer, autoStarted: true });
+  }
+
+  if (game.status !== GAME_STATUS.WAITING) {
     throw new AppError("Game already started", 400);
+  }
+
+  if (existingPlayer) {
+    throw new AppError("Already in game", 400);
   }
 
   if (game.players.length >= game.maxPlayers) {
@@ -151,15 +162,6 @@ export const joinGame = asyncHandler(async (req, res) => {
 
   if (player.credits < game.requiredCredits) {
     throw new AppError("Insufficient credits", 400);
-  }
-
-  // Check if player is already in the game
-  if (game.players.some((p) => p.id === playerId)) {
-    if (game.status === GAME_STATUS.PLAYING) {
-      const existingPlayer = game.players.find((p) => p.id === playerId);
-      return sendSuccess(res, { success: true, player: existingPlayer, autoStarted: true });
-    }
-    throw new AppError("Already in game", 400);
   }
 
   const cartella = generaCartella();

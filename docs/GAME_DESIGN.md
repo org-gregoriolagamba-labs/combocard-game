@@ -102,7 +102,7 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 ### 2. Hall (Game List)
 - View available public games waiting for players
 - Create a new game (choose required credits, max players, and public/private)
-- Join a public game or use a **private code** to join a private game. The code is the id of the game: a random UUID (36 characters) made with a secure source (`crypto.randomUUID`), so it cannot be guessed. The lobby shows it with a "Copia codice" button, and the field to join accepts a pasted code. The deck and the grids are shuffled with `crypto.randomInt`, never `Math.random`
+- Join a public game or use a **private code** to join a private game. The code is the id of the game: a random UUID (36 characters) made with a secure source (`crypto.randomUUID`), so it cannot be guessed. The lobby shows it with a "Copia codice" button, and the field to join accepts a pasted code. The deck and the grids are shuffled with `crypto.randomInt`, never `Math.random`. A game accepts new players **only while it is waiting**: once it has started, the entry fees are charged and the prizes fixed, so nobody can join late (and a player who leaves a game in progress cannot come back). Someone already in the game who repeats the request gets the same answer, so a retry after the automatic start is harmless
 - Take credits with **Prendi crediti** (preset cuts + reset, max purchase 10,000)
 
 ### 3. Lobby (Pre-game)
