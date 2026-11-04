@@ -12,6 +12,8 @@
  * it stays pending and is retried.
  */
 
+import { ACCOUNT_ROLES } from "../config/constants.js";
+
 const DEFAULT_RETRY_DELAY_MS = 5000;
 const PG_UNIQUE_VIOLATION = "23505";
 
@@ -20,7 +22,6 @@ export const LAST_ADMIN = "LAST_ADMIN";
 export const INVALID_ROLE = "INVALID_ROLE";
 export const INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS";
 
-const ACCOUNT_ROLES = ["player", "admin"];
 const ACTOR_TYPES = ["system", "player"];
 // Role changes are rare: one lock for all of them keeps the count of admins exact
 const ROLE_LOCK_ID = 7203115;
@@ -42,9 +43,33 @@ function assertRoleChange(role, actor) {
   if (!ACCOUNT_ROLES.includes(role)) {
     throw Object.assign(new Error(`Invalid role: ${role}`), { code: INVALID_ROLE });
   }
+  assertActor(actor);
+}
+
+/**
+ * Nothing changes without a trace: whoever acts must be known
+ * @param {Object} actor - { type: 'system' } or { type: 'player', id }
+ */
+function assertActor(actor) {
   if (!actor || !ACTOR_TYPES.includes(actor.type) || (actor.type === "player" && !actor.id)) {
-    throw new TypeError("A role change needs the actor: { type: 'system' } or { type: 'player', id }");
+    throw new TypeError("This change needs the actor: { type: 'system' } or { type: 'player', id }");
   }
+}
+
+/**
+ * A credit adjustment is a whole amount that is not zero, with a reason and the one who makes it
+ * @param {number} amount - Credits to add (positive) or take away (negative)
+ * @param {string} reason - Why
+ * @param {Object} actor - { type: 'system' } or { type: 'player', id }
+ */
+function assertCreditAdjustment(amount, reason, actor) {
+  if (!Number.isSafeInteger(amount) || amount === 0) {
+    throw new TypeError("A credit adjustment needs a whole amount that is not zero");
+  }
+  if (typeof reason !== "string" || reason.trim() === "") {
+    throw new TypeError("A credit adjustment needs a reason");
+  }
+  assertActor(actor);
 }
 
 /**
@@ -80,17 +105,77 @@ export function createMemoryStore() {
   const refreshTokens = new Map();
   const audit = [];
 
+  const toProfile = ({ playerId, username, role, createdAt }) => ({ playerId, username, role, createdAt });
+  const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const pushAudit = (actor, action, targetId, details) => {
+    audit.push({
+      id: audit.length + 1,
+      actorType: actor.type,
+      actorId: actor.id ?? null,
+      action,
+      targetId,
+      details,
+      createdAt: new Date(),
+    });
+  };
+
   return {
     enabled: false,
     loadState: async () => ({ players: {}, games: {} }),
     createPlayer: async () => {},
-    async createAccount(player, { usernameKey, passwordHash }) {
+    async createAccount(player, { username, usernameKey, passwordHash }) {
       if (accounts.has(usernameKey)) {
         throw usernameTakenError();
       }
-      accounts.set(usernameKey, { playerId: player.id, passwordHash, role: "player" });
+      accounts.set(usernameKey, {
+        playerId: player.id,
+        username: username ?? usernameKey,
+        usernameKey,
+        passwordHash,
+        role: "player",
+        createdAt: new Date(),
+      });
     },
     findAccountByUsernameKey: async (usernameKey) => accounts.get(usernameKey) ?? null,
+    async getAccount(playerId) {
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      return account ? toProfile(account) : null;
+    },
+    async listAccounts({ q = "", role = null, limit = 20, offset = 0 } = {}) {
+      const needle = q.trim().toLowerCase();
+      const matching = [...accounts.values()]
+        .filter((a) => (!needle || a.usernameKey.includes(needle)) && (!role || a.role === role))
+        .sort((a, b) => compareText(a.usernameKey, b.usernameKey) || compareText(a.playerId, b.playerId));
+      return { items: matching.slice(offset, offset + limit).map(toProfile), total: matching.length };
+    },
+    async setAccountUsername(playerId, { username, usernameKey }, { actor } = {}) {
+      assertActor(actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      const previousUsername = account.username;
+      if (previousUsername === username) {
+        return { playerId, username, previousUsername, changed: false };
+      }
+      if (usernameKey !== account.usernameKey && accounts.has(usernameKey)) {
+        throw usernameTakenError();
+      }
+      accounts.delete(account.usernameKey);
+      Object.assign(account, { username, usernameKey });
+      accounts.set(usernameKey, account);
+      pushAudit(actor, "username_changed", playerId, { from: previousUsername, to: username });
+      return { playerId, username, previousUsername, changed: true };
+    },
+    // The balance is in the game state: here only the trace is written
+    async adjustCredits(playerId, amount, { actor, reason } = {}) {
+      assertCreditAdjustment(amount, reason, actor);
+      if (![...accounts.values()].some((a) => a.playerId === playerId)) {
+        return null;
+      }
+      pushAudit(actor, "credits_adjusted", playerId, { amount, reason: reason.trim() });
+      return { playerId, amount };
+    },
     async findAccountById(playerId) {
       return [...accounts.values()].find((a) => a.playerId === playerId) ?? null;
     },
@@ -108,22 +193,17 @@ export function createMemoryStore() {
         throw lastAdminError();
       }
       account.role = role;
-      audit.push({
-        id: audit.length + 1,
-        actorType: actor.type,
-        actorId: actor.id ?? null,
-        action: "role_changed",
-        targetId: playerId,
-        details: { from: previousRole, to: role },
-        createdAt: new Date(),
-      });
+      pushAudit(actor, "role_changed", playerId, { from: previousRole, to: role });
       return { playerId, role, previousRole, changed: true };
     },
     async countAdmins() {
       return [...accounts.values()].filter((a) => a.role === "admin").length;
     },
-    async listAuditEvents({ limit = 100 } = {}) {
-      return [...audit].reverse().slice(0, limit);
+    async listAuditEvents({ limit = 100, offset = 0, targetId = null } = {}) {
+      return audit.filter((e) => !targetId || e.targetId === targetId).reverse().slice(offset, offset + limit);
+    },
+    async countAuditEvents({ targetId = null } = {}) {
+      return audit.filter((e) => !targetId || e.targetId === targetId).length;
     },
     async createRefreshToken({ tokenHash, familyId, playerId, expiresAt }) {
       refreshTokens.set(tokenHash, {
@@ -481,6 +561,123 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     },
 
     /**
+     * One account, as the admin area shows it
+     * @param {string} playerId - Player ID
+     * @returns {Promise<Object|null>} { playerId, username, role, createdAt }, or null
+     */
+    async getAccount(playerId) {
+      const { rows } = await pool.query(
+        `SELECT player_id AS "playerId", username, role, created_at AS "createdAt"
+         FROM user_accounts WHERE player_id = $1`,
+        [playerId],
+      );
+      return rows[0] ?? null;
+    },
+
+    /**
+     * The accounts, a page at a time, by name. The password hash is never read.
+     * @param {Object} options - { q, role, limit, offset }: q is a part of the normalized name
+     * @returns {Promise<Object>} { items: [{ playerId, username, role, createdAt }], total }
+     */
+    async listAccounts({ q = "", role = null, limit = 20, offset = 0 } = {}) {
+      const needle = q.trim().toLowerCase();
+      const conditions = [];
+      const params = [];
+      if (needle) {
+        // The characters of a pattern are searched as they are
+        params.push(`%${needle.replace(/[\\%_]/g, "\\$&")}%`);
+        conditions.push(`username_key LIKE $${params.length}`);
+      }
+      if (role) {
+        params.push(role);
+        conditions.push(`role = $${params.length}`);
+      }
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+      const { rows: [{ count }] } = await pool.query(`SELECT count(*) AS count FROM user_accounts ${where}`, params);
+      const { rows } = await pool.query(
+        `SELECT player_id AS "playerId", username, role, created_at AS "createdAt"
+         FROM user_accounts ${where}
+         ORDER BY username_key COLLATE "C", player_id
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset],
+      );
+      return { items: rows, total: Number(count) };
+    },
+
+    /**
+     * Rename an account and its player, with the trace, in one transaction
+     * @param {string} playerId - Player of the account
+     * @param {Object} name - { username, usernameKey }: the name as written and its normalized form
+     * @param {Object} options - { actor }
+     * @returns {Promise<Object|null>} { playerId, username, previousUsername, changed }, or null if there is no account
+     * @throws {Error} With code USERNAME_TAKEN if another account has the name
+     */
+    async setAccountUsername(playerId, { username, usernameKey }, { actor } = {}) {
+      assertActor(actor);
+      try {
+        return await withTransaction(async (client) => {
+          const { rows } = await client.query(
+            "SELECT username FROM user_accounts WHERE player_id = $1 FOR UPDATE",
+            [playerId],
+          );
+          if (rows.length === 0) {
+            return null;
+          }
+
+          const previousUsername = rows[0].username;
+          if (previousUsername === username) {
+            return { playerId, username, previousUsername, changed: false };
+          }
+
+          await client.query(
+            "UPDATE user_accounts SET username = $2, username_key = $3 WHERE player_id = $1",
+            [playerId, username, usernameKey],
+          );
+          await client.query("UPDATE players SET name = $2, updated_at = now() WHERE id = $1", [playerId, username]);
+          await client.query(
+            `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+             VALUES ($1, $2, 'username_changed', $3, $4)`,
+            [actor.type, actor.id ?? null, playerId, JSON.stringify({ from: previousUsername, to: username })],
+          );
+          return { playerId, username, previousUsername, changed: true };
+        });
+      } catch (err) {
+        if (err.code === PG_UNIQUE_VIOLATION && err.constraint === "user_accounts_username_key_key") {
+          throw usernameTakenError();
+        }
+        throw err;
+      }
+    },
+
+    /**
+     * Add or take away credits: the movement, the balance and the audit row, in one transaction.
+     * The balance never goes below zero.
+     * @param {string} playerId - Player ID
+     * @param {number} amount - Whole number of credits, positive or negative
+     * @param {Object} options - { actor, reason }
+     * @returns {Promise<Object|null>} { playerId, amount }, or null if the player does not exist
+     * @throws {Error} With code INSUFFICIENT_CREDITS if the balance is not enough
+     */
+    async adjustCredits(playerId, amount, { actor, reason } = {}) {
+      assertCreditAdjustment(amount, reason, actor);
+      return withTransaction(async (client) => {
+        const { rows } = await client.query("SELECT 1 FROM players WHERE id = $1", [playerId]);
+        if (rows.length === 0) {
+          return null;
+        }
+
+        await applyMovement(client, { playerId, type: "admin_adjustment", amount });
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'credits_adjusted', $3, $4)`,
+          [actor.type, actor.id ?? null, playerId, JSON.stringify({ amount, reason: reason.trim() })],
+        );
+        return { playerId, amount };
+      });
+    },
+
+    /**
      * Number of admins
      * @returns {Promise<number>} Accounts with the admin role
      */
@@ -494,14 +691,28 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
      * @param {Object} options - { limit } (default 100)
      * @returns {Promise<Object[]>} { id, actorType, actorId, action, targetId, details, createdAt }, latest first
      */
-    async listAuditEvents({ limit = 100 } = {}) {
+    async listAuditEvents({ limit = 100, offset = 0, targetId = null } = {}) {
       const { rows } = await pool.query(
         `SELECT id, actor_type AS "actorType", actor_id AS "actorId", action,
                 target_id AS "targetId", details, created_at AS "createdAt"
-         FROM audit_log ORDER BY id DESC LIMIT $1`,
-        [limit],
+         FROM audit_log WHERE ($1::text IS NULL OR target_id = $1)
+         ORDER BY id DESC LIMIT $2 OFFSET $3`,
+        [targetId, limit, offset],
       );
       return rows.map((row) => ({ ...row, id: Number(row.id) }));
+    },
+
+    /**
+     * Number of events of the audit log
+     * @param {Object} options - { targetId }: only the events about this player
+     * @returns {Promise<number>} Events
+     */
+    async countAuditEvents({ targetId = null } = {}) {
+      const { rows } = await pool.query(
+        "SELECT count(*) AS count FROM audit_log WHERE ($1::text IS NULL OR target_id = $1)",
+        [targetId],
+      );
+      return Number(rows[0].count);
     },
 
     /**

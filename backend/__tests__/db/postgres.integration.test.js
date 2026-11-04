@@ -190,6 +190,13 @@ describeWithDb('PostgreSQL store', () => {
       await store.recordPurchase('p1', 100);
     });
 
+    test('getAccount gives the account as the admin area shows it, without the password hash, or null', async () => {
+      await expect(store.getAccount('p2')).resolves.toEqual({
+        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date),
+      });
+      await expect(store.getAccount('ghost')).resolves.toBeNull();
+    });
+
     describe('listAccounts', () => {
       test('lists by name with the total, and never the password hash', async () => {
         const { items, total } = await store.listAccounts();
@@ -379,7 +386,8 @@ describeWithDb('PostgreSQL store', () => {
         await runMigrations(pool, upTo004);
         await pool.query("INSERT INTO players (id, name, credits) VALUES ('debtor', 'Debitore', -50), ('ok', 'Anna', 100)");
 
-        await expect(runMigrations(pool)).resolves.toEqual(['005_credits_non_negative.sql']);
+        // the migrations after the 004 are applied now; the 005 is the one that matters here
+        await expect(runMigrations(pool)).resolves.toEqual(expect.arrayContaining(['005_credits_non_negative.sql']));
 
         await expect(constraint()).resolves.toBe(false);
         const { rows } = await pool.query("SELECT credits FROM players WHERE id = 'debtor'");

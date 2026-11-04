@@ -413,6 +413,15 @@ describe('accounts of the memory store: list, rename, credits', () => {
     });
   });
 
+  describe('getAccount', () => {
+    test('gives the account as the admin area shows it, without the password hash, or null', async () => {
+      await expect(store.getAccount('p2')).resolves.toEqual({
+        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date),
+      });
+      await expect(store.getAccount('ghost')).resolves.toBeNull();
+    });
+  });
+
   describe('setAccountUsername', () => {
     const rename = (playerId, username, extra = {}) =>
       store.setAccountUsername(playerId, { username, usernameKey: username.toLowerCase() }, { actor: system, ...extra });
