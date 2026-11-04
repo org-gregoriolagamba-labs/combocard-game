@@ -4,6 +4,7 @@
  * Utility functions for card generation and manipulation.
  */
 
+import { randomInt, randomUUID } from "crypto";
 import { SEMI, SEMI_EMOJI, VALORI, VALORI_NUM, GAME_DEFAULTS } from "../config/constants.js";
 
 /**
@@ -30,8 +31,7 @@ export function generaMazzo() {
  * @returns {Array} 5x5 grid of cards
  */
 export function generaCartella() {
-  const mazzoCompleto = generaMazzo();
-  const mazzoMescolato = mazzoCompleto.sort(() => Math.random() - 0.5);
+  const mazzoMescolato = shuffleArray(generaMazzo());
   const carte25 = mazzoMescolato.slice(0, GAME_DEFAULTS.GRID_SIZE * GAME_DEFAULTS.GRID_SIZE);
   
   const cartella = Array(GAME_DEFAULTS.GRID_SIZE).fill(null).map(() => 
@@ -74,23 +74,25 @@ export function cartaEsisteInCartella(cartella, jollyPos, valore, seme) {
 }
 
 /**
- * Shuffle an array using Fisher-Yates algorithm
+ * Shuffle an array using Fisher-Yates algorithm. The deck and the grids decide who wins
+ * prizes, so the indexes come from a cryptographically secure source, never Math.random.
  * @param {Array} array - Array to shuffle
- * @returns {Array} Shuffled array
+ * @returns {Array} Shuffled copy: the original is not changed
  */
 export function shuffleArray(array) {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
 }
 
 /**
- * Generate a unique ID
- * @returns {string} Random ID string
+ * Generate a unique ID, from a cryptographically secure source. The ID of a private game is also
+ * its invite code, so it must not be guessable.
+ * @returns {string} Random version 4 UUID
  */
 export function generateId() {
-  return Math.random().toString(36).substr(2, 9);
+  return randomUUID();
 }
