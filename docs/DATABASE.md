@@ -39,6 +39,8 @@ Se `DATABASE_URL` è impostata e il database non è raggiungibile all'avvio, il 
 | `audit_log` | Registro delle azioni degli admin e del sistema: chi (`actor_type` `system` o `player`, `actor_id`), che cosa (`action`), su chi (`target_id`) e i dettagli (`details`). Si scrive nella stessa transazione della modifica che descrive e sopravvive ai giocatori (nessuna chiave esterna). Oggi registra i cambi di ruolo. |
 | `schema_migrations` | Migrazioni già applicate. |
 
+`players.credits` non scende mai sotto zero: lo garantisce il vincolo `players_credits_non_negative` (`CHECK (credits >= 0)`, migrazione 005) e ogni movimento di crediti è un `UPDATE … WHERE credits + importo >= 0`, quindi un addebito senza fondi non cambia nulla e fallisce con codice `INSUFFICIENT_CREDITS`. Se al momento della migrazione esistevano già saldi negativi, il vincolo non viene convalidato sulle righe vecchie (`NOT VALID`, perché la migrazione non deve impedire l'avvio): per cercarle `SELECT id, name, credits FROM players WHERE credits < 0;`, e dopo averle sistemate `ALTER TABLE players VALIDATE CONSTRAINT players_credits_non_negative;`. Una riga già negativa non si può aggiornare finché resta negativa.
+
 `players.credits` è sempre la somma dei movimenti del giocatore. Questa query deve restituire zero righe:
 
 ```sql

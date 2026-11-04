@@ -128,4 +128,72 @@ describe('joining a game', () => {
 
     await expect(join(late, game.id)).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/full/i) });
   });
+
+  describe('one game at a time', () => {
+    const create = (player) =>
+      call(createGame, gameState, { playerId: player.id, body: { requiredCredits: 100, maxPlayers: 4 } });
+
+    const anotherGame = async () => {
+      const { gameId } = await create(late);
+      return gameState.games[gameId];
+    };
+
+    test('a player in a game that is waiting cannot join another one, and stays out of it', async () => {
+      await waitingGame();
+      const other = await anotherGame();
+
+      await expect(join(anna, other.id)).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'You are already in another game',
+      });
+
+      expect(other.players).toHaveLength(0);
+    });
+
+    test('nor while the game is in progress', async () => {
+      await startedGame();
+      const other = await anotherGame();
+
+      await expect(join(carlo, other.id)).rejects.toMatchObject({ statusCode: 400, message: 'You are already in another game' });
+    });
+
+    test('a player in a game cannot create another one', async () => {
+      await waitingGame();
+
+      await expect(create(anna)).rejects.toMatchObject({ statusCode: 400, message: 'You are already in another game' });
+      expect(Object.keys(gameState.games)).toHaveLength(1);
+    });
+
+    test('after leaving a game that is waiting, a player joins another one and can create one', async () => {
+      const game = await waitingGame();
+      await call(leaveGame, gameState, { params: { gameId: game.id }, playerId: carlo.id });
+      const other = await anotherGame();
+
+      await expect(join(carlo, other.id)).resolves.toMatchObject({ success: true });
+      await call(leaveGame, gameState, { params: { gameId: other.id }, playerId: carlo.id });
+      await expect(create(carlo)).resolves.toHaveProperty('gameId');
+    });
+
+    test('after a game is finished, its players are free to join and create others', async () => {
+      const game = await startedGame();
+      game.status = 'finished';
+      const other = await anotherGame();
+
+      await expect(join(anna, other.id)).resolves.toMatchObject({ success: true });
+      await expect(create(carlo)).resolves.toHaveProperty('gameId');
+    });
+
+    test('an old currentGameId that points to a game that is gone does not lock the player', async () => {
+      carlo.currentGameId = 'a-game-that-is-gone';
+      const other = await anotherGame();
+
+      await expect(join(carlo, other.id)).resolves.toMatchObject({ success: true });
+    });
+
+    test('the same game twice is still "Already in game"', async () => {
+      const game = await waitingGame();
+
+      await expect(join(anna, game.id)).rejects.toMatchObject({ message: 'Already in game' });
+    });
+  });
 });

@@ -26,6 +26,8 @@ const EXACT = {
   "Game already started": "La partita è già iniziata",
   "Game not in playing state": "La partita non è in corso",
   "Already in game": "Sei già in questa partita",
+  "You are already in another game": "Sei già in un'altra partita: lasciala prima",
+  "A player does not have enough credits to start": "Un giocatore non ha più abbastanza crediti: la partita non può iniziare",
   "You are not part of this game": "Non fai parte di questa partita",
   "Only the game creator can start the game": "Solo chi ha creato la partita può avviarla",
   "Only the game creator can draw cards": "Solo chi ha creato la partita può estrarre le carte",

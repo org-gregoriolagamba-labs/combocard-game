@@ -56,6 +56,30 @@ export const getLobby = asyncHandler(async (req, res) => {
 });
 
 /**
+ * The game, still waiting or in progress, that a player is in. A player is in one game at a time:
+ * the entry fee is checked when joining and charged at the start, so with two games the same
+ * credits would be promised twice.
+ * @param {Object} gameState - Global game state
+ * @param {string} playerId - Player ID
+ * @returns {Object|null} The game, or null
+ */
+function activeGameOf(gameState, playerId) {
+  return Object.values(gameState.games).find(
+    (g) => g.status !== GAME_STATUS.FINISHED && g.players.some((p) => p.id === playerId),
+  ) ?? null;
+}
+
+/**
+ * Whether every player of a game still has the entry fee. Checked again when it is charged.
+ * @param {Object} game - Game object
+ * @param {Object} gameState - Global game state
+ * @returns {boolean} True if all of them can pay
+ */
+function everyoneCanPay(game, gameState) {
+  return game.players.every((p) => (gameState.players[p.id]?.credits ?? 0) >= game.requiredCredits);
+}
+
+/**
  * Create a new game
  * POST /api/games
  */
@@ -66,6 +90,10 @@ export const createGame = asyncHandler(async (req, res) => {
   const player = req.gameState.players[playerId];
   if (!player) {
     throw new AppError("Player not found", 404);
+  }
+
+  if (activeGameOf(req.gameState, playerId)) {
+    throw new AppError("You are already in another game", 400);
   }
 
   const credits = requiredCredits || GAME_DEFAULTS.REQUIRED_CREDITS;
@@ -156,6 +184,10 @@ export const joinGame = asyncHandler(async (req, res) => {
     throw new AppError("Already in game", 400);
   }
 
+  if (activeGameOf(req.gameState, playerId)) {
+    throw new AppError("You are already in another game", 400);
+  }
+
   if (game.players.length >= game.maxPlayers) {
     throw new AppError(`Game full (max ${game.maxPlayers} players)`, 400);
   }
@@ -227,6 +259,11 @@ export const startGame = asyncHandler(async (req, res) => {
   // Everyone must know how the game works before it starts
   if (!everyoneReadTheRules(game, req.gameState)) {
     throw new AppError("Waiting for all players to confirm they read the rules", 409);
+  }
+
+  // The fee is charged only if everyone still has it: nobody's balance goes below zero
+  if (!everyoneCanPay(game, req.gameState)) {
+    throw new AppError("A player does not have enough credits to start", 400);
   }
 
   const creditMovements = trackCredits(req.gameState, game);
@@ -671,6 +708,12 @@ async function autoStartGame(game, gameId, io, gameState, store) {
 
   // The game waits for the players who have not confirmed the rules: it starts when the last one does
   if (!everyoneReadTheRules(game, gameState)) {
+    return;
+  }
+
+  // The game waits, and charges nobody, if someone no longer has the fee
+  if (!everyoneCanPay(game, gameState)) {
+    console.warn(`⚠️ Game ${gameId} not started: a player does not have enough credits`);
     return;
   }
 

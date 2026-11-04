@@ -18,6 +18,7 @@ const PG_UNIQUE_VIOLATION = "23505";
 export const USERNAME_TAKEN = "USERNAME_TAKEN";
 export const LAST_ADMIN = "LAST_ADMIN";
 export const INVALID_ROLE = "INVALID_ROLE";
+export const INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS";
 
 const ACCOUNT_ROLES = ["player", "admin"];
 const ACTOR_TYPES = ["system", "player"];
@@ -200,11 +201,20 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
   }
 
   async function applyMovement(client, { playerId, gameId = null, type, amount }) {
+    // The balance never goes below zero: a movement that would make it negative changes nothing
     const { rows } = await client.query(
-      "UPDATE players SET credits = credits + $2, updated_at = now() WHERE id = $1 RETURNING credits",
+      `UPDATE players SET credits = credits + $2, updated_at = now()
+       WHERE id = $1 AND credits + $2 >= 0 RETURNING credits`,
       [playerId, amount],
     );
     if (rows.length === 0) {
+      const { rows: known } = await client.query("SELECT 1 FROM players WHERE id = $1", [playerId]);
+      if (known.length > 0) {
+        throw Object.assign(
+          new Error(`Cannot apply credit movement: player ${playerId} does not have ${-amount} credits`),
+          { code: INSUFFICIENT_CREDITS },
+        );
+      }
       throw new Error(`Cannot apply credit movement: unknown player ${playerId}`);
     }
     await client.query(
