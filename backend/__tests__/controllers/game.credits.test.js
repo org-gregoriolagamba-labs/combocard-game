@@ -94,16 +94,18 @@ describe('credit settlement', () => {
     expect(game.players.some((p) => p.id === anna.id)).toBe(false);
   });
 
-  test('finishing one game does not undo another game of the same player', async () => {
+  test('a player plays a second game after the first one finished, and the credits add up', async () => {
     const first = await newStartedGame(100);
-    const second = await newStartedGame(50);
-    expect(anna.credits).toBe(350);
-
+    expect(anna.credits).toBe(400);
     first.collezioniDistribuzione = { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 };
     finishGame(first, first.id, io, gameState);
+    expect(anna.credits).toBe(400);
+
+    const second = await newStartedGame(50);
 
     expect(anna.credits).toBe(350);
     expect(second.status).toBe('playing');
+    expect(first.status).toBe('finished');
   });
 
   test('a player who tries to join a game already started is refused and keeps their credits', async () => {

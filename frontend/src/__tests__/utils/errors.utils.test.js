@@ -10,6 +10,8 @@ describe('translateServerError', () => {
     ['Insufficient credits', 'Non hai crediti sufficienti'],
     ['Game already started', 'La partita è già iniziata'],
     ['Already in game', 'Sei già in questa partita'],
+    ['You are already in another game', "Sei già in un'altra partita: lasciala prima"],
+    ['A player does not have enough credits to start', 'Un giocatore non ha più abbastanza crediti: la partita non può iniziare'],
     ['Deck exhausted', 'Le carte sono finite'],
     ['Only the game creator can draw cards', 'Solo chi ha creato la partita può estrarre le carte'],
     ['Only the game creator can start the game', 'Solo chi ha creato la partita può avviarla'],

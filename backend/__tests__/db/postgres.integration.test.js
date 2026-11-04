@@ -6,11 +6,13 @@
  */
 
 import { spawnSync } from 'child_process';
+import { copyFile, mkdtemp, readdir, rm } from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
-import { createPostgresStore, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from '../../src/db/store.js';
+import { createPostgresStore, INSUFFICIENT_CREDITS, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from '../../src/db/store.js';
 
 const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const url = process.env.TEST_DATABASE_URL;
@@ -171,6 +173,79 @@ describeWithDb('PostgreSQL store', () => {
       await store.createPlayer({ ...player, id: 'p2' });
 
       await expect(store.createAccount({ ...player, id: 'p3' }, account)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('credits never go below zero', () => {
+    const constraint = async () => {
+      const { rows } = await pool.query(
+        "SELECT convalidated FROM pg_constraint WHERE conname = 'players_credits_non_negative'",
+      );
+      return rows[0]?.convalidated;
+    };
+
+    test('a movement that would leave a negative balance is refused, with the whole write', async () => {
+      await store.createPlayer(player);
+      await store.recordPurchase('p1', 100);
+
+      await expect(store.saveGame(game({ status: 'playing' }), [
+        { playerId: 'p1', gameId: 'g1', type: 'game_entry', amount: -101 },
+      ])).rejects.toMatchObject({ code: INSUFFICIENT_CREDITS });
+
+      await expect(balance()).resolves.toEqual({ credits: 100, ledger: 100 });
+      await expect(store.findGame('g1')).resolves.toBeNull();
+    });
+
+    test('spending exactly what is left is allowed', async () => {
+      await store.createPlayer(player);
+      await store.recordPurchase('p1', 100);
+
+      await store.saveGame(game({ status: 'playing' }), [
+        { playerId: 'p1', gameId: 'g1', type: 'game_entry', amount: -100 },
+      ]);
+
+      await expect(balance()).resolves.toEqual({ credits: 0, ledger: 0 });
+    });
+
+    test('a movement for a player that does not exist is still an error about the player', async () => {
+      await expect(store.saveGame(game(), [
+        { playerId: 'ghost', gameId: 'g1', type: 'game_entry', amount: -10 },
+      ])).rejects.toThrow(/unknown player/);
+    });
+
+    test('the database itself refuses a negative balance', async () => {
+      await store.createPlayer(player);
+
+      await expect(pool.query("UPDATE players SET credits = -1 WHERE id = 'p1'")).rejects.toMatchObject({ code: '23514' });
+      await expect(pool.query("INSERT INTO players (id, name, credits) VALUES ('p9', 'Nina', -5)")).rejects.toMatchObject({ code: '23514' });
+    });
+
+    test('on a database without negative balances the constraint is validated', async () => {
+      await expect(constraint()).resolves.toBe(true);
+    });
+
+    test('a database that already has a negative balance still migrates: the old row stays, the rule applies from now on', async () => {
+      const upTo004 = await mkdtemp(path.join(os.tmpdir(), 'migrations-'));
+      try {
+        const migrations = path.join(backendDir, 'db/migrations');
+        for (const file of (await readdir(migrations)).filter((f) => f < '005')) {
+          await copyFile(path.join(migrations, file), path.join(upTo004, file));
+        }
+        await pool.query(
+          'DROP TABLE IF EXISTS audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
+        );
+        await runMigrations(pool, upTo004);
+        await pool.query("INSERT INTO players (id, name, credits) VALUES ('debtor', 'Debitore', -50), ('ok', 'Anna', 100)");
+
+        await expect(runMigrations(pool)).resolves.toEqual(['005_credits_non_negative.sql']);
+
+        await expect(constraint()).resolves.toBe(false);
+        const { rows } = await pool.query("SELECT credits FROM players WHERE id = 'debtor'");
+        expect(Number(rows[0].credits)).toBe(-50);
+        await expect(pool.query("UPDATE players SET credits = -1 WHERE id = 'ok'")).rejects.toMatchObject({ code: '23514' });
+      } finally {
+        await rm(upTo004, { recursive: true, force: true });
+      }
     });
   });
 
@@ -371,11 +446,12 @@ describeWithDb('PostgreSQL store', () => {
 
   test('a deleted game disappears and its movements are kept', async () => {
     await store.createPlayer(player);
+    await store.recordPurchase('p1', 10);
     await store.saveGame(game(), [{ playerId: 'p1', gameId: 'g1', type: 'game_entry', amount: -1 }]);
     await store.deleteGame('g1');
 
     await expect(store.findGame('g1')).resolves.toBeNull();
-    const { rows } = await pool.query('SELECT game_id FROM credit_transactions');
+    const { rows } = await pool.query("SELECT game_id FROM credit_transactions WHERE type = 'game_entry'");
     expect(rows).toEqual([{ game_id: null }]);
   });
 });
