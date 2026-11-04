@@ -36,6 +36,7 @@ Se `DATABASE_URL` è impostata e il database non è raggiungibile all'avvio, il 
 | `credit_transactions` | Un movimento per ogni variazione di crediti, con il saldo risultante. |
 | `user_accounts` | Nome utente, hash della password e ruolo di ogni account. Vedi [AUTH.md](AUTH.md). |
 | `refresh_tokens` | Hash dei refresh token attivi. Vedi [AUTH.md](AUTH.md). |
+| `audit_log` | Registro delle azioni degli admin e del sistema: chi (`actor_type` `system` o `player`, `actor_id`), che cosa (`action`), su chi (`target_id`) e i dettagli (`details`). Si scrive nella stessa transazione della modifica che descrive e sopravvive ai giocatori (nessuna chiave esterna). Oggi registra i cambi di ruolo. |
 | `schema_migrations` | Migrazioni già applicate. |
 
 `players.credits` è sempre la somma dei movimenti del giocatore. Questa query deve restituire zero righe:

@@ -23,6 +23,8 @@ export function authenticateToken(token, gameState) {
 
 /**
  * Require a valid access token. Sets req.auth to { playerId, role }.
+ * The role is the one in the token, which can be up to 15 minutes old: never decide
+ * on it. Use requireRole, which reads it again from the store.
  */
 export const requireAuth = (req, res, next) => {
   const [scheme, token] = (req.headers.authorization ?? "").split(" ");
@@ -34,6 +36,35 @@ export const requireAuth = (req, res, next) => {
 
   req.auth = auth;
   next();
+};
+
+/**
+ * Allow access only to accounts with one of the given roles. Goes after requireAuth.
+ * The role is read from the store at every request and never from the request: a player
+ * who was demoted loses the privileges at once, whatever the token says.
+ * @param {...string} roles - Accepted roles
+ * @returns {Function} Middleware, with the accepted roles in `requiredRoles`
+ */
+export const requireRole = (...roles) => {
+  const guard = async (req, res, next) => {
+    try {
+      const account = req.auth ? await req.store.findAccountById(req.auth.playerId) : null;
+
+      if (!account) {
+        return next(new AppError("Authentication required", 401));
+      }
+      if (!roles.includes(account.role)) {
+        return next(new AppError("You do not have permission to do this", 403));
+      }
+
+      req.auth.role = account.role;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+  guard.requiredRoles = roles;
+  return guard;
 };
 
 /**

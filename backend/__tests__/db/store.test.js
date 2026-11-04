@@ -6,7 +6,13 @@
  */
 
 import { jest } from '@jest/globals';
-import { createMemoryStore, createPostgresStore, decideRotation } from '../../src/db/store.js';
+import {
+  createMemoryStore,
+  createPostgresStore,
+  decideRotation,
+  INVALID_ROLE,
+  LAST_ADMIN,
+} from '../../src/db/store.js';
 
 function createFakePool({ onQuery = () => {} } = {}) {
   const log = [];
@@ -254,5 +260,105 @@ describe('createMemoryStore', () => {
     const store = createMemoryStore();
     expect(store.status().enabled).toBe(false);
     await expect(store.findGame('g1')).resolves.toBeNull();
+  });
+});
+
+describe('roles of the memory store', () => {
+  const system = { type: 'system' };
+  let store;
+
+  const makeAccount = (id, usernameKey = id) =>
+    store.createAccount({ id }, { usernameKey, passwordHash: 'hash' });
+
+  beforeEach(async () => {
+    store = createMemoryStore();
+    await makeAccount('p1');
+    await makeAccount('p2');
+    await makeAccount('p3');
+  });
+
+  test('every account starts as a player, and nobody is admin', async () => {
+    await expect(store.findAccountById('p1')).resolves.toMatchObject({ role: 'player' });
+    await expect(store.countAdmins()).resolves.toBe(0);
+  });
+
+  test('promotes and demotes, and says what changed', async () => {
+    await makeAccount('p4');
+    await store.setAccountRole('p4', 'admin', { actor: system });
+
+    await expect(store.setAccountRole('p1', 'admin', { actor: system }))
+      .resolves.toEqual({ playerId: 'p1', role: 'admin', previousRole: 'player', changed: true });
+    await expect(store.findAccountById('p1')).resolves.toMatchObject({ role: 'admin' });
+    await expect(store.countAdmins()).resolves.toBe(2);
+
+    await expect(store.setAccountRole('p1', 'player', { actor: system }))
+      .resolves.toEqual({ playerId: 'p1', role: 'player', previousRole: 'admin', changed: true });
+  });
+
+  test('doing it twice changes nothing and leaves no second trace', async () => {
+    await store.setAccountRole('p1', 'admin', { actor: system });
+
+    await expect(store.setAccountRole('p1', 'admin', { actor: system }))
+      .resolves.toEqual({ playerId: 'p1', role: 'admin', previousRole: 'admin', changed: false });
+    await expect(store.listAuditEvents()).resolves.toHaveLength(1);
+  });
+
+  test('an unknown player gives null and changes nothing', async () => {
+    await expect(store.setAccountRole('ghost', 'admin', { actor: system })).resolves.toBeNull();
+    await expect(store.countAdmins()).resolves.toBe(0);
+    await expect(store.listAuditEvents()).resolves.toEqual([]);
+  });
+
+  test('the only admin cannot be demoted, but one of two can', async () => {
+    await store.setAccountRole('p1', 'admin', { actor: system });
+
+    await expect(store.setAccountRole('p1', 'player', { actor: system })).rejects.toMatchObject({ code: LAST_ADMIN });
+    await expect(store.countAdmins()).resolves.toBe(1);
+
+    await store.setAccountRole('p2', 'admin', { actor: system });
+    await expect(store.setAccountRole('p1', 'player', { actor: system })).resolves.toMatchObject({ changed: true });
+    await expect(store.countAdmins()).resolves.toBe(1);
+  });
+
+  test('a role that does not exist is refused', async () => {
+    await expect(store.setAccountRole('p1', 'root', { actor: system })).rejects.toMatchObject({ code: INVALID_ROLE });
+    await expect(store.findAccountById('p1')).resolves.toMatchObject({ role: 'player' });
+  });
+
+  test('without the one who acts it refuses, so that nothing changes without a trace', async () => {
+    await expect(store.setAccountRole('p1', 'admin')).rejects.toThrow();
+    await expect(store.countAdmins()).resolves.toBe(0);
+  });
+
+  test('every change is written in the audit log, the latest first', async () => {
+    await store.setAccountRole('p1', 'admin', { actor: system });
+    await store.setAccountRole('p2', 'admin', { actor: { type: 'player', id: 'p1' } });
+
+    const events = await store.listAuditEvents();
+
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      action: 'role_changed',
+      actorType: 'player',
+      actorId: 'p1',
+      targetId: 'p2',
+      details: { from: 'player', to: 'admin' },
+    });
+    expect(events[1]).toMatchObject({ actorType: 'system', actorId: null, targetId: 'p1' });
+    expect(events[0].createdAt).toBeInstanceOf(Date);
+  });
+
+  test('a refused change leaves no trace in the audit log', async () => {
+    await store.setAccountRole('p1', 'admin', { actor: system });
+    await store.setAccountRole('p1', 'player', { actor: system }).catch(() => {});
+
+    await expect(store.listAuditEvents()).resolves.toHaveLength(1);
+  });
+
+  test('the audit log can be limited', async () => {
+    await store.setAccountRole('p1', 'admin', { actor: system });
+    await store.setAccountRole('p2', 'admin', { actor: system });
+
+    await expect(store.listAuditEvents({ limit: 1 })).resolves.toHaveLength(1);
   });
 });
