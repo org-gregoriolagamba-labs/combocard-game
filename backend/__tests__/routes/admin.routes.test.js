@@ -36,3 +36,25 @@ describe('GET /api/admin/status', () => {
     expect(payload.data).toEqual({ admin: true });
   });
 });
+
+describe('the routes of the admin area', () => {
+  const routeOf = (path, method) =>
+    adminRouter.stack.find((layer) => layer.route?.path === path && layer.route.methods[method])?.route;
+
+  test.each([
+    ['/users', 'get', 2], // validation of the query, then the handler
+    ['/users/:playerId', 'get', 1],
+    ['/users/:playerId', 'patch', 2], // validation of the body, then the handler
+    ['/users/:playerId/credits', 'post', 2],
+    ['/audit', 'get', 2],
+  ])('%s %s exists and has its validation', (path, method, handlers) => {
+    expect(routeOf(path, method)?.stack.length).toBeGreaterThanOrEqual(handlers);
+  });
+
+  test('nothing in the router changes data without a validated body', () => {
+    const writes = adminRouter.stack.filter((layer) => layer.route && (layer.route.methods.post || layer.route.methods.patch));
+
+    expect(writes.length).toBeGreaterThanOrEqual(2);
+    writes.forEach((layer) => expect(layer.route.stack.length).toBeGreaterThanOrEqual(2));
+  });
+});

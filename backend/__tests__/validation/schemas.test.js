@@ -12,6 +12,10 @@ import {
   claimCollectionSchema,
   useJollySchema,
   startJollySchema,
+  adminAdjustCreditsSchema,
+  adminAuditQuerySchema,
+  adminListUsersQuerySchema,
+  adminUpdateUserSchema,
 } from '../../src/validation/schemas.js';
 
 const isValid = (schema, body) => !schema.validate(body).error;
@@ -148,5 +152,78 @@ describe('validate middleware', () => {
     validate(buyCreditsSchema)({ body: { amount: 'x' } }, {}, next);
 
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe('admin schemas', () => {
+  describe('adminListUsersQuerySchema', () => {
+    test('takes the defaults, and reads numbers from the text of a query string', () => {
+      expect(adminListUsersQuerySchema.validate({}).value).toEqual({ page: 1, limit: 20 });
+      expect(adminListUsersQuerySchema.validate({ page: '3', limit: '50', q: ' an ', role: 'admin' }).value)
+        .toEqual({ page: 3, limit: 50, q: 'an', role: 'admin' });
+    });
+
+    test.each([
+      ['a page of zero', { page: '0' }],
+      ['a limit over 100', { limit: '101' }],
+      ['a role that does not exist', { role: 'root' }],
+      ['a page that is not a number', { page: 'x' }],
+      ['a search longer than 30 characters', { q: 'a'.repeat(31) }],
+    ])('rejects %s', (_name, query) => {
+      expect(adminListUsersQuerySchema.validate(query).error).toBeDefined();
+    });
+  });
+
+  describe('adminUpdateUserSchema', () => {
+    test('takes a username or a role, one at a time', () => {
+      expect(adminUpdateUserSchema.validate({ username: ' Anna Rossi ' }).value).toEqual({ username: 'Anna Rossi' });
+      expect(adminUpdateUserSchema.validate({ role: 'admin' }).value).toEqual({ role: 'admin' });
+    });
+
+    test.each([
+      ['nothing', {}],
+      ['both at once', { username: 'Anna', role: 'admin' }],
+      ['a role that does not exist', { role: 'root' }],
+      ['a username that is too short', { username: 'ab' }],
+      ['a username with forbidden characters', { username: 'anna<script>' }],
+    ])('rejects %s', (_name, body) => {
+      expect(adminUpdateUserSchema.validate(body).error).toBeDefined();
+    });
+
+    test('drops what it does not know, so nothing else can be changed', () => {
+      expect(adminUpdateUserSchema.validate({ role: 'admin', credits: 99999 }, { stripUnknown: true }).value)
+        .toEqual({ role: 'admin' });
+    });
+  });
+
+  describe('adminAdjustCreditsSchema', () => {
+    test('takes an amount with its sign and a reason', () => {
+      expect(adminAdjustCreditsSchema.validate({ amount: -40, reason: ' correzione ' }).value)
+        .toEqual({ amount: -40, reason: 'correzione' });
+    });
+
+    test.each([
+      ['no reason', { amount: 10 }],
+      ['an empty reason', { amount: 10, reason: '   ' }],
+      ['a reason that is too long', { amount: 10, reason: 'x'.repeat(201) }],
+      ['an amount of zero', { amount: 0, reason: 'x' }],
+      ['an amount that is not a whole number', { amount: 1.5, reason: 'x' }],
+      ['an amount as text', { amount: '10', reason: 'x' }],
+      ['an amount over one million', { amount: 1000001, reason: 'x' }],
+      ['an amount under minus one million', { amount: -1000001, reason: 'x' }],
+    ])('rejects %s', (_name, body) => {
+      expect(adminAdjustCreditsSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('adminAuditQuerySchema', () => {
+    test('takes the defaults and a target', () => {
+      expect(adminAuditQuerySchema.validate({}).value).toEqual({ page: 1, limit: 20 });
+      expect(adminAuditQuerySchema.validate({ targetId: 'abc', page: '2' }).value).toEqual({ targetId: 'abc', page: 2, limit: 20 });
+    });
+
+    test('rejects a limit over 100', () => {
+      expect(adminAuditQuerySchema.validate({ limit: '500' }).error).toBeDefined();
+    });
   });
 });

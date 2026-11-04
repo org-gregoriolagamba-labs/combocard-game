@@ -176,6 +176,148 @@ describeWithDb('PostgreSQL store', () => {
     });
   });
 
+  describe('admin: accounts, credits and audit log', () => {
+    const system = { type: 'system' };
+    const makeAccount = (id, username) =>
+      store.createAccount({ ...player, id, name: username }, { username, usernameKey: username.toLowerCase(), passwordHash: 'hash' });
+
+    beforeEach(async () => {
+      await makeAccount('p1', 'Anna');
+      await makeAccount('p2', 'Carlo Rossi');
+      await makeAccount('p3', 'Dario');
+      await makeAccount('p4', 'Anna Maria');
+      await store.setAccountRole('p3', 'admin', { actor: system });
+      await store.recordPurchase('p1', 100);
+    });
+
+    describe('listAccounts', () => {
+      test('lists by name with the total, and never the password hash', async () => {
+        const { items, total } = await store.listAccounts();
+
+        expect(total).toBe(4);
+        expect(items.map((a) => a.username)).toEqual(['Anna', 'Anna Maria', 'Carlo Rossi', 'Dario']);
+        expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date) });
+        expect(JSON.stringify(items)).not.toMatch(/hash/);
+      });
+
+      test('searches a part of the name without caring about the case, and filters by role', async () => {
+        await expect(store.listAccounts({ q: 'ANNA' })).resolves.toMatchObject({ total: 2 });
+        await expect(store.listAccounts({ role: 'admin' })).resolves.toMatchObject({ total: 1, items: [{ playerId: 'p3' }] });
+      });
+
+      test('pages, with the total of the whole result', async () => {
+        const second = await store.listAccounts({ limit: 2, offset: 2 });
+
+        expect(second.items.map((a) => a.playerId)).toEqual(['p2', 'p3']);
+        expect(second.total).toBe(4);
+      });
+
+      test('the characters of a pattern are searched as they are, not as a pattern', async () => {
+        await store.setAccountUsername('p2', { username: '100% Carlo', usernameKey: '100% carlo' }, { actor: system });
+
+        await expect(store.listAccounts({ q: '%' })).resolves.toMatchObject({ total: 1, items: [{ playerId: 'p2' }] });
+        await expect(store.listAccounts({ q: '_' })).resolves.toMatchObject({ total: 0 });
+        await expect(store.listAccounts({ q: "x' OR '1'='1" })).resolves.toMatchObject({ total: 0 });
+      });
+    });
+
+    describe('setAccountUsername', () => {
+      const rename = (playerId, username) =>
+        store.setAccountUsername(playerId, { username, usernameKey: username.toLowerCase() }, { actor: system });
+
+      test('renames the account and the player together, and the new name is the one of the login', async () => {
+        await expect(rename('p2', 'Carlo Bianchi'))
+          .resolves.toEqual({ playerId: 'p2', username: 'Carlo Bianchi', previousUsername: 'Carlo Rossi', changed: true });
+
+        await expect(store.findAccountByUsernameKey('carlo bianchi')).resolves.toMatchObject({ playerId: 'p2' });
+        await expect(store.findAccountByUsernameKey('carlo rossi')).resolves.toBeNull();
+        const { players } = await createPostgresStore(pool).loadState();
+        expect(players.p2.name).toBe('Carlo Bianchi');
+      });
+
+      test('a name in use by another account is refused, and neither the account nor the player changes', async () => {
+        await expect(rename('p2', 'ANNA')).rejects.toMatchObject({ code: USERNAME_TAKEN });
+
+        await expect(store.findAccountByUsernameKey('carlo rossi')).resolves.toMatchObject({ playerId: 'p2' });
+        const { players } = await createPostgresStore(pool).loadState();
+        expect(players.p2.name).toBe('Carlo Rossi');
+        const events = await store.listAuditEvents({ targetId: 'p2' });
+        expect(events).toEqual([]);
+      });
+
+      test('the same name with other capital letters is a change of the account itself; the same again is not', async () => {
+        await expect(rename('p1', 'ANNA')).resolves.toMatchObject({ changed: true });
+        await expect(rename('p1', 'ANNA')).resolves.toMatchObject({ changed: false });
+        await expect(store.listAuditEvents({ targetId: 'p1' })).resolves.toHaveLength(1);
+      });
+
+      test('an unknown player gives null; without who does it, it refuses', async () => {
+        await expect(rename('ghost', 'Nobody')).resolves.toBeNull();
+        await expect(store.setAccountUsername('p1', { username: 'Zeta', usernameKey: 'zeta' })).rejects.toThrow();
+      });
+
+      test('two renames to the same name at the same time: one wins, the other is told it is taken', async () => {
+        const results = await Promise.allSettled([rename('p1', 'Gemello'), rename('p2', 'GEMELLO')]);
+
+        expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+        expect(results.filter((r) => r.status === 'rejected').map((r) => r.reason.code)).toEqual([USERNAME_TAKEN]);
+      });
+    });
+
+    describe('adjustCredits', () => {
+      test('adds credits: a movement of its own kind, the balance, and the audit row, together', async () => {
+        await expect(store.adjustCredits('p1', 50, { actor: system, reason: 'regalo' }))
+          .resolves.toEqual({ playerId: 'p1', amount: 50 });
+
+        await expect(balance('p1')).resolves.toEqual({ credits: 150, ledger: 150 });
+        const { rows } = await pool.query("SELECT type, amount, balance_after FROM credit_transactions WHERE type = 'admin_adjustment'");
+        expect(rows.map((r) => [r.type, Number(r.amount), Number(r.balance_after)])).toEqual([['admin_adjustment', 50, 150]]);
+        const [event] = await store.listAuditEvents({ targetId: 'p1' });
+        expect(event).toMatchObject({ action: 'credits_adjusted', actorType: 'system', details: { amount: 50, reason: 'regalo' } });
+      });
+
+      test('takes credits away, down to zero', async () => {
+        await store.adjustCredits('p1', -100, { actor: system, reason: 'azzeramento' });
+
+        await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+      });
+
+      test('more than the balance is refused, and nothing changes: no movement, no audit row', async () => {
+        await expect(store.adjustCredits('p1', -101, { actor: system, reason: 'troppo' }))
+          .rejects.toMatchObject({ code: INSUFFICIENT_CREDITS });
+
+        await expect(balance('p1')).resolves.toEqual({ credits: 100, ledger: 100 });
+        await expect(store.listAuditEvents({ targetId: 'p1' })).resolves.toEqual([]);
+      });
+
+      test('an unknown player gives null; no reason, no actor or an amount that is not whole refuse', async () => {
+        await expect(store.adjustCredits('ghost', 10, { actor: system, reason: 'x' })).resolves.toBeNull();
+        await expect(store.adjustCredits('p1', 10, { actor: system })).rejects.toThrow();
+        await expect(store.adjustCredits('p1', 10, { reason: 'x' })).rejects.toThrow();
+        await expect(store.adjustCredits('p1', 0.5, { actor: system, reason: 'x' })).rejects.toThrow();
+        await expect(balance('p1')).resolves.toEqual({ credits: 100, ledger: 100 });
+      });
+
+      test('the type of movement is allowed by the database, and an unknown one still is not', async () => {
+        await expect(pool.query("INSERT INTO credit_transactions (player_id, type, amount, balance_after) VALUES ('p1', 'admin_adjustment', 1, 101)"))
+          .resolves.toBeDefined();
+        await expect(pool.query("INSERT INTO credit_transactions (player_id, type, amount, balance_after) VALUES ('p1', 'gift', 1, 101)"))
+          .rejects.toMatchObject({ code: '23514' });
+      });
+    });
+
+    test('the audit log by target and by page, with the total', async () => {
+      await store.adjustCredits('p1', 10, { actor: system, reason: 'uno' });
+      await store.adjustCredits('p2', 20, { actor: system, reason: 'due' });
+      await store.adjustCredits('p1', 30, { actor: system, reason: 'tre' });
+
+      expect((await store.listAuditEvents({ targetId: 'p1' })).map((e) => e.details.reason)).toEqual(['tre', 'uno']);
+      await expect(store.countAuditEvents({ targetId: 'p1' })).resolves.toBe(2);
+      expect((await store.listAuditEvents({ limit: 2, offset: 1 })).map((e) => e.details.reason)).toEqual(['due', 'uno']);
+      await expect(store.countAuditEvents()).resolves.toBe(4); // plus the promotion of p3
+    });
+  });
+
   describe('credits never go below zero', () => {
     const constraint = async () => {
       const { rows } = await pool.query(

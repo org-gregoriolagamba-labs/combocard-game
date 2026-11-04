@@ -10,8 +10,10 @@ import {
   createMemoryStore,
   createPostgresStore,
   decideRotation,
+  INSUFFICIENT_CREDITS,
   INVALID_ROLE,
   LAST_ADMIN,
+  USERNAME_TAKEN,
 } from '../../src/db/store.js';
 
 function createFakePool({ onQuery = () => {} } = {}) {
@@ -360,5 +362,163 @@ describe('roles of the memory store', () => {
     await store.setAccountRole('p2', 'admin', { actor: system });
 
     await expect(store.listAuditEvents({ limit: 1 })).resolves.toHaveLength(1);
+  });
+});
+
+describe('accounts of the memory store: list, rename, credits', () => {
+  const system = { type: 'system' };
+  let store;
+
+  beforeEach(async () => {
+    store = createMemoryStore();
+    for (const [id, username] of [['p1', 'Anna'], ['p2', 'Carlo Rossi'], ['p3', 'Dario'], ['p4', 'Anna Maria']]) {
+      await store.createAccount({ id }, { username, usernameKey: username.toLowerCase(), passwordHash: 'hash' });
+    }
+    await store.setAccountRole('p3', 'admin', { actor: system });
+  });
+
+  describe('listAccounts', () => {
+    test('lists the accounts by name, with the total, and never the password hash', async () => {
+      const { items, total } = await store.listAccounts();
+
+      expect(total).toBe(4);
+      expect(items.map((a) => a.username)).toEqual(['Anna', 'Anna Maria', 'Carlo Rossi', 'Dario']);
+      expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date) });
+      expect(JSON.stringify(items)).not.toMatch(/hash/);
+    });
+
+    test('searches a part of the name, without caring about the case', async () => {
+      const { items, total } = await store.listAccounts({ q: 'anna' });
+
+      expect(items.map((a) => a.playerId)).toEqual(['p1', 'p4']);
+      expect(total).toBe(2);
+    });
+
+    test('filters by role', async () => {
+      const { items } = await store.listAccounts({ role: 'admin' });
+
+      expect(items.map((a) => a.playerId)).toEqual(['p3']);
+    });
+
+    test('pages, and the total is the one of the whole result', async () => {
+      const second = await store.listAccounts({ limit: 2, offset: 2 });
+
+      expect(second.items.map((a) => a.playerId)).toEqual(['p2', 'p3']);
+      expect(second.total).toBe(4);
+    });
+
+    test('a search with the characters of a pattern finds only what contains them', async () => {
+      await expect(store.listAccounts({ q: '%' })).resolves.toMatchObject({ total: 0 });
+      await expect(store.listAccounts({ q: '_' })).resolves.toMatchObject({ total: 0 });
+    });
+  });
+
+  describe('setAccountUsername', () => {
+    const rename = (playerId, username, extra = {}) =>
+      store.setAccountUsername(playerId, { username, usernameKey: username.toLowerCase() }, { actor: system, ...extra });
+
+    test('renames, and the old name is free again, the new one taken', async () => {
+      await expect(rename('p2', 'Carlo Bianchi'))
+        .resolves.toEqual({ playerId: 'p2', username: 'Carlo Bianchi', previousUsername: 'Carlo Rossi', changed: true });
+
+      await expect(store.findAccountByUsernameKey('carlo bianchi')).resolves.toMatchObject({ playerId: 'p2' });
+      await expect(store.findAccountByUsernameKey('carlo rossi')).resolves.toBeNull();
+    });
+
+    test('a name already in use by another account is refused, and nothing changes', async () => {
+      await expect(rename('p2', 'ANNA')).rejects.toMatchObject({ code: USERNAME_TAKEN });
+
+      await expect(store.findAccountByUsernameKey('carlo rossi')).resolves.toMatchObject({ playerId: 'p2' });
+      await expect(store.listAuditEvents()).resolves.toHaveLength(1); // only the promotion of p3
+    });
+
+    test('the same name written with other capital letters is a change of the account itself', async () => {
+      await expect(rename('p1', 'ANNA')).resolves.toMatchObject({ username: 'ANNA', previousUsername: 'Anna', changed: true });
+    });
+
+    test('the same name again changes nothing and leaves no trace', async () => {
+      await expect(rename('p1', 'Anna')).resolves.toMatchObject({ changed: false });
+      await expect(store.listAuditEvents()).resolves.toHaveLength(1);
+    });
+
+    test('an unknown player gives null', async () => {
+      await expect(rename('ghost', 'Nobody')).resolves.toBeNull();
+    });
+
+    test('it needs to know who does it', async () => {
+      await expect(store.setAccountUsername('p1', { username: 'Zeta', usernameKey: 'zeta' })).rejects.toThrow();
+    });
+
+    test('writes who renamed whom in the audit log', async () => {
+      await rename('p2', 'Carlo Bianchi', { actor: { type: 'player', id: 'p3' } });
+
+      const [event] = await store.listAuditEvents();
+
+      expect(event).toMatchObject({
+        action: 'username_changed',
+        actorType: 'player',
+        actorId: 'p3',
+        targetId: 'p2',
+        details: { from: 'Carlo Rossi', to: 'Carlo Bianchi' },
+      });
+    });
+  });
+
+  describe('adjustCredits (the balance itself is in the game state: the store writes the trace)', () => {
+    test('writes the audit row with the amount and the reason, and answers with them', async () => {
+      await expect(store.adjustCredits('p1', 50, { actor: system, reason: 'regalo' }))
+        .resolves.toEqual({ playerId: 'p1', amount: 50 });
+
+      const [event] = await store.listAuditEvents();
+      expect(event).toMatchObject({
+        action: 'credits_adjusted',
+        actorType: 'system',
+        targetId: 'p1',
+        details: { amount: 50, reason: 'regalo' },
+      });
+    });
+
+    test('an unknown player gives null and leaves no trace', async () => {
+      await expect(store.adjustCredits('ghost', 50, { actor: system, reason: 'x' })).resolves.toBeNull();
+      await expect(store.listAuditEvents()).resolves.toHaveLength(1);
+    });
+
+    test.each([
+      ['no reason', { actor: system }],
+      ['an empty reason', { actor: system, reason: '  ' }],
+      ['no actor', { reason: 'x' }],
+    ])('refuses %s', async (_name, options) => {
+      await expect(store.adjustCredits('p1', 10, options)).rejects.toThrow();
+    });
+
+    test.each([0, 1.5, Number.NaN])('refuses an amount of %s', async (amount) => {
+      await expect(store.adjustCredits('p1', amount, { actor: system, reason: 'x' })).rejects.toThrow();
+    });
+
+    test('exposes the error code of a balance that is not enough, for the services that use it', () => {
+      expect(INSUFFICIENT_CREDITS).toBe('INSUFFICIENT_CREDITS');
+    });
+  });
+
+  describe('the audit log by target and by page', () => {
+    beforeEach(async () => {
+      await store.adjustCredits('p1', 10, { actor: system, reason: 'uno' });
+      await store.adjustCredits('p2', 20, { actor: system, reason: 'due' });
+      await store.adjustCredits('p1', 30, { actor: system, reason: 'tre' });
+    });
+
+    test('filters by target', async () => {
+      const events = await store.listAuditEvents({ targetId: 'p1' });
+
+      expect(events.map((e) => e.details.reason)).toEqual(['tre', 'uno']);
+      await expect(store.countAuditEvents({ targetId: 'p1' })).resolves.toBe(2);
+    });
+
+    test('pages from the latest', async () => {
+      const page = await store.listAuditEvents({ limit: 2, offset: 1 });
+
+      expect(page.map((e) => e.details.reason)).toEqual(['due', 'uno']);
+      await expect(store.countAuditEvents()).resolves.toBe(4);
+    });
   });
 });
