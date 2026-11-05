@@ -250,7 +250,7 @@ test.describe('Session renewal and logout @critical', () => {
     const { status, body } = await refresh(playwright);
 
     expect(status).toBe(200);
-    expect(body.data).toEqual({ accessToken: null, player: null });
+    expect(body.data).toEqual({ accessToken: null, player: null, role: null });
   });
 
   test('should give a new working token and replace the cookie', async ({ request, playwright }) => {

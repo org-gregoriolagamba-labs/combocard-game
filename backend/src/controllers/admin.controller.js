@@ -74,5 +74,5 @@ export const adjustCredits = asyncHandler(async (req, res) => {
  * GET /api/admin/audit
  */
 export const listAuditLog = asyncHandler(async (req, res) => {
-  sendSuccess(res, await adminService.listAudit(req.store, req.query));
+  sendSuccess(res, await adminService.listAudit(req.store, req.query, req.gameState));
 });

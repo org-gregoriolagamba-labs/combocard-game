@@ -154,7 +154,7 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
     throw new AppError("User not found", 404);
   }
   if (player.credits + amount < 0) {
-    throw new AppError("Insufficient credits", 409);
+    throw new AppError("The player does not have enough credits", 409);
   }
 
   // The game state never has credits that the database does not have: credits taken away are
@@ -170,7 +170,7 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
       player.credits -= amount;
     }
     if (err.code === INSUFFICIENT_CREDITS) {
-      throw new AppError("Insufficient credits", 409);
+      throw new AppError("The player does not have enough credits", 409);
     }
     console.error(`❌ Could not save the credit adjustment of player ${playerId}: ${err.message}`);
     throw new AppError(STORAGE_UNAVAILABLE, 503);
@@ -183,14 +183,20 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
 }
 
 /**
- * One page of the audit log, the latest first
+ * One page of the audit log, the latest first. With the game state, every event also has the
+ * name of who acted and of the target (null for the system, or for a player the game does not know).
  * @param {Object} query - { targetId, page, limit }
+ * @param {Object} [gameState] - Global game state, where the names are
  * @returns {Promise<Object>} { items, total, page, limit }
  */
-export async function listAudit(store, { targetId, page = 1, limit = 20 } = {}) {
-  const [items, total] = await Promise.all([
+export async function listAudit(store, { targetId, page = 1, limit = 20 } = {}, gameState = null) {
+  const [events, total] = await Promise.all([
     store.listAuditEvents({ limit, offset: (page - 1) * limit, targetId }),
     store.countAuditEvents({ targetId }),
   ]);
+  const nameOf = (id) => (id ? gameState.players[id]?.name ?? null : null);
+  const items = gameState
+    ? events.map((e) => ({ ...e, actorName: nameOf(e.actorId), targetName: nameOf(e.targetId) }))
+    : events;
   return { items, total, page, limit };
 }

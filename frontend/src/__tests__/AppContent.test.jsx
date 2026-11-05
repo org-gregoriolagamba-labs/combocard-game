@@ -5,9 +5,11 @@ import AppContent from '../AppContent';
 import { renderWithProviders } from './test-utils';
 import * as authService from '../services/authService';
 import * as gameService from '../services/gameService';
+import * as adminService from '../services/adminService';
 
 vi.mock('../services/authService');
 vi.mock('../services/gameService');
+vi.mock('../services/adminService');
 
 const preloaded = (regoleAccettateIl, screen = 'hall') => ({
   player: { id: 'p1', name: 'Anna', credits: 100, currentGameId: null, regoleAccettateIl, isLoading: false, error: null, sessionChecked: true },
@@ -47,5 +49,29 @@ describe('AppContent: the rules come first', () => {
     renderWithProviders(<AppContent />, { preloadedState: state });
 
     expect(await screen.findByRole('heading', { name: /combocard/i })).toBeInTheDocument();
+  });
+});
+
+describe('AppContent: the admin screen', () => {
+  beforeEach(() => {
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+    adminService.listUsers.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+  });
+
+  test('an admin on the admin screen sees it', async () => {
+    const state = preloaded('2026-11-03T10:00:00.000Z', 'admin');
+    state.player.role = 'admin';
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    expect(await screen.findByRole('heading', { name: 'Amministrazione' })).toBeInTheDocument();
+  });
+
+  test('anybody else is shown the hall, whatever the screen says', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: preloaded('2026-11-03T10:00:00.000Z', 'admin') });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Amministrazione' })).not.toBeInTheDocument();
+    expect(adminService.listUsers).not.toHaveBeenCalled();
   });
 });

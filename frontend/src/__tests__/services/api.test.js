@@ -159,3 +159,35 @@ describe('api client', () => {
     expect(onExpired).not.toHaveBeenCalled();
   });
 });
+
+describe('api client: patch and the status of an error', () => {
+  let errorSpy;
+
+  beforeEach(() => {
+    setAccessToken('t1');
+    global.fetch = vi.fn();
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+    setAccessToken(null);
+  });
+
+  test('patch sends the body with the PATCH method', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(200, { data: { ok: true } }));
+
+    await api.patch('/admin/users/p1', { role: 'admin' });
+
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toMatch(/\/admin\/users\/p1$/);
+    expect(options.method).toBe('PATCH');
+    expect(JSON.parse(options.body)).toEqual({ role: 'admin' });
+  });
+
+  test('an error carries the status of the answer, so a screen can tell a 403 from the rest', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(403, { message: 'You do not have permission to do this' }));
+
+    await expect(api.get('/admin/users')).rejects.toMatchObject({ status: 403, message: 'Non hai i permessi per farlo' });
+  });
+});

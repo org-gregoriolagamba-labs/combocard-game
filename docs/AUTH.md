@@ -57,6 +57,12 @@ Ogni account ha un ruolo: `player` (il giocatore normale, chiamato "user" nei te
 - **Non si può togliere il ruolo all'ultimo admin.** La regola vale anche per due richieste nello stesso istante.
 - **Registro delle azioni.** Ogni cambio di ruolo scrive una riga in `audit_log` (chi, quando, su chi, ruolo prima e dopo), nella stessa transazione del cambio. Un cambio rifiutato non lascia nessuna riga.
 
+### Il ruolo nelle risposte, e la schermata
+
+La registrazione, il login e il rinnovo rispondono con `{ accessToken, player, role }`: il ruolo sta **accanto** al giocatore e non dentro (il giocatore è ciò che il gioco mostra), ed è sempre e solo quello di chi fa la richiesta. Senza sessione il rinnovo risponde `role: null`.
+
+Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa **mostrare**: il pulsante "Amministrazione" nella hall compare solo a un admin, e la schermata (`ui.currentScreen === "admin"`) si apre solo se il ruolo è `admin`. Chi decide cosa è permesso resta il server: una richiesta rifiutata con `403` riporta il giocatore alla hall come giocatore, con un avviso. Un admin che si declassa da solo esce subito dall'area. Il ruolo cambia nel client al login o al rinnovo successivo, quindi un utente appena promosso lo vede al prossimo accesso.
+
 ### Le route di amministrazione
 
 | Route | Cosa fa |

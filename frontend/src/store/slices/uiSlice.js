@@ -14,7 +14,7 @@ const initialState = {
   vittoriaRecente: null,
   
   // Screen navigation
-  currentScreen: "home", // home, hall, lobby, game
+  currentScreen: "home", // home, hall, lobby, game, admin
   
   // Modals
   modals: {

@@ -18,6 +18,7 @@ import { HomePage } from "./pages";
 
 // Game screens
 import { HallScreen, LobbyScreen, GameScreen, RegoleScreen } from "./components/game";
+import { AdminScreen } from "./components/admin";
 import { LoadingSpinner } from "./components/common";
 
 function AppContent() {
@@ -26,6 +27,7 @@ function AppContent() {
   const sessionChecked = useSelector((state) => state.player.sessionChecked);
   const playerId = useSelector((state) => state.player.id);
   const regoleAccettateIl = useSelector((state) => state.player.regoleAccettateIl);
+  const role = useSelector((state) => state.player.role);
 
   // Initialize socket connection
   useSocket();
@@ -72,6 +74,10 @@ function AppContent() {
         return <LobbyScreen />;
       case "game":
         return <GameScreen />;
+      case "admin":
+        // The way in is only offered to an admin, and the server refuses everybody else: anybody
+        // else who ends up here is shown the hall
+        return role === "admin" ? <AdminScreen /> : <HallScreen />;
       default:
         return <HomePage />;
     }
