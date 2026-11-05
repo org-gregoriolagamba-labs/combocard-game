@@ -12,6 +12,20 @@ import { INSUFFICIENT_CREDITS, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from "
 
 const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
 
+// The name of a player, in the game state and in the game they are in
+function setPlayerName(gameState, playerId, name) {
+  if (name === undefined) {
+    return;
+  }
+  if (gameState.players[playerId]) {
+    gameState.players[playerId].name = name;
+  }
+  const entry = activeGameOf(gameState, playerId)?.players.find((p) => p.id === playerId);
+  if (entry) {
+    entry.name = name;
+  }
+}
+
 // A user as the admin sees them: the account from the store, the credits from the game
 const userView = (account, gameState) => ({
   playerId: account.playerId,
@@ -92,17 +106,20 @@ export async function updateUser(store, gameState, playerId, { username, role },
     if (activeGameOf(gameState, playerId)) {
       throw new AppError("Cannot rename a player who is in a game", 409);
     }
+    // The new name is in the game state before the store writes, so a game joined in the meantime
+    // copies it; and once the store has answered, the games the player is in are aligned again
+    const previousName = gameState.players[playerId]?.name;
+    setPlayerName(gameState, playerId, username);
     try {
       await store.setAccountUsername(playerId, { username, usernameKey: normalizeUsername(username) }, { actor });
     } catch (err) {
+      setPlayerName(gameState, playerId, previousName);
       if (err.code === USERNAME_TAKEN) {
         throw new AppError("Username already taken", 409);
       }
       throw err;
     }
-    if (gameState.players[playerId]) {
-      gameState.players[playerId].name = username;
-    }
+    setPlayerName(gameState, playerId, username);
   }
 
   if (role !== undefined) {
@@ -123,8 +140,8 @@ export async function updateUser(store, gameState, playerId, { username, role },
 }
 
 /**
- * Add or take away credits, with a reason. The credits of the game state change first, then the
- * store writes the movement and the audit row; if it cannot, the credits go back.
+ * Add or take away credits, with a reason. The store writes the movement and the audit row; the
+ * game state follows it (see below for the order), and if the store cannot write nothing changes.
  * @param {Object} adjustment - { amount, reason }
  * @param {Object} actor - { type: 'player', id } of the admin
  * @returns {Promise<Object>} { playerId, credits }
@@ -140,11 +157,18 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
     throw new AppError("Insufficient credits", 409);
   }
 
-  player.credits += amount;
+  // The game state never has credits that the database does not have: credits taken away are
+  // reserved at once (a game cannot spend them while the store writes), credits added show only
+  // after the store wrote them (a game could spend them, and a failure would leave a debt)
+  if (amount < 0) {
+    player.credits += amount;
+  }
   try {
     await store.adjustCredits(playerId, amount, { actor, reason });
   } catch (err) {
-    player.credits -= amount;
+    if (amount < 0) {
+      player.credits -= amount;
+    }
     if (err.code === INSUFFICIENT_CREDITS) {
       throw new AppError("Insufficient credits", 409);
     }
@@ -152,6 +176,9 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
     throw new AppError(STORAGE_UNAVAILABLE, 503);
   }
 
+  if (amount > 0) {
+    player.credits += amount;
+  }
   return { playerId, credits: player.credits };
 }
 

@@ -160,6 +160,53 @@ describe('the admin area: users, credits, audit', () => {
       expect(gameState.players.p2.name).toBe('Carlo Rossi');
     });
 
+    describe('while the store renames', () => {
+      const slowRename = () => {
+        let settle;
+        jest.spyOn(store, 'setAccountUsername').mockImplementation(
+          () => new Promise((resolve, reject) => {
+            settle = { ok: () => resolve({ changed: true }), fail: (err) => reject(err) };
+          }),
+        );
+        return { ok: () => settle.ok(), fail: (err) => settle.fail(err) };
+      };
+      const reachTheStore = () => new Promise((resolve) => setImmediate(resolve));
+
+      test('the game state already has the new name, so a game joined meanwhile copies it', async () => {
+        const answer = slowRename();
+        const pending = updateUser(store, gameState, 'p2', { username: 'Carlo Bianchi' }, admin);
+        await reachTheStore();
+
+        expect(gameState.players.p2.name).toBe('Carlo Bianchi');
+
+        answer.ok();
+        await pending;
+      });
+
+      test('a player who joined a game meanwhile gets the new name in that game too', async () => {
+        const answer = slowRename();
+        const pending = updateUser(store, gameState, 'p2', { username: 'Carlo Bianchi' }, admin);
+        await reachTheStore();
+        gameState.games.g1 = { id: 'g1', status: 'waiting', players: [{ id: 'p2', name: 'Carlo Rossi' }] };
+
+        answer.ok();
+        await pending;
+
+        expect(gameState.games.g1.players[0].name).toBe('Carlo Bianchi');
+      });
+
+      test('if the store cannot rename, the old name comes back', async () => {
+        const answer = slowRename();
+        const pending = updateUser(store, gameState, 'p2', { username: 'Carlo Bianchi' }, admin);
+        await reachTheStore();
+
+        answer.fail(Object.assign(new Error('taken'), { code: 'USERNAME_TAKEN' }));
+
+        await expect(pending).rejects.toMatchObject({ statusCode: 409 });
+        expect(gameState.players.p2.name).toBe('Carlo Rossi');
+      });
+    });
+
     test('a player whose game finished can be renamed', async () => {
       gameState.games.g1 = { id: 'g1', status: 'finished', players: [{ id: 'p2' }] };
 
@@ -228,6 +275,56 @@ describe('the admin area: users, credits, audit', () => {
         .rejects.toMatchObject({ statusCode: 503 });
 
       expect(gameState.players.p1.credits).toBe(100);
+    });
+
+    describe('while the store writes, the game state never has credits the database does not have', () => {
+      // The store answers when the test says so
+      const slowStore = () => {
+        let settle;
+        jest.spyOn(store, 'adjustCredits').mockImplementation(
+          () => new Promise((resolve, reject) => {
+            settle = { ok: () => resolve({}), fail: (err) => reject(err) };
+          }),
+        );
+        return { ok: () => settle.ok(), fail: (err) => settle.fail(err) };
+      };
+      const reachTheStore = () => new Promise((resolve) => setImmediate(resolve));
+
+      test('credits added show in the game only after the store wrote them', async () => {
+        const answer = slowStore();
+        const pending = adjustUserCredits(store, gameState, 'p1', { amount: 50, reason: 'regalo' }, admin);
+        await reachTheStore();
+
+        expect(gameState.players.p1.credits).toBe(100);
+
+        answer.ok();
+        await expect(pending).resolves.toEqual({ playerId: 'p1', credits: 150 });
+        expect(gameState.players.p1.credits).toBe(150);
+      });
+
+      test('credits added are not spent by a game while they are not written, and a failure leaves the balance as it was', async () => {
+        const answer = slowStore();
+        const pending = adjustUserCredits(store, gameState, 'p2', { amount: 100, reason: 'regalo' }, admin);
+        await reachTheStore();
+        gameState.players.p2.credits -= 50; // a game charges its fee in the meantime
+
+        answer.fail(new Error('connection lost'));
+
+        await expect(pending).rejects.toMatchObject({ statusCode: 503 });
+        expect(gameState.players.p2.credits).toBe(0);
+      });
+
+      test('credits taken away are reserved at once, and come back if the store cannot write', async () => {
+        const answer = slowStore();
+        const pending = adjustUserCredits(store, gameState, 'p1', { amount: -30, reason: 'correzione' }, admin);
+        await reachTheStore();
+
+        expect(gameState.players.p1.credits).toBe(70);
+
+        answer.fail(new Error('connection lost'));
+        await expect(pending).rejects.toMatchObject({ statusCode: 503 });
+        expect(gameState.players.p1.credits).toBe(100);
+      });
     });
 
     test('an unknown player is a 404', async () => {
