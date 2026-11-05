@@ -531,3 +531,41 @@ describe('accounts of the memory store: list, rename, credits', () => {
     });
   });
 });
+
+describe('memory store: games cancelled by an admin', () => {
+  const system = { type: 'system' };
+  const game = { id: 'g1', status: 'playing' };
+
+  test('cancelGame writes the audit row with the refunds and the reason, trimmed', async () => {
+    const store = createMemoryStore();
+
+    await store.cancelGame(game, [{ playerId: 'p1', amount: 100 }], { actor: system, reason: '  bloccata ' });
+
+    const [event] = await store.listAuditEvents({ targetId: 'g1' });
+    expect(event).toMatchObject({
+      action: 'game_cancelled',
+      actorType: 'system',
+      details: { reason: 'bloccata', previousStatus: 'playing', refunds: [{ playerId: 'p1', amount: 100 }] },
+    });
+  });
+
+  test('cancelGame needs the actor and a reason, and leaves no trace when it refuses', async () => {
+    const store = createMemoryStore();
+
+    await expect(store.cancelGame(game, [], { reason: 'x' })).rejects.toThrow();
+    await expect(store.cancelGame(game, [], { actor: system, reason: '  ' })).rejects.toThrow();
+    await expect(store.listAuditEvents()).resolves.toEqual([]);
+  });
+
+  test('countAuditEvents can count one action', async () => {
+    const store = createMemoryStore();
+    await store.cancelGame(game, [], { actor: system, reason: 'x' });
+
+    await expect(store.countAuditEvents({ action: 'game_cancelled' })).resolves.toBe(1);
+    await expect(store.countAuditEvents({ action: 'role_changed' })).resolves.toBe(0);
+  });
+
+  test('gameStats is null: the games of the memory store are all in the game state', async () => {
+    await expect(createMemoryStore().gameStats()).resolves.toBeNull();
+  });
+});

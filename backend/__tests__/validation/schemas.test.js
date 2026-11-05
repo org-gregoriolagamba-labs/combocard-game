@@ -14,6 +14,8 @@ import {
   startJollySchema,
   adminAdjustCreditsSchema,
   adminAuditQuerySchema,
+  adminCancelGameSchema,
+  adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
 } from '../../src/validation/schemas.js';
@@ -224,6 +226,30 @@ describe('admin schemas', () => {
 
     test('rejects a limit over 100', () => {
       expect(adminAuditQuerySchema.validate({ limit: '500' }).error).toBeDefined();
+    });
+  });
+  describe('adminListGamesQuerySchema', () => {
+    test('takes the defaults, a status and the page', () => {
+      expect(adminListGamesQuerySchema.validate({}).value).toEqual({ page: 1, limit: 20 });
+      expect(adminListGamesQuerySchema.validate({ status: 'playing', page: '2' }).value).toEqual({ status: 'playing', page: 2, limit: 20 });
+    });
+
+    test.each([['finished'], ['cancelled'], ['x']])('rejects the status %s', (status) => {
+      expect(adminListGamesQuerySchema.validate({ status }).error).toBeDefined();
+    });
+  });
+
+  describe('adminCancelGameSchema', () => {
+    test('takes a reason, trimmed', () => {
+      expect(adminCancelGameSchema.validate({ reason: ' bloccata ' }).value).toEqual({ reason: 'bloccata' });
+    });
+
+    test.each([
+      ['no reason', {}],
+      ['an empty reason', { reason: '  ' }],
+      ['a reason that is too long', { reason: 'x'.repeat(201) }],
+    ])('rejects %s', (_name, body) => {
+      expect(adminCancelGameSchema.validate(body).error).toBeDefined();
     });
   });
 });

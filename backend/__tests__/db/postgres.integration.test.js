@@ -313,6 +313,64 @@ describeWithDb('PostgreSQL store', () => {
       });
     });
 
+    describe('cancelGame and gameStats', () => {
+      const playing = (overrides = {}) =>
+        game({ id: 'g1', status: 'playing', requiredCredits: 100, montepremi: 100, players: [{ id: 'p1', name: 'Anna', gettoni: 0 }], ...overrides });
+
+      beforeEach(async () => {
+        // p1 has 100: the entry fee of the game takes them to zero
+        await store.saveGame(playing(), [{ playerId: 'p1', gameId: 'g1', type: 'game_entry', amount: -100 }]);
+      });
+
+      test('removes the game, gives the fee back and writes the audit row, in one transaction', async () => {
+        await store.cancelGame(playing(), [{ playerId: 'p1', amount: 100 }], { actor: { type: 'player', id: 'p3' }, reason: 'bloccata' });
+
+        await expect(balance('p1')).resolves.toEqual({ credits: 100, ledger: 100 });
+        const { rows } = await pool.query("SELECT type, amount, game_id FROM credit_transactions WHERE type = 'game_refund'");
+        expect(rows.map((r) => [r.type, Number(r.amount)])).toEqual([['game_refund', 100]]);
+        await expect(store.findGame('g1')).resolves.toBeNull();
+        const [event] = await store.listAuditEvents({ targetId: 'g1' });
+        expect(event).toMatchObject({
+          action: 'game_cancelled',
+          actorId: 'p3',
+          details: { reason: 'bloccata', previousStatus: 'playing', refunds: [{ playerId: 'p1', amount: 100 }] },
+        });
+      });
+
+      test('a refund that cannot be applied changes nothing: the game stays, no audit row', async () => {
+        await expect(store.cancelGame(playing(), [{ playerId: 'ghost', amount: 100 }], { actor: system, reason: 'x' })).rejects.toThrow();
+
+        await expect(store.findGame('g1')).resolves.not.toBeNull();
+        await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+        await expect(store.listAuditEvents({ targetId: 'g1' })).resolves.toEqual([]);
+      });
+
+      test('the actor and the reason are needed', async () => {
+        await expect(store.cancelGame(playing(), [], { reason: 'x' })).rejects.toThrow();
+        await expect(store.cancelGame(playing(), [], { actor: system })).rejects.toThrow();
+        await expect(store.findGame('g1')).resolves.not.toBeNull();
+      });
+
+      test('the type of movement is allowed by the database', async () => {
+        await expect(pool.query("INSERT INTO credit_transactions (player_id, type, amount, balance_after) VALUES ('p1', 'game_refund', 1, 1)"))
+          .resolves.toBeDefined();
+      });
+
+      test('gameStats counts the finished games and their prizes, from the database', async () => {
+        await store.saveGame(game({ id: 'f1', status: 'finished', montepremi: 300 }));
+        await store.saveGame(game({ id: 'f2', status: 'finished', montepremi: 500 }));
+
+        await expect(store.gameStats()).resolves.toEqual({ finished: 2, prizesDistributed: 800 });
+      });
+
+      test('countAuditEvents can count one action', async () => {
+        await store.cancelGame(playing(), [{ playerId: 'p1', amount: 100 }], { actor: system, reason: 'x' });
+
+        await expect(store.countAuditEvents({ action: 'game_cancelled' })).resolves.toBe(1);
+        await expect(store.countAuditEvents({ action: 'role_changed' })).resolves.toBe(1); // the promotion of p3
+      });
+    });
+
     test('the audit log by target and by page, with the total', async () => {
       await store.adjustCredits('p1', 10, { actor: system, reason: 'uno' });
       await store.adjustCredits('p2', 20, { actor: system, reason: 'due' });
