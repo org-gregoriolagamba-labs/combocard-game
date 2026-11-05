@@ -310,3 +310,26 @@ describe('HallScreen', () => {
     expect(screen.getByText(new RegExp(long)).className).toMatch(/break-words/);
   });
 });
+
+describe('HallScreen: the entry to the admin area', () => {
+  beforeEach(() => {
+    gameService.getLobby.mockResolvedValue([]);
+  });
+
+  const asRole = (role) => ({ ...state(), player: { ...state().player, role } });
+
+  test('an admin has a button to the admin area, and it opens the screen', () => {
+    const { store } = renderWithProviders(<HallScreen />, { preloadedState: asRole('admin') });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Amministrazione' }));
+
+    expect(store.getState().ui.currentScreen).toBe('admin');
+  });
+
+  test('a player has no such button, not even a disabled one', () => {
+    renderWithProviders(<HallScreen />, { preloadedState: asRole('player') });
+
+    expect(screen.queryByRole('button', { name: 'Amministrazione' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/amministrazione/i)).not.toBeInTheDocument();
+  });
+});

@@ -213,3 +213,46 @@ describe('auth controller', () => {
     });
   });
 });
+
+describe('the role in the answers of the login', () => {
+  // The screen of the admin needs the role of whoever is logged in: only their own
+  let ctx;
+
+  beforeEach(() => {
+    ctx = createContext();
+  });
+
+  const promote = (playerId) => ctx.store.setAccountRole(playerId, 'admin', { actor: { type: 'system' } });
+
+  test('register, login and refresh say the role: player at first', async () => {
+    const registered = await ctx.call(register, { body: CREDENTIALS });
+    const logged = await ctx.call(login, { body: CREDENTIALS });
+    const renewed = await ctx.call(refresh);
+
+    expect([registered.data.role, logged.data.role, renewed.data.role]).toEqual(['player', 'player', 'player']);
+  });
+
+  test('after a promotion the next login and refresh say admin', async () => {
+    const registered = await ctx.call(register, { body: CREDENTIALS });
+    await promote(registered.data.player.id);
+
+    const logged = await ctx.call(login, { body: CREDENTIALS });
+    const renewed = await ctx.call(refresh);
+
+    expect(logged.data.role).toBe('admin');
+    expect(renewed.data.role).toBe('admin');
+  });
+
+  test('the role is beside the player, not inside it: the player is what the game shows', async () => {
+    const registered = await ctx.call(register, { body: CREDENTIALS });
+
+    expect(registered.data.player).not.toHaveProperty('role');
+  });
+
+  test('without a session there is no role either', async () => {
+    const res = await ctx.call(refresh);
+
+    expect(res.data).toEqual({ accessToken: null, player: null, role: null });
+  });
+});
+

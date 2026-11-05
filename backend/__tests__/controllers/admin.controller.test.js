@@ -89,6 +89,6 @@ describe('admin controller', () => {
     const answer = await call(listAuditLog, { query: { targetId: 'p1', page: 1, limit: 20 } });
 
     expect(answer.data.total).toBe(1);
-    expect(answer.data.items[0]).toMatchObject({ action: 'credits_adjusted', targetId: 'p1' });
+    expect(answer.data.items[0]).toMatchObject({ action: 'credits_adjusted', targetId: 'p1', actorName: 'Dario', targetName: 'Anna' });
   });
 });

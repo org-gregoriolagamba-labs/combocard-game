@@ -253,7 +253,7 @@ describe('the admin area: users, credits, audit', () => {
 
     test('more than the balance is a 409, and nothing changes', async () => {
       await expect(adjustUserCredits(store, gameState, 'p2', { amount: -51, reason: 'troppo' }, admin))
-        .rejects.toMatchObject({ statusCode: 409, message: 'Insufficient credits' });
+        .rejects.toMatchObject({ statusCode: 409, message: 'The player does not have enough credits' });
 
       expect(gameState.players.p2.credits).toBe(50);
       await expect(store.listAuditEvents({ targetId: 'p2' })).resolves.toEqual([]);
@@ -330,6 +330,38 @@ describe('the admin area: users, credits, audit', () => {
     test('an unknown player is a 404', async () => {
       await expect(adjustUserCredits(store, gameState, 'ghost', { amount: 5, reason: 'x' }, admin))
         .rejects.toMatchObject({ statusCode: 404 });
+    });
+  });
+
+  describe('listAudit with the names', () => {
+    test('says the name of who acted and of the target, from the game, and nothing for the system', async () => {
+      await store.setAccountRole('p1', 'admin', { actor: { type: 'system' } });
+      await adjustUserCredits(store, gameState, 'p2', { amount: 10, reason: 'regalo' }, admin);
+
+      const { items } = await listAudit(store, { targetId: 'p2' }, gameState);
+
+      expect(items[0]).toMatchObject({ action: 'credits_adjusted', actorName: 'Dario', targetName: 'Carlo Rossi' });
+      const all = (await listAudit(store, {}, gameState)).items;
+      const byTheSystem = all.find((e) => e.actorType === 'system');
+      expect(byTheSystem.actorName).toBeNull();
+      expect(byTheSystem.targetName).toBe('Anna');
+    });
+
+    test('a player the game does not know has no name, and the id stays', async () => {
+      delete gameState.players.p2;
+      await adjustUserCredits(store, { ...gameState, players: { ...gameState.players, p2: { id: 'p2', name: 'x', credits: 5 } } }, 'p2', { amount: 1, reason: 'x' }, admin);
+
+      const { items } = await listAudit(store, { targetId: 'p2' }, gameState);
+
+      expect(items[0]).toMatchObject({ targetId: 'p2', targetName: null });
+    });
+
+    test('without the game state the events are the same as before, with no names', async () => {
+      await adjustUserCredits(store, gameState, 'p1', { amount: 10, reason: 'x' }, admin);
+
+      const { items } = await listAudit(store, { targetId: 'p1' });
+
+      expect(items[0]).not.toHaveProperty('actorName');
     });
   });
 

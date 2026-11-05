@@ -26,6 +26,11 @@ describe('translateServerError', () => {
     ['Another player is choosing the jolly', 'Un altro giocatore sta scegliendo il Jolly: aspetta qualche secondo'],
     ['Too many jolly declarations in this game', 'Hai già dichiarato il Jolly troppe volte in questa partita'],
     ['Invalid amount', 'Inserisci un importo valido'],
+    ['Cannot rename a player who is in a game', 'Il giocatore è in una partita: il nome si può cambiare dopo'],
+    ['Cannot remove the last admin', "Non si può togliere il ruolo all'ultimo admin"],
+    ['The player does not have enough credits', 'Il giocatore non ha abbastanza crediti'],
+    ['User not found', 'Utente non trovato'],
+    ['You do not have permission to do this', 'Non hai i permessi per farlo'],
     ['Waiting for all players to confirm they read the rules', 'Aspetta che tutti i giocatori confermino di aver letto le regole'],
   ])('"%s" is shown as "%s"', (english, italian) => {
     expect(translateServerError(english)).toBe(italian);
