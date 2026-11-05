@@ -26,7 +26,12 @@ export const validate = (schema, property = "body") => {
       return next(new AppError(errorMessage, 400));
     }
     
-    req[property] = value;
+    // In Express 5 req.query is a getter on the prototype: it cannot be assigned, only shadowed
+    if (property === "query") {
+      Object.defineProperty(req, "query", { value, writable: true, configurable: true, enumerable: true });
+    } else {
+      req[property] = value;
+    }
     next();
   };
 };

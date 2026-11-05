@@ -45,6 +45,9 @@ export const COLLECTION_TYPES = {
 };
 
 // Game status
+// The roles of an account: a player is the normal user
+export const ACCOUNT_ROLES = ["player", "admin"];
+
 export const GAME_STATUS = {
   WAITING: "waiting",
   PLAYING: "playing",

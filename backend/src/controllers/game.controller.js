@@ -9,6 +9,7 @@ import { sendSuccess, sendCreated } from "../utils/response.utils.js";
 import { AppError } from "../utils/AppError.js";
 import { generateId, generaCartella, generaMazzo, shuffleArray } from "../utils/card.utils.js";
 import {
+  activeGameOf,
   autoClaimCollezioni,
   gameViewFor,
   verificaCollezione,
@@ -54,20 +55,6 @@ export const getLobby = asyncHandler(async (req, res) => {
 
   sendSuccess(res, lobbies);
 });
-
-/**
- * The game, still waiting or in progress, that a player is in. A player is in one game at a time:
- * the entry fee is checked when joining and charged at the start, so with two games the same
- * credits would be promised twice.
- * @param {Object} gameState - Global game state
- * @param {string} playerId - Player ID
- * @returns {Object|null} The game, or null
- */
-function activeGameOf(gameState, playerId) {
-  return Object.values(gameState.games).find(
-    (g) => g.status !== GAME_STATUS.FINISHED && g.players.some((p) => p.id === playerId),
-  ) ?? null;
-}
 
 /**
  * Whether every player of a game still has the entry fee. Checked again when it is charged.

@@ -33,10 +33,10 @@ Se `DATABASE_URL` è impostata e il database non è raggiungibile all'avvio, il 
 |---|---|
 | `players` | Identità e saldo di ogni giocatore, e quando ha confermato di aver letto le regole (`rules_accepted_at`, vuoto finché non lo fa). |
 | `games` | Stato completo della partita in `state`, più le colonne per filtrare (`status`, `is_private`). |
-| `credit_transactions` | Un movimento per ogni variazione di crediti, con il saldo risultante. |
+| `credit_transactions` | Un movimento per ogni variazione di crediti, con il saldo risultante. Il tipo è `initial`, `purchase` (Cassa), `game_entry`, `game_payout` o `admin_adjustment` (rettifica di un admin, con il motivo in `audit_log`). |
 | `user_accounts` | Nome utente, hash della password e ruolo di ogni account. Vedi [AUTH.md](AUTH.md). |
 | `refresh_tokens` | Hash dei refresh token attivi. Vedi [AUTH.md](AUTH.md). |
-| `audit_log` | Registro delle azioni degli admin e del sistema: chi (`actor_type` `system` o `player`, `actor_id`), che cosa (`action`), su chi (`target_id`) e i dettagli (`details`). Si scrive nella stessa transazione della modifica che descrive e sopravvive ai giocatori (nessuna chiave esterna). Oggi registra i cambi di ruolo. |
+| `audit_log` | Registro delle azioni degli admin e del sistema: chi (`actor_type` `system` o `player`, `actor_id`), che cosa (`action`), su chi (`target_id`) e i dettagli (`details`). Si scrive nella stessa transazione della modifica che descrive e sopravvive ai giocatori (nessuna chiave esterna). Oggi registra i cambi di ruolo (`role_changed`), di nome utente (`username_changed`) e le rettifiche dei crediti (`credits_adjusted`, con importo e motivo). |
 | `schema_migrations` | Migrazioni già applicate. |
 
 `players.credits` non scende mai sotto zero: lo garantisce il vincolo `players_credits_non_negative` (`CHECK (credits >= 0)`, migrazione 005) e ogni movimento di crediti è un `UPDATE … WHERE credits + importo >= 0`, quindi un addebito senza fondi non cambia nulla e fallisce con codice `INSUFFICIENT_CREDITS`. Se al momento della migrazione esistevano già saldi negativi, il vincolo non viene convalidato sulle righe vecchie (`NOT VALID`, perché la migrazione non deve impedire l'avvio): per cercarle `SELECT id, name, credits FROM players WHERE credits < 0;`, e dopo averle sistemate `ALTER TABLE players VALIDATE CONSTRAINT players_credits_non_negative;`. Una riga già negativa non si può aggiornare finché resta negativa.

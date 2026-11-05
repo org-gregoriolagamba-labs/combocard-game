@@ -4,7 +4,21 @@
  * Contains all game logic for collection verification and auto-claiming.
  */
 
-import { GAME_DEFAULTS } from "../config/constants.js";
+import { GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
+
+/**
+ * The game, still waiting or in progress, that a player is in. A player is in one game at a time:
+ * the entry fee is checked when joining and charged at the start, so with two games the same
+ * credits would be promised twice.
+ * @param {Object} gameState - Global game state
+ * @param {string} playerId - Player ID
+ * @returns {Object|null} The game, or null
+ */
+export function activeGameOf(gameState, playerId) {
+  return Object.values(gameState.games).find(
+    (g) => g.status !== GAME_STATUS.FINISHED && g.players.some((p) => p.id === playerId),
+  ) ?? null;
+}
 
 /**
  * Verify TRIS collection (3 cards with same value)
