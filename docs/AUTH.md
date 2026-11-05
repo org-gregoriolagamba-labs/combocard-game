@@ -72,10 +72,14 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 | `GET /api/admin/users/:playerId` | Un utente: nome, ruolo, crediti, data di registrazione, `inGame` |
 | `PATCH /api/admin/users/:playerId` | `{ username }` **oppure** `{ role }`, uno alla volta. Il nome non può cambiare se il giocatore è in una partita non finita (`409`) né essere già in uso (`409`); il ruolo segue la regola dell'ultimo admin (`409`) |
 | `POST /api/admin/users/:playerId/credits` | `{ amount, reason }`: accredito (positivo) o addebito (negativo), da 1 a 1.000.000, **con un motivo obbligatorio** (fino a 200 caratteri). Il saldo non scende mai sotto zero (`409`). Il giocatore vede il nuovo saldo subito (evento `gettoniAggiornati`) |
+| `GET /api/admin/games?status=&page=&limit=` | Le partite in attesa o in corso, dalla più vecchia, **solo metadati**: id, stato, quota, massimo di giocatori, montepremi, data e nomi dei giocatori. Mai `mazzo`, cartelle, carte estratte né saldi. L'id di una partita privata è il suo codice: l'admin lo vede |
+| `POST /api/admin/games/:gameId/cancel` | `{ reason }` (obbligatorio, fino a 200 caratteri): annulla una partita in attesa o in corso (`404` se non esiste, `409` se è già finita). Se era in corso, ogni giocatore **ancora presente** riceve la quota d'ingresso (`game_refund`); i premi già assegnati ma non ancora accreditati si perdono, perché la partita conta come mai giocata. Chi l'aveva lasciata ha già perso la quota e non è rimborsato. I giocatori ricevono `gameCancelled` `{ gameId, gettoni, refund }` |
+| `GET /api/admin/stats` | Numeri della piattaforma, senza nomi: utenti registrati, in partita ora e admin; partite in attesa, in corso, finite e annullate; crediti in circolazione e nel montepremi delle partite in corso; montepremi distribuiti |
 | `GET /api/admin/audit?targetId=&page=&limit=` | Il registro delle azioni, dalla più recente, filtrabile per utente |
 
 - Chi agisce è sempre l'admin del token: un `actor` scritto nel corpo viene ignorato, come ogni campo sconosciuto.
 - **Un admin può rettificare anche i propri crediti** e quelli di altri admin, sempre con motivo e traccia (nel registro attore e bersaglio coincidono). Il divieto di accreditarsi da soli non protegge nulla finché la Cassa dà crediti gratis a chiunque: da rivedere se i crediti avranno mai un valore reale.
+- L'annullamento di una partita rimborsa, toglie la partita e scrive la riga `game_cancelled` (con motivo e rimborsi) in un'unica transazione, dopo aver scritto ciò che la partita aveva ancora in coda; se il database non risponde, la partita e i crediti tornano come prima e la risposta è `503`.
 - Una rettifica aggiorna i crediti in memoria del server e scrive in un'unica transazione il movimento (`admin_adjustment`) e la riga di audit; se il database non risponde, i crediti tornano come prima e la risposta è `503`.
 
 ### Creare il primo admin

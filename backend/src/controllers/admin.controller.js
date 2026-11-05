@@ -70,6 +70,37 @@ export const adjustCredits = asyncHandler(async (req, res) => {
 });
 
 /**
+ * The games waiting or in progress, a page at a time
+ * GET /api/admin/games
+ */
+export const listGames = (req, res) => {
+  sendSuccess(res, adminService.listGames(req.gameState, req.query));
+};
+
+/**
+ * Cancel a game. Each player who was in it is told, with the balance they have now, and leaves its room.
+ * POST /api/admin/games/:gameId/cancel
+ */
+export const cancelGame = asyncHandler(async (req, res) => {
+  const result = await adminService.cancelGame(req.store, req.gameState, req.params.gameId, req.body, actorOf(req));
+
+  for (const { playerId, credits, refund } of result.players) {
+    req.io.to(playerRoom(playerId)).emit("gameCancelled", { gameId: result.gameId, gettoni: credits, refund });
+    req.io.in(playerRoom(playerId)).socketsLeave(result.gameId);
+  }
+
+  sendSuccess(res, result, "Game cancelled");
+});
+
+/**
+ * The numbers of the platform
+ * GET /api/admin/stats
+ */
+export const getStats = asyncHandler(async (req, res) => {
+  sendSuccess(res, await adminService.getStats(req.store, req.gameState));
+});
+
+/**
  * The audit log, the latest first
  * GET /api/admin/audit
  */

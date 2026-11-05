@@ -73,6 +73,25 @@ function assertCreditAdjustment(amount, reason, actor) {
 }
 
 /**
+ * Cancelling a game needs a reason and who does it: nothing changes without a trace
+ * @param {string} reason - Why
+ * @param {Object} actor - { type: 'system' } or { type: 'player', id }
+ */
+function assertGameCancellation(reason, actor) {
+  if (typeof reason !== "string" || reason.trim() === "") {
+    throw new TypeError("Cancelling a game needs a reason");
+  }
+  assertActor(actor);
+}
+
+// What the audit log keeps of a cancelled game
+const cancellationDetails = (game, refunds, reason) => ({
+  reason: reason.trim(),
+  previousStatus: game.status,
+  refunds: refunds.map(({ playerId, amount }) => ({ playerId, amount })),
+});
+
+/**
  * Decide what to do with a refresh token presented for renewal.
  * - rotate: normal case, replace it with a new token
  * - grace: already replaced moments ago, for example by another tab at the same
@@ -202,9 +221,15 @@ export function createMemoryStore() {
     async listAuditEvents({ limit = 100, offset = 0, targetId = null } = {}) {
       return audit.filter((e) => !targetId || e.targetId === targetId).reverse().slice(offset, offset + limit);
     },
-    async countAuditEvents({ targetId = null } = {}) {
-      return audit.filter((e) => !targetId || e.targetId === targetId).length;
+    async countAuditEvents({ targetId = null, action = null } = {}) {
+      return audit.filter((e) => (!targetId || e.targetId === targetId) && (!action || e.action === action)).length;
     },
+    async cancelGame(game, refunds, { actor, reason } = {}) {
+      assertGameCancellation(reason, actor);
+      pushAudit(actor, "game_cancelled", game.id, cancellationDetails(game, refunds, reason));
+    },
+    // The games of this store are all in the game state, where the service counts them
+    gameStats: async () => null,
     async createRefreshToken({ tokenHash, familyId, playerId, expiresAt }) {
       refreshTokens.set(tokenHash, {
         familyId, playerId, expiresAt, rotatedAt: null, revokedAt: null,
@@ -687,6 +712,46 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     },
 
     /**
+     * Cancel a game: the entry fees given back, the game removed and the audit row, in one transaction.
+     * What is still waiting to be written for the game (the entry fee, for instance) is written first,
+     * so the refund never comes before the charge; if that cannot be written, nothing is cancelled.
+     * @param {Object} game - The game, as it was
+     * @param {Object[]} refunds - { playerId, amount } for each player who gets credits back
+     * @param {Object} options - { actor, reason }
+     */
+    async cancelGame(game, refunds, { actor, reason } = {}) {
+      assertGameCancellation(reason, actor);
+      const entry = pending.get(game.id);
+      if (entry) {
+        await flush(game.id, entry);
+      }
+      await withTransaction(async (client) => {
+        for (const { playerId, amount } of refunds) {
+          // Without the game: it is deleted here, and the audit row says which game it was
+          await applyMovement(client, { playerId, type: "game_refund", amount });
+        }
+        await client.query("DELETE FROM games WHERE id = $1", [game.id]);
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'game_cancelled', $3, $4)`,
+          [actor.type, actor.id ?? null, game.id, JSON.stringify(cancellationDetails(game, refunds, reason))],
+        );
+      });
+    },
+
+    /**
+     * The finished games and the prizes they distributed: only the database has them all, because
+     * the game state keeps the games in progress
+     * @returns {Promise<Object>} { finished, prizesDistributed }
+     */
+    async gameStats() {
+      const { rows } = await pool.query(
+        "SELECT count(*) AS finished, COALESCE(SUM(montepremi), 0) AS prizes FROM games WHERE status = 'finished'",
+      );
+      return { finished: Number(rows[0].finished), prizesDistributed: Number(rows[0].prizes) };
+    },
+
+    /**
      * The latest events of the audit log
      * @param {Object} options - { limit } (default 100)
      * @returns {Promise<Object[]>} { id, actorType, actorId, action, targetId, details, createdAt }, latest first
@@ -704,13 +769,13 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
 
     /**
      * Number of events of the audit log
-     * @param {Object} options - { targetId }: only the events about this player
+     * @param {Object} options - { targetId, action }: only the events about this target, or of this action
      * @returns {Promise<number>} Events
      */
-    async countAuditEvents({ targetId = null } = {}) {
+    async countAuditEvents({ targetId = null, action = null } = {}) {
       const { rows } = await pool.query(
-        "SELECT count(*) AS count FROM audit_log WHERE ($1::text IS NULL OR target_id = $1)",
-        [targetId],
+        "SELECT count(*) AS count FROM audit_log WHERE ($1::text IS NULL OR target_id = $1) AND ($2::text IS NULL OR action = $2)",
+        [targetId, action],
       );
       return Number(rows[0].count);
     },

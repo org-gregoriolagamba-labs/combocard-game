@@ -7,6 +7,8 @@
 export const CREDIT_MOVEMENT = {
   GAME_ENTRY: "game_entry",
   GAME_PAYOUT: "game_payout",
+  // The entry fee given back when an admin cancels a game
+  GAME_REFUND: "game_refund",
 };
 
 /**
