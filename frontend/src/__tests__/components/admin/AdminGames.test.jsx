@@ -54,9 +54,12 @@ describe('AdminScreen: the games', () => {
 
   test('says so when there are no games', async () => {
     adminService.listGames.mockResolvedValue(pageOf([]));
-    await open();
-    // the list is replaced by a message
-    expect(screen.getByText('Nessuna partita in attesa o in corso')).toBeInTheDocument();
+    renderWithProviders(<AdminScreen />, { preloadedState: adminState() });
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Partite' }));
+
+    expect(await screen.findByText('Nessuna partita in attesa o in corso')).toBeInTheDocument();
+    expect(screen.getByText('0 partite')).toBeInTheDocument();
   });
 
   test('cancelling needs a reason, tells what happens to the players and sends the cancellation', async () => {
