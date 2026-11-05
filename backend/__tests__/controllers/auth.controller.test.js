@@ -133,7 +133,7 @@ describe('auth controller', () => {
     test('without a cookie reports no session, without an error', async () => {
       const res = await ctx.call(refresh);
       expect(res.status).toBe(200);
-      expect(res.data).toEqual({ accessToken: null, player: null });
+      expect(res.data).toEqual({ accessToken: null, player: null, role: null });
     });
 
     test('returns a new access token and replaces the cookie', async () => {

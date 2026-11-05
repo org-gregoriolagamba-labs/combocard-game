@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus } from "lucide-react";
+import { Plus, ShieldCheck } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
@@ -19,7 +19,7 @@ const numero = (testo) => (/^\d+$/.test(testo) ? parseInt(testo, 10) : NaN);
 
 function HallScreen() {
   const dispatch = useDispatch();
-  const { id: playerId, name: playerName, credits: playerCredits } = useSelector((state) => state.player);
+  const { id: playerId, name: playerName, credits: playerCredits, role } = useSelector((state) => state.player);
   const { lobbies } = useSelector((state) => state.game);
   
   // Local state
@@ -225,7 +225,19 @@ function HallScreen() {
             </button>
           </div>
 
-          <div className="mt-3 text-right">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            {/* Only an admin sees the way in: the server refuses everybody else anyway */}
+            {role === "admin" ? (
+              <button
+                onClick={() => dispatch(setScreen("admin"))}
+                className="flex min-h-[44px] max-w-full items-center gap-2 rounded-lg px-3 text-sm font-bold text-oro underline decoration-2 underline-offset-4 hover:text-oro-dark"
+              >
+                <ShieldCheck size={18} aria-hidden="true" />
+                Amministrazione
+              </button>
+            ) : (
+              <span />
+            )}
             <button
               onClick={handleEsci}
               className="min-h-[44px] [overflow-wrap:anywhere] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"

@@ -15,7 +15,7 @@ const startSession = (session) => {
  * Create an account
  * @param {string} username - Username
  * @param {string} password - Password
- * @returns {Promise<Object>} { accessToken, player }
+ * @returns {Promise<Object>} { accessToken, player, role }
  */
 export const register = async (username, password) => {
   const response = await api.post("/auth/register", { username, password });
@@ -26,7 +26,7 @@ export const register = async (username, password) => {
  * Log in
  * @param {string} username - Username
  * @param {string} password - Password
- * @returns {Promise<Object>} { accessToken, player }
+ * @returns {Promise<Object>} { accessToken, player, role }
  */
 export const login = async (username, password) => {
   const response = await api.post("/auth/login", { username, password });
@@ -35,11 +35,12 @@ export const login = async (username, password) => {
 
 /**
  * Bring back the session after a page load, if the refresh cookie is still valid
- * @returns {Promise<Object|null>} Player, or null without a session
+ * @returns {Promise<Object|null>} Player with their role in it (a player, unless the server says
+ *   otherwise), or null without a session
  */
 export const restoreSession = async () => {
   const session = await refreshSession();
-  return session?.player ?? null;
+  return session?.player ? { ...session.player, role: session.role ?? "player" } : null;
 };
 
 /**

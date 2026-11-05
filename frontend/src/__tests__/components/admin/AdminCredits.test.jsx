@@ -133,8 +133,9 @@ describe('AdminScreen: the adjustment of the credits', () => {
     type('Importo', '10');
     type('Motivo', 'x');
 
-    confirm();
-    confirm();
+    const button = screen.getByRole('button', { name: 'Conferma rettifica' });
+    fireEvent.click(button);
+    fireEvent.click(button);
 
     expect(adminService.adjustCredits).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /Conferma rettifica|Invio in corso/ })).toBeDisabled();
