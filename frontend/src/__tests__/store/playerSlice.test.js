@@ -6,6 +6,7 @@ import playerReducer, {
   setPlayer,
   clearPlayer,
   clearError,
+  setRole,
 } from '../../store/slices/playerSlice';
 
 describe('playerSlice', () => {
@@ -19,6 +20,7 @@ describe('playerSlice', () => {
     error: null,
     sessionChecked: false,
     regoleAccettateIl: null,
+    role: 'player',
   };
 
   test('should return initial state', () => {
@@ -95,5 +97,44 @@ describe('playerSlice', () => {
     const state = playerReducer(currentState, clearError());
     
     expect(state.error).toBe(null);
+  });
+});
+
+describe('playerSlice: the role', () => {
+  const player = { id: 'p1', name: 'Anna', credits: 10, currentGameId: null };
+  const fresh = playerReducer(undefined, { type: 'unknown' });
+
+  test('a player is a player until the server says otherwise', () => {
+    expect(fresh.role).toBe('player');
+  });
+
+  test.each([
+    ['player/login/fulfilled'],
+    ['player/register/fulfilled'],
+  ])('%s takes the role from beside the player', (type) => {
+    const state = playerReducer(fresh, { type, payload: { accessToken: 't', player, role: 'admin' } });
+
+    expect(state.role).toBe('admin');
+    expect(state.name).toBe('Anna');
+  });
+
+  test('a login without a role is a player', () => {
+    const state = playerReducer({ ...fresh, role: 'admin' }, { type: 'player/login/fulfilled', payload: { accessToken: 't', player } });
+
+    expect(state.role).toBe('player');
+  });
+
+  test('restoring the session takes the role of the player', () => {
+    const state = playerReducer(fresh, { type: 'player/restoreSession/fulfilled', payload: { ...player, role: 'admin' } });
+
+    expect(state.role).toBe('admin');
+  });
+
+  test('setRole changes it (a 403 of the admin area makes a player of whoever was not an admin any more)', () => {
+    expect(playerReducer({ ...fresh, role: 'admin' }, setRole('player')).role).toBe('player');
+  });
+
+  test('clearing the player forgets the role too', () => {
+    expect(playerReducer({ ...fresh, role: 'admin' }, clearPlayer()).role).toBe('player');
   });
 });

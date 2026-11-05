@@ -116,7 +116,8 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
     }
 
     if (!response.ok) {
-      throw new Error(translateServerError(data.message || data.error));
+      // The status lets a screen tell a refusal (403) from a failure
+      throw Object.assign(new Error(translateServerError(data.message || data.error)), { status: response.status });
     }
 
     return data;
@@ -134,6 +135,11 @@ const api = {
 
   post: (endpoint, body) => fetchApi(endpoint, {
     method: "POST",
+    body: JSON.stringify(body),
+  }),
+
+  patch: (endpoint, body) => fetchApi(endpoint, {
+    method: "PATCH",
     body: JSON.stringify(body),
   }),
 

@@ -175,7 +175,7 @@ function LobbyScreen() {
                 <Button
                   onClick={handleIniziaPartita}
                   size="lg"
-                  className="mx-auto flex items-center gap-2"
+                  className="mx-auto flex max-w-full items-center gap-2"
                 >
                   <PlayCircle size={24} aria-hidden="true" />
                   Inizia Partita

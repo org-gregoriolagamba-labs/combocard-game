@@ -39,6 +39,7 @@ import PlayersList from "./PlayersList";
 import GuidaPrimaPartita from "./GuidaPrimaPartita";
 import Credito from "./Credito";
 import RivelazioneCarta from "./RivelazioneCarta";
+import StoricoCarte from "./StoricoCarte";
 import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
@@ -332,8 +333,8 @@ function GameScreen() {
       {vittoriaRecente && <Coriandoli id={vittoriaRecente.tipo} />}
       {/* The header stays on top: the last card, the prize pool, the credits, the way out */}
       <header className="sticky top-0 z-30 border-b border-linea-forte bg-notte-800/95 shadow-lg">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-1.5">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-1.5 max-[259px]:flex-wrap">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 max-[259px]:basis-full">
             {ultimaCartaEstratta ? (
               <CartaNapoletana
                 key={`${ultimaCartaEstratta.seme}-${ultimaCartaEstratta.valore}`}
@@ -396,7 +397,7 @@ function GameScreen() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:p-6">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 p-3 max-[359px]:p-2 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:p-6">
         {!guidaChiusa && game?.status === "playing" && !(currentPlayer.collezioni?.length > 0) && (
           <div className="lg:col-span-2">
             <GuidaPrimaPartita onClose={chiudiGuida} />
@@ -404,24 +405,28 @@ function GameScreen() {
         )}
 
         {/* The player's sheet, laid out like a tombola sheet */}
-        <section ref={gridRef} className="superficie scroll-mt-20 p-2.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
+        <section ref={gridRef} className="superficie scroll-mt-20 p-2.5 max-[359px]:p-1.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
           <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
             <h2 className="titolo text-lg text-testo">La tua cartella</h2>
           </div>
 
-          <Cartella
-            cartella={currentPlayer.cartella}
-            coperte={currentPlayer.coperte}
-            estratte={game?.carteEstratte ?? []}
-            jollyPos={currentPlayer.jollyPos}
-            jollyMode={isGameFinished ? null : jollyMode}
-            jollyUsato={currentPlayer.jollyUsato}
-            selected={jollyCarta}
-            possibili={jollyMode ? carteJolly : null}
-            destinazione={conversione}
-            evidenziate={luci}
-            onCardClick={handleSceglieCartaJolly}
-          />
+          {/* Under 320 px the sheet is wider than the screen: it scrolls in its own box, not the page */}
+          <div className="max-[319px]:overflow-x-auto">
+            <Cartella
+              cartella={currentPlayer.cartella}
+              coperte={currentPlayer.coperte}
+              estratte={game?.carteEstratte ?? []}
+              jollyPos={currentPlayer.jollyPos}
+              jollyMode={isGameFinished ? null : jollyMode}
+              jollyUsato={currentPlayer.jollyUsato}
+              selected={jollyCarta}
+              possibili={jollyMode ? carteJolly : null}
+              destinazione={conversione}
+              evidenziate={luci}
+              vinte={Object.keys(game?.collezioni ?? {}).filter((tipo) => game.collezioni[tipo]?.vinto)}
+              onCardClick={handleSceglieCartaJolly}
+            />
+          </div>
 
           <p className="mt-2 px-1 text-[13px] leading-snug text-testo-2">
             Posto vuoto: carta che non hai. Puntino: carta già uscita.
@@ -439,6 +444,10 @@ function GameScreen() {
             onJollyMode={isGameFinished ? () => {} : handleAttivaModalitaJolly}
             isGameFinished={isGameFinished}
           />
+        </div>
+
+        <div className="lg:col-start-2">
+          <StoricoCarte estratte={game?.carteEstratte ?? []} />
         </div>
 
         <div className="lg:col-start-2">

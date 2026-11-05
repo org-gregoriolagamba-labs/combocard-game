@@ -45,11 +45,11 @@ function RegoleScreen() {
   };
 
   return (
-    <div className="min-h-[100dvh] tavolo p-4">
+    <div className="min-h-[100dvh] tavolo p-4 max-[359px]:p-2">
       <div className="mx-auto max-w-2xl">
-        <main className="superficie p-5 sm:p-8">
+        <main className="superficie p-5 max-[359px]:p-3 sm:p-8">
           <h1 className="titolo text-2xl text-testo sm:text-3xl">Prima di giocare: le regole</h1>
-          <p className="mt-2 text-testo-2 [text-wrap:pretty]">
+          <p className="mt-2 [overflow-wrap:anywhere] text-testo-2 [text-wrap:pretty]">
             Ciao {playerName}! Leggi con calma come funziona il gioco. La partita non inizia finché tutti i giocatori
             nuovi non hanno confermato di aver letto e capito le regole: così partiamo tutti sapendo come si gioca.
           </p>
@@ -71,7 +71,7 @@ function RegoleScreen() {
                 onChange={(e) => setDichiarato(e.target.checked)}
                 className="mt-1 h-5 w-5 shrink-0"
               />
-              <span className="font-bold">Ho letto e compreso le regole e le meccaniche del gioco</span>
+              <span className="min-w-0 [overflow-wrap:anywhere] font-bold">Ho letto e compreso le regole e le meccaniche del gioco</span>
             </label>
             {!lette && (
               <p className="mt-1 text-sm text-testo-2">Scorri fino in fondo alle regole per poter confermare.</p>
@@ -93,7 +93,7 @@ function RegoleScreen() {
             <button
               type="button"
               onClick={() => dispatch(logout())}
-              className="mt-2 min-h-[44px] w-full text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
+              className="mt-2 min-h-[44px] w-full [overflow-wrap:anywhere] text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
             >
               Non sei {playerName}? Esci dall&apos;account
             </button>

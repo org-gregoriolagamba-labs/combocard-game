@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus } from "lucide-react";
+import { Plus, ShieldCheck } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
@@ -14,19 +14,29 @@ import { gameService } from "../../services";
 import { Modal, Button, Input } from "../common";
 import Credito from "./Credito";
 
+// The number typed in a field, NaN when it is empty or is not a whole number
+const numero = (testo) => (/^\d+$/.test(testo) ? parseInt(testo, 10) : NaN);
+
 function HallScreen() {
   const dispatch = useDispatch();
-  const { id: playerId, name: playerName, credits: playerCredits } = useSelector((state) => state.player);
+  const { id: playerId, name: playerName, credits: playerCredits, role } = useSelector((state) => state.player);
   const { lobbies } = useSelector((state) => state.game);
   
   // Local state
   const [showCassa, setShowCassa] = useState(false);
-  const [creditiDaAcquistare, setCreditiDaAcquistare] = useState(0);
+  // The three numeric fields keep the text as typed: a number made of it would turn an empty field
+  // into 0, and the field could never be cleared to type a new value
+  const [creditiTesto, setCreditiTesto] = useState("");
+  const creditiDaAcquistare = numero(creditiTesto) || 0;
   const [showCreaPartita, setShowCreaPartita] = useState(false);
   // Ask what the player can afford, up to the usual 100
-  const [creditiRichiesti, setCreditiRichiesti] = useState(Math.max(10, Math.min(100, playerCredits)) || 100);
+  const [creditiRichiestiTesto, setCreditiRichiestiTesto] = useState(
+    String(Math.max(10, Math.min(100, playerCredits)) || 100)
+  );
+  const creditiRichiesti = numero(creditiRichiestiTesto);
   const [isPrivate, setIsPrivate] = useState(false);
-  const [maxPlayers, setMaxPlayers] = useState(6);
+  const [maxPlayersTesto, setMaxPlayersTesto] = useState("6");
+  const maxPlayers = numero(maxPlayersTesto);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
   const [privateGameCode, setPrivateGameCode] = useState("");
   const [createErrors, setCreateErrors] = useState({});
@@ -49,7 +59,7 @@ function HallScreen() {
   };
 
   const handleApriCassa = () => {
-    setCreditiDaAcquistare(0);
+    setCreditiTesto("");
     setShowCassa(true);
   };
 
@@ -75,13 +85,15 @@ function HallScreen() {
   const validaCreaPartita = () => {
     const errors = {};
 
-    if (creditiRichiesti < 10) {
+    if (Number.isNaN(creditiRichiesti)) {
+      errors.creditiRichiesti = "Scrivi quanti crediti servono per entrare";
+    } else if (creditiRichiesti < 10) {
       errors.creditiRichiesti = "Almeno 10 crediti";
     } else if (playerCredits < creditiRichiesti) {
       errors.creditiRichiesti = `Hai ${playerCredits} crediti: aggiungine con «Prendi crediti» o chiedi meno crediti`;
     }
 
-    if (maxPlayers < 2 || maxPlayers > 10) {
+    if (Number.isNaN(maxPlayers) || maxPlayers < 2 || maxPlayers > 10) {
       errors.maxPlayers = "Da 2 a 10 giocatori";
     }
 
@@ -105,7 +117,7 @@ function HallScreen() {
 
       setShowCreaPartita(false);
       setIsPrivate(false);
-      setMaxPlayers(6);
+      setMaxPlayersTesto("6");
 
       // Automatically join the created game
       await handleUniscitiPartita(result.gameId);
@@ -186,7 +198,7 @@ function HallScreen() {
               </div>
               <button
                 onClick={handleApriCassa}
-                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-oro bg-transparent px-5 py-3 font-bold text-oro transition hover:bg-oro/10"
+                className="flex min-h-[44px] max-w-full items-center gap-2 rounded-xl border border-oro bg-transparent px-5 py-3 max-[259px]:px-3 font-bold text-oro transition hover:bg-oro/10"
               >
                 <Credito className="h-6 w-6" />
                 Prendi crediti
@@ -213,10 +225,22 @@ function HallScreen() {
             </button>
           </div>
 
-          <div className="mt-3 text-right">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            {/* Only an admin sees the way in: the server refuses everybody else anyway */}
+            {role === "admin" ? (
+              <button
+                onClick={() => dispatch(setScreen("admin"))}
+                className="flex min-h-[44px] max-w-full items-center gap-2 rounded-lg px-3 text-sm font-bold text-oro underline decoration-2 underline-offset-4 hover:text-oro-dark"
+              >
+                <ShieldCheck size={18} aria-hidden="true" />
+                Amministrazione
+              </button>
+            ) : (
+              <span />
+            )}
             <button
               onClick={handleEsci}
-              className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
+              className="min-h-[44px] [overflow-wrap:anywhere] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
             >
               Esci dall&apos;account
             </button>
@@ -238,10 +262,10 @@ function HallScreen() {
                 return (
                   <li
                     key={lobby.id}
-                    className="flex items-center justify-between gap-3 border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t-2 border-linea py-3 first:border-t-0 first:pt-0"
                   >
                     <div className="min-w-0">
-                      <p className="font-bold text-testo">Partita di {lobby.creatorName}</p>
+                      <p className="[overflow-wrap:anywhere] font-bold text-testo">Partita di {lobby.creatorName}</p>
                       <p className="text-sm text-testo-2">
                         {lobby.playerCount}/{lobby.maxPlayers} giocatori · costa {lobby.requiredCredits} crediti
                         {mancano <= 0 && ` · te ne restano ${playerCredits - lobby.requiredCredits}`}
@@ -253,7 +277,7 @@ function HallScreen() {
                     <button
                       onClick={() => handleUniscitiPartita(lobby.id)}
                       disabled={mancano > 0}
-                      className="min-h-[44px] shrink-0 rounded-lg bg-oro px-4 py-2 font-bold text-inchiostro-900 transition hover:bg-oro-dark disabled:cursor-not-allowed disabled:text-testo-3 disabled:bg-notte-600"
+                      className="min-h-[44px] shrink-0 rounded-lg bg-oro px-4 py-2 max-[259px]:px-2 font-bold text-inchiostro-900 transition hover:bg-oro-dark disabled:cursor-not-allowed disabled:text-testo-3 disabled:bg-notte-600"
                     >
                       Unisciti
                     </button>
@@ -279,8 +303,8 @@ function HallScreen() {
             label="Quanti crediti vuoi?"
             type="number"
             inputMode="numeric"
-            value={creditiDaAcquistare}
-            onChange={(e) => setCreditiDaAcquistare(Math.min(10000, parseInt(e.target.value) || 0))}
+            value={creditiTesto}
+            onChange={(e) => setCreditiTesto(numero(e.target.value) > 10000 ? "10000" : e.target.value)}
             min="0"
             max="10000"
           />
@@ -289,7 +313,7 @@ function HallScreen() {
               <button
                 key={amount}
                 type="button"
-                onClick={() => setCreditiDaAcquistare(prev => Math.min(10000, prev + amount))}
+                onClick={() => setCreditiTesto(String(Math.min(10000, creditiDaAcquistare + amount)))}
                 className="min-h-[44px] rounded-lg border-2 border-linea-forte bg-notte-700 py-2 text-sm font-bold text-testo transition hover:bg-notte-600"
               >
                 +{amount}
@@ -298,7 +322,7 @@ function HallScreen() {
           </div>
           <button
             type="button"
-            onClick={() => setCreditiDaAcquistare(0)}
+            onClick={() => setCreditiTesto("")}
             className="min-h-[44px] w-full rounded-lg py-2 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 transition hover:text-testo"
           >
             Azzera
@@ -324,9 +348,9 @@ function HallScreen() {
             label="Crediti richiesti per partecipare"
             type="number"
             inputMode="numeric"
-            value={creditiRichiesti}
+            value={creditiRichiestiTesto}
             onChange={(e) => {
-              setCreditiRichiesti(parseInt(e.target.value) || 0);
+              setCreditiRichiestiTesto(e.target.value);
               setCreateErrors((errors) => ({ ...errors, creditiRichiesti: undefined }));
             }}
             error={createErrors.creditiRichiesti}
@@ -337,9 +361,9 @@ function HallScreen() {
             label="Numero massimo giocatori"
             type="number"
             inputMode="numeric"
-            value={maxPlayers}
+            value={maxPlayersTesto}
             onChange={(e) => {
-              setMaxPlayers(parseInt(e.target.value) || 0);
+              setMaxPlayersTesto(e.target.value);
               setCreateErrors((errors) => ({ ...errors, maxPlayers: undefined }));
             }}
             error={createErrors.maxPlayers}

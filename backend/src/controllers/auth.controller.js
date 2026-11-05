@@ -52,7 +52,9 @@ async function startSession(req, res, player, role) {
     expiresAt: refreshTokenExpiry(),
   });
   setRefreshCookie(res, refreshToken);
-  return { accessToken: signAccessToken(player.id, role), player };
+  // The role is beside the player, not inside it: the player is what the game shows, the role is
+  // only for whoever logs in (the screen of the admin needs it)
+  return { accessToken: signAccessToken(player.id, role), player, role };
 }
 
 /**
@@ -108,7 +110,7 @@ export const login = asyncHandler(async (req, res) => {
 export const refresh = asyncHandler(async (req, res) => {
   const token = req.cookies?.[REFRESH_COOKIE];
   if (!token) {
-    return sendSuccess(res, { accessToken: null, player: null });
+    return sendSuccess(res, { accessToken: null, player: null, role: null });
   }
 
   const nextToken = generateRefreshToken();
@@ -127,7 +129,7 @@ export const refresh = asyncHandler(async (req, res) => {
   }
 
   setRefreshCookie(res, nextToken);
-  sendSuccess(res, { accessToken: signAccessToken(playerId, account.role), player });
+  sendSuccess(res, { accessToken: signAccessToken(playerId, account.role), player, role: account.role });
 });
 
 /**

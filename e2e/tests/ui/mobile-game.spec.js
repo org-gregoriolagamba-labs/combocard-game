@@ -193,6 +193,26 @@ test.describe('Game screen on a phone @mobile', () => {
     }
   });
 
+  test('the cards already drawn are in a section that opens, latest first, and the screen does not move', async ({ page, request }) => {
+    const { guest } = await startedGame(request);
+    await signIn(page, guest);
+    const barBefore = await page.getByTestId('barra-azione').boundingBox();
+    const tableTop = () => page.getByRole('table').evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
+    const tableBefore = await tableTop();
+
+    const toggle = page.getByRole('button', { name: /Carte uscite/ });
+    await expect(toggle).toContainText('6 su 40');
+    expect((await toggle.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await toggle.click();
+
+    const panel = page.locator(`#${await toggle.getAttribute('aria-controls')}`);
+    await expect(panel.getByRole('listitem')).toHaveCount(6);
+    expect(await panel.getByRole('listitem').first().textContent()).toMatch(NOME_CARTA);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await page.getByTestId('barra-azione').boundingBox()).toEqual(barBefore);
+    expect(await tableTop()).toBe(tableBefore);
+  });
+
   test('leaving a game in progress is asked in a dialog, and Esc stays', async ({ page, request }) => {
     const { guest } = await startedGame(request);
     let browserDialogs = 0;
@@ -317,5 +337,31 @@ test.describe('Login and credits on a phone @mobile', () => {
     await page.getByRole('button', { name: 'Aggiungi 100 crediti' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('Aggiunti 100 crediti');
+  });
+
+  test('a numeric field can be emptied with backspace and typed again, in the credits and in the new game', async ({ page, request }) => {
+    const player = await registerPlayer(request, API_URL, 'Numeri');
+    await signInHall(page, player);
+
+    await page.getByRole('button', { name: 'Prendi crediti' }).click();
+    const importo = page.getByLabel('Quanti crediti vuoi?');
+    await importo.pressSequentially('250');
+    for (let i = 0; i < 3; i += 1) await importo.press('Backspace');
+    await expect(importo).toHaveValue('');
+    await importo.pressSequentially('7');
+    await expect(importo).toHaveValue('7');
+    await expect(page.getByRole('button', { name: 'Aggiungi 7 crediti' })).toBeEnabled();
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: /Crea Nuova Partita/ }).click();
+    for (const [nome, nuovo] of [['Crediti richiesti per partecipare', '25'], ['Numero massimo giocatori', '4']]) {
+      const campo = page.getByLabel(nome);
+      const vecchio = await campo.inputValue();
+      expect(vecchio).not.toBe('');
+      for (let i = 0; i < vecchio.length; i += 1) await campo.press('Backspace');
+      await expect(campo).toHaveValue('');
+      await campo.pressSequentially(nuovo);
+      await expect(campo).toHaveValue(nuovo);
+    }
   });
 });

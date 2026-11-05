@@ -13,6 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # The server runs on PostgreSQL, like in production: an admin can only be made on a database
+    # (npm run admin:promote), and the admin tests need one
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: combocard
+          POSTGRES_PASSWORD: combocard
+          POSTGRES_DB: combocard_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U combocard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,6 +72,7 @@ jobs:
           PORT: 3001
           CORS_ORIGIN: http://localhost:3000
           RATE_LIMIT_DISABLED: 'true'
+          DATABASE_URL: postgresql://combocard:combocard@localhost:5432/combocard_e2e
 
       - name: Start frontend server in background
         run: |
@@ -99,6 +117,7 @@ jobs:
           CI: true
           E2E_BASE_URL: http://localhost:3000
           E2E_API_URL: http://localhost:3001
+          E2E_DATABASE_URL: postgresql://combocard:combocard@localhost:5432/combocard_e2e
 
       - name: Dump server logs on failure
         if: failure()

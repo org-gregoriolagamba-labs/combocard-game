@@ -1,6 +1,6 @@
 {
   "name": "combocard-backend",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "COMBOCARD Game Backend - Express.js with Socket.IO",
   "private": true,
   "type": "module",
@@ -14,7 +14,8 @@
     "test:watch": "cross-env NODE_ENV=test RATE_LIMIT_DISABLED=true jest --watch",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "db:migrate": "node src/db/migrate.cli.js"
+    "db:migrate": "node src/db/migrate.cli.js",
+    "admin:promote": "node src/db/admin-promote.cli.js"
   },
   "dependencies": {
     "argon2": "^0.45.1",

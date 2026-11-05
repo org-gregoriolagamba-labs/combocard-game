@@ -88,9 +88,12 @@ const initialState = {
   error: null,
   // False until the first check for an existing session has finished
   sessionChecked: false,
+  // 'player' or 'admin': it decides only what the screens show, the server decides what is allowed
+  role: "player",
 };
 
-const applyPlayer = (state, player) => {
+const applyPlayer = (state, player, role = player.role) => {
+  state.role = role ?? "player";
   state.id = player.id;
   state.name = player.name;
   state.credits = player.credits;
@@ -113,6 +116,9 @@ const playerSlice = createSlice({
     setCurrentGameId: (state, action) => {
       state.currentGameId = action.payload;
     },
+    setRole: (state, action) => {
+      state.role = action.payload;
+    },
     clearPlayer: () => noSession,
     clearError: (state) => {
       state.error = null;
@@ -127,7 +133,7 @@ const playerSlice = createSlice({
       })
       .addCase(registerAccount.fulfilled, (state, action) => {
         state.isLoading = false;
-        applyPlayer(state, action.payload.player);
+        applyPlayer(state, action.payload.player, action.payload.role);
       })
       .addCase(registerAccount.rejected, (state, action) => {
         state.isLoading = false;
@@ -139,7 +145,7 @@ const playerSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        applyPlayer(state, action.payload.player);
+        applyPlayer(state, action.payload.player, action.payload.role);
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -202,5 +208,5 @@ const playerSlice = createSlice({
   },
 });
 
-export const { setPlayer, updateCredits, setCurrentGameId, clearPlayer, clearError } = playerSlice.actions;
+export const { setPlayer, updateCredits, setCurrentGameId, setRole, clearPlayer, clearError } = playerSlice.actions;
 export default playerSlice.reducer;

@@ -368,6 +368,21 @@ Nothing backs up the database automatically. As a start, schedule a daily dump a
 docker compose exec -T postgres pg_dump -U combocard combocard > "combocard-$(date +%F).sql"
 ```
 
+### Creating the First Admin
+
+No route makes an admin: it is done from the terminal of the server, after the first deploy.
+
+1. Register your own account on the site, like any player.
+2. On the server, run the script with the same `.env` as the backend, so with the production `DATABASE_URL`:
+   ```bash
+   npm --prefix backend run admin:promote -- <username>
+   # with Docker:
+   docker compose exec backend npm run admin:promote -- <username>
+   ```
+3. It answers `<username> is now an admin.` The account can use the admin area at once, without logging in again.
+
+The same command is the way out if no admin is left, and `--demote` makes an admin a player again (the last admin cannot be demoted). Every change is written in the audit log as done by the system. The script needs a shell on the server, or a one-off command of the hosting platform, with the production `DATABASE_URL`: there is no other way to create an admin. If the server has not been restarted since the update, run `npm run db:migrate` first. Details in [AUTH.md](AUTH.md).
+
 ### Before Opening to the Public
 
 - **Free credits:** the cash desk adds credits without any payment, which is fine only as long as they have no real value.

@@ -4,6 +4,7 @@
  * Central export for all route modules.
  */
 
+export { default as adminRoutes } from "./admin.routes.js";
 export { default as authRoutes } from "./auth.routes.js";
 export { default as playerRoutes } from "./player.routes.js";
 export { default as gameRoutes } from "./game.routes.js";

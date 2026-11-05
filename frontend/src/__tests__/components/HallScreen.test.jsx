@@ -150,6 +150,94 @@ describe('HallScreen', () => {
     });
   });
 
+  describe('the numeric fields can be emptied and typed again', () => {
+    const openCassa = () => fireEvent.click(screen.getByRole('button', { name: 'Prendi crediti' }));
+    const openCreate = () => fireEvent.click(screen.getByRole('button', { name: /Crea Nuova Partita/ }));
+    const type = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+
+    test('in the credits dialog the field stays empty when the value is deleted, then takes a new one', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCassa();
+
+      type('Quanti crediti vuoi?', '50');
+      type('Quanti crediti vuoi?', '');
+
+      expect(screen.getByLabelText('Quanti crediti vuoi?')).toHaveDisplayValue('');
+      expect(screen.getByRole('button', { name: 'Scegli un importo' })).toBeDisabled();
+
+      type('Quanti crediti vuoi?', '7');
+
+      expect(screen.getByLabelText('Quanti crediti vuoi?')).toHaveDisplayValue('7');
+      expect(screen.getByRole('button', { name: 'Aggiungi 7 crediti' })).toBeEnabled();
+    });
+
+    test('the quick amounts work from an empty field', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCassa();
+      type('Quanti crediti vuoi?', '');
+
+      fireEvent.click(screen.getByRole('button', { name: '+100' }));
+
+      expect(screen.getByLabelText('Quanti crediti vuoi?')).toHaveDisplayValue('100');
+    });
+
+    test('more than 10000 credits are brought back to 10000', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCassa();
+
+      type('Quanti crediti vuoi?', '20000');
+
+      expect(screen.getByLabelText('Quanti crediti vuoi?')).toHaveDisplayValue('10000');
+    });
+
+    test('the credits to ask for a game can be emptied and typed again, and an empty one is asked for in the field', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      type('Crediti richiesti per partecipare', '');
+      expect(screen.getByLabelText('Crediti richiesti per partecipare')).toHaveDisplayValue('');
+
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+      expect(screen.getByLabelText('Crediti richiesti per partecipare'))
+        .toHaveAccessibleDescription('Scrivi quanti crediti servono per entrare');
+      expect(gameService.createGame).not.toHaveBeenCalled();
+
+      type('Crediti richiesti per partecipare', '2');
+      expect(screen.getByLabelText('Crediti richiesti per partecipare')).toHaveDisplayValue('2');
+    });
+
+    test('the number of players can be emptied and typed again, and an empty one is asked for in the field', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      type('Numero massimo giocatori', '');
+      expect(screen.getByLabelText('Numero massimo giocatori')).toHaveDisplayValue('');
+
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+      expect(screen.getByLabelText('Numero massimo giocatori')).toHaveAccessibleDescription('Da 2 a 10 giocatori');
+      expect(gameService.createGame).not.toHaveBeenCalled();
+
+      type('Numero massimo giocatori', '4');
+      expect(screen.getByLabelText('Numero massimo giocatori')).toHaveDisplayValue('4');
+    });
+
+    test('a game made with retyped values is sent with numbers, not text', () => {
+      gameService.createGame.mockResolvedValue({ gameId: 'g1' });
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      type('Crediti richiesti per partecipare', '');
+      type('Crediti richiesti per partecipare', '40');
+      type('Numero massimo giocatori', '');
+      type('Numero massimo giocatori', '4');
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(gameService.createGame).toHaveBeenCalledWith(
+        expect.objectContaining({ requiredCredits: 40, maxPlayers: 4 }),
+      );
+    });
+  });
+
   describe('joining', () => {
     const lobby = { id: 'g1', creatorName: 'Carla', playerCount: 1, maxPlayers: 6, requiredCredits: 50 };
     const withLobby = (credits) => ({ ...state(credits), game: { ...state(credits).game, lobbies: [lobby] } });
@@ -220,5 +308,28 @@ describe('HallScreen', () => {
     renderWithProviders(<HallScreen />, { preloadedState: { ...state(), player: { id: 'p1', name: long, credits: 100 } } });
 
     expect(screen.getByText(new RegExp(long)).className).toMatch(/break-words/);
+  });
+});
+
+describe('HallScreen: the entry to the admin area', () => {
+  beforeEach(() => {
+    gameService.getLobby.mockResolvedValue([]);
+  });
+
+  const asRole = (role) => ({ ...state(), player: { ...state().player, role } });
+
+  test('an admin has a button to the admin area, and it opens the screen', () => {
+    const { store } = renderWithProviders(<HallScreen />, { preloadedState: asRole('admin') });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Amministrazione' }));
+
+    expect(store.getState().ui.currentScreen).toBe('admin');
+  });
+
+  test('a player has no such button, not even a disabled one', () => {
+    renderWithProviders(<HallScreen />, { preloadedState: asRole('player') });
+
+    expect(screen.queryByRole('button', { name: 'Amministrazione' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/amministrazione/i)).not.toBeInTheDocument();
   });
 });

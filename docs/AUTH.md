@@ -48,6 +48,51 @@ Sono state rimosse `POST /api/players/register` e `GET /api/players`.
 
 La connessione richiede un access token valido in `auth.token`. Il server fa entrare un giocatore solo nelle stanze delle sue partite. Una connessione già aperta non viene chiusa alla scadenza del token: il token viene ricontrollato alla connessione successiva.
 
+## Ruoli
+
+Ogni account ha un ruolo: `player` (il giocatore normale, chiamato "user" nei testi di prodotto) oppure `admin`. Alla registrazione il ruolo è sempre `player`. Un admin gioca come qualsiasi giocatore, con le stesse regole e la stessa visibilità delle partite: l'amministrazione è una sezione in più, non un vantaggio nel gioco.
+
+- **Il ruolo nel token non decide nulla.** L'access token dura 15 minuti e non si può revocare: un admin declassato sarebbe rimasto admin fino alla scadenza. `requireAuth` mette il ruolo del token in `req.auth.role` solo come informazione. Le route riservate usano `requireRole('admin')`, che legge il ruolo dal database a ogni richiesta: chi viene declassato perde i privilegi alla richiesta successiva, e chi viene promosso li ha subito, senza rifare il login. Il ruolo non si legge mai dal corpo, dalla query o dalle intestazioni.
+- **`/api/admin`.** Il router parte con `requireAuth` e poi `requireRole('admin')`, per tutte le sue route (un test controlla che una route aggiunta dopo non possa saltarli). Con un token mancante la risposta è `401`, per un `player` `403`, per un admin `200` (le route sono nella tabella sotto).
+- **Non si può togliere il ruolo all'ultimo admin.** La regola vale anche per due richieste nello stesso istante.
+- **Registro delle azioni.** Ogni cambio di ruolo scrive una riga in `audit_log` (chi, quando, su chi, ruolo prima e dopo), nella stessa transazione del cambio. Un cambio rifiutato non lascia nessuna riga.
+
+### Il ruolo nelle risposte, e la schermata
+
+La registrazione, il login e il rinnovo rispondono con `{ accessToken, player, role }`: il ruolo sta **accanto** al giocatore e non dentro (il giocatore è ciò che il gioco mostra), ed è sempre e solo quello di chi fa la richiesta. Senza sessione il rinnovo risponde `role: null`.
+
+Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa **mostrare**: il pulsante "Amministrazione" nella hall compare solo a un admin, e la schermata (`ui.currentScreen === "admin"`) si apre solo se il ruolo è `admin`. Chi decide cosa è permesso resta il server: una richiesta rifiutata con `403` riporta il giocatore alla hall come giocatore, con un avviso. Un admin che si declassa da solo esce subito dall'area. Il ruolo cambia nel client al login o al rinnovo successivo, quindi un utente appena promosso lo vede al prossimo accesso.
+
+### Le route di amministrazione
+
+| Route | Cosa fa |
+|---|---|
+| `GET /api/admin/status` | `{ admin: true }`: serve a sapere se si è admin |
+| `GET /api/admin/users?q=&role=&page=&limit=` | Utenti registrati, per nome, con totale. `q` è una parte del nome (senza badare alle maiuscole), `limit` al massimo 100. Mai l'hash della password. |
+| `GET /api/admin/users/:playerId` | Un utente: nome, ruolo, crediti, data di registrazione, `inGame` |
+| `PATCH /api/admin/users/:playerId` | `{ username }` **oppure** `{ role }`, uno alla volta. Il nome non può cambiare se il giocatore è in una partita non finita (`409`) né essere già in uso (`409`); il ruolo segue la regola dell'ultimo admin (`409`) |
+| `POST /api/admin/users/:playerId/credits` | `{ amount, reason }`: accredito (positivo) o addebito (negativo), da 1 a 1.000.000, **con un motivo obbligatorio** (fino a 200 caratteri). Il saldo non scende mai sotto zero (`409`). Il giocatore vede il nuovo saldo subito (evento `gettoniAggiornati`) |
+| `GET /api/admin/audit?targetId=&page=&limit=` | Il registro delle azioni, dalla più recente, filtrabile per utente |
+
+- Chi agisce è sempre l'admin del token: un `actor` scritto nel corpo viene ignorato, come ogni campo sconosciuto.
+- **Un admin può rettificare anche i propri crediti** e quelli di altri admin, sempre con motivo e traccia (nel registro attore e bersaglio coincidono). Il divieto di accreditarsi da soli non protegge nulla finché la Cassa dà crediti gratis a chiunque: da rivedere se i crediti avranno mai un valore reale.
+- Una rettifica aggiorna i crediti in memoria del server e scrive in un'unica transazione il movimento (`admin_adjustment`) e la riga di audit; se il database non risponde, i crediti tornano come prima e la risposta è `503`.
+
+### Creare il primo admin
+
+Nessuna route crea un admin: si fa dal terminale del server, con lo script `admin:promote`, che usa il `DATABASE_URL` del `.env` del backend.
+
+```bash
+npm --prefix backend run admin:promote -- <nome utente>
+npm --prefix backend run admin:promote -- --demote <nome utente>
+```
+
+1. L'utente si registra normalmente sul sito.
+2. L'operatore lancia lo script sul server. Con Docker: `docker compose exec backend npm run admin:promote -- <nome utente>`.
+3. Lo script risponde `<nome> is now an admin.` (oppure `is already an admin.` se lo era). Il token già in uso funziona subito, senza rifare il login.
+
+Lo script esce con `0` se è andato a buon fine, `1` se l'utente non esiste, se manca `DATABASE_URL`, se il database non è aggiornato (`npm run db:migrate`) o se si tenta di togliere il ruolo all'ultimo admin, `2` se gli argomenti sono sbagliati. Non stampa password né hash. Il registro delle azioni lo segna come eseguito dal sistema. È anche l'uscita di emergenza: se non resta nessun admin, si promuove un utente con lo stesso comando. Richiede PostgreSQL: senza `DATABASE_URL` gli account sono in memoria e nessuno è admin.
+
 ## Configurazione
 
 | Variabile | Default | Descrizione |
@@ -74,5 +119,5 @@ Senza `DATABASE_URL` anche gli account stanno in memoria e si perdono al riavvio
 
 ## Limiti noti
 
-- I ruoli sono predisposti (`role` in `user_accounts` e nel token), ma oggi nessuna route li usa.
+- La sospensione di un utente, la chiusura delle sue sessioni, la reimpostazione della password e la gestione delle partite sono ancora da fare (#71, #72).
 - Non esistono ancora il recupero della password e la verifica dell'email.
