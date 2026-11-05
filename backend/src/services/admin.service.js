@@ -8,6 +8,7 @@
 import { AppError } from "../utils/AppError.js";
 import { normalizeUsername } from "./auth.service.js";
 import { activeGameOf } from "./game.service.js";
+import { GAME_STATUS } from "../config/constants.js";
 import { INSUFFICIENT_CREDITS, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from "../db/store.js";
 
 const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
@@ -180,6 +181,130 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
     player.credits += amount;
   }
   return { playerId, credits: player.credits };
+}
+
+// A game as the admin sees it: metadata only. Never the deck, the grids, the cards drawn or the balances.
+const gameView = (game) => ({
+  id: game.id,
+  status: game.status,
+  isPrivate: Boolean(game.isPrivate),
+  requiredCredits: game.requiredCredits,
+  maxPlayers: game.maxPlayers,
+  montepremi: game.montepremi,
+  createdAt: game.createdAt,
+  players: game.players.map(({ id, name }) => ({ id, name })),
+});
+
+const activeGames = (gameState) =>
+  Object.values(gameState.games).filter((g) => g.status !== GAME_STATUS.FINISHED);
+
+/**
+ * One page of the games that are waiting or in progress, the oldest first (the stuck ones are there)
+ * @param {Object} gameState - Global game state
+ * @param {Object} query - { status, page, limit }
+ * @returns {Object} { items, total, page, limit }
+ */
+export function listGames(gameState, { status, page = 1, limit = 20 } = {}) {
+  const games = activeGames(gameState)
+    .filter((g) => !status || g.status === status)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  const offset = (page - 1) * limit;
+  return { items: games.slice(offset, offset + limit).map(gameView), total: games.length, page, limit };
+}
+
+/**
+ * Cancel a game that is waiting or in progress. If it was in progress, every player still in it gets the
+ * entry fee back; the prizes awarded but not yet credited are lost, because the game counts as never
+ * played. A player who left earlier already lost the fee and is not refunded. The change is made in the
+ * game state at once, and undone if the store cannot write it.
+ * @param {string} gameId - Game ID
+ * @param {Object} cancellation - { reason }
+ * @param {Object} actor - { type: 'player', id } of the admin
+ * @returns {Promise<Object>} { gameId, previousStatus, players: [{ playerId, credits, refund }] }
+ * @throws {AppError} 404 if the game does not exist, 409 if it is finished, 503 if the store cannot write
+ */
+export async function cancelGame(store, gameState, gameId, { reason }, actor) {
+  const game = Object.hasOwn(gameState.games, gameId) ? gameState.games[gameId] : null;
+  if (!game) {
+    throw new AppError("Game not found", 404);
+  }
+  if (game.status === GAME_STATUS.FINISHED) {
+    throw new AppError("The game is already finished", 409);
+  }
+
+  const wasPlaying = game.status === GAME_STATUS.PLAYING;
+  const members = game.players
+    .map(({ id }) => ({ playerId: id, player: gameState.players[id] }))
+    .map((m) => ({ ...m, refund: wasPlaying && m.player ? game.requiredCredits : 0 }));
+
+  const previousGameIds = new Map();
+  delete gameState.games[gameId];
+  for (const { playerId, player, refund } of members) {
+    if (player) {
+      previousGameIds.set(playerId, player.currentGameId);
+      player.currentGameId = null;
+      player.credits += refund;
+    }
+  }
+
+  try {
+    await store.cancelGame(
+      game,
+      members.filter((m) => m.refund > 0).map(({ playerId, refund }) => ({ playerId, amount: refund })),
+      { actor, reason },
+    );
+  } catch (err) {
+    gameState.games[gameId] = game;
+    for (const { playerId, player, refund } of members) {
+      if (player) {
+        player.credits = Math.max(0, player.credits - refund);
+        player.currentGameId ??= previousGameIds.get(playerId);
+      }
+    }
+    console.error(`❌ Could not cancel game ${gameId}: ${err.message}`);
+    throw new AppError(STORAGE_UNAVAILABLE, 503);
+  }
+
+  return {
+    gameId,
+    previousStatus: game.status,
+    players: members.map(({ playerId, player, refund }) => ({ playerId, credits: player?.credits ?? 0, refund })),
+  };
+}
+
+/**
+ * The numbers of the platform, without naming anyone. The finished games are not all in the game state
+ * (it keeps the games in progress): with a database they come from it.
+ * @returns {Promise<Object>} { users, games, credits, prizesDistributed }
+ */
+export async function getStats(store, gameState) {
+  const [{ total: registered }, admins, dbStats, cancelled] = await Promise.all([
+    store.listAccounts({ limit: 1 }),
+    store.countAdmins(),
+    store.gameStats(),
+    store.countAuditEvents({ action: "game_cancelled" }),
+  ]);
+
+  const games = Object.values(gameState.games);
+  const countOf = (status) => games.filter((g) => g.status === status).length;
+  const finished = games.filter((g) => g.status === GAME_STATUS.FINISHED);
+  const inGame = new Set(activeGames(gameState).flatMap((g) => g.players.map((p) => p.id)));
+  const sum = (list, pick) => list.reduce((total, item) => total + pick(item), 0);
+
+  return {
+    users: { registered, inGame: inGame.size, admins },
+    games: {
+      waiting: countOf(GAME_STATUS.WAITING),
+      playing: countOf(GAME_STATUS.PLAYING),
+      finished: dbStats?.finished ?? finished.length,
+      cancelled,
+    },
+    credits: {
+      inCirculation: sum(Object.values(gameState.players), (p) => p.credits),
+      inPlay: sum(games.filter((g) => g.status === GAME_STATUS.PLAYING), (g) => g.montepremi),
+    },
+    prizesDistributed: dbStats?.prizesDistributed ?? sum(finished, (g) => g.montepremi),
+  };
 }
 
 /**

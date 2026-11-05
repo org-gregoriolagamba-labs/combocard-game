@@ -12,6 +12,8 @@ import { validate } from "../middleware/validation.middleware.js";
 import {
   adminAdjustCreditsSchema,
   adminAuditQuerySchema,
+  adminCancelGameSchema,
+  adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
 } from "../validation/schemas.js";
@@ -54,6 +56,27 @@ router.patch("/users/:playerId", validate(adminUpdateUserSchema), adminControlle
  * @access  Admin
  */
 router.post("/users/:playerId/credits", validate(adminAdjustCreditsSchema), adminController.adjustCredits);
+
+/**
+ * @route   GET /api/admin/games
+ * @desc    The games waiting or in progress: metadata only, never the deck or the grids
+ * @access  Admin
+ */
+router.get("/games", validate(adminListGamesQuerySchema, "query"), adminController.listGames);
+
+/**
+ * @route   POST /api/admin/games/:gameId/cancel
+ * @desc    Cancel a game that is stuck, with a reason: the players still in it get the entry fee back
+ * @access  Admin
+ */
+router.post("/games/:gameId/cancel", validate(adminCancelGameSchema), adminController.cancelGame);
+
+/**
+ * @route   GET /api/admin/stats
+ * @desc    Numbers of the platform: users, games, credits, prizes
+ * @access  Admin
+ */
+router.get("/stats", adminController.getStats);
 
 /**
  * @route   GET /api/admin/audit

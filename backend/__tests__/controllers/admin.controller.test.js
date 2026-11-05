@@ -7,7 +7,10 @@
 import { jest } from '@jest/globals';
 import {
   adjustCredits,
+  cancelGame,
+  getStats,
   getUser,
+  listGames,
   listAuditLog,
   listUsers,
   updateUser,
@@ -40,7 +43,7 @@ describe('admin controller', () => {
     store = createMemoryStore();
     gameState = { players: {}, games: {} };
     emitted = [];
-    io = { to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }), in: () => ({ socketsJoin: () => {} }) };
+    io = { to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }), in: (room) => ({ socketsJoin: () => {}, socketsLeave: (gameId) => emitted.push({ room, event: 'socketsLeave', payload: gameId }) }) };
     for (const [id, username, credits] of [['p1', 'Anna', 100], ['p2', 'Carlo', 50], ['p3', 'Dario', 0]]) {
       await store.createAccount({ id }, { username, usernameKey: username.toLowerCase(), passwordHash: 'hash' });
       gameState.players[id] = { id, name: username, credits, currentGameId: null };
@@ -90,5 +93,55 @@ describe('admin controller', () => {
 
     expect(answer.data.total).toBe(1);
     expect(answer.data.items[0]).toMatchObject({ action: 'credits_adjusted', targetId: 'p1', actorName: 'Dario', targetName: 'Anna' });
+  });
+  describe('games', () => {
+    const addGame = (id, status, playerIds, credits = 0) => {
+      gameState.games[id] = {
+        id, status, isPrivate: false, requiredCredits: 100, maxPlayers: 4, montepremi: 0, createdAt: '2026-01-01T00:00:00.000Z',
+        mazzo: [{ valore: '7', seme: 'coppe' }], carteEstratte: [],
+        players: playerIds.map((pid) => ({ id: pid, name: gameState.players[pid].name, cartella: [[{ valore: 'A' }]], gettoni: credits, collezioni: [] })),
+      };
+      playerIds.forEach((pid) => { gameState.players[pid].currentGameId = id; });
+    };
+
+    test('listGames answers with metadata only', async () => {
+      addGame('g1', 'playing', ['p1', 'p2']);
+
+      const answer = await call(listGames, { query: { page: 1, limit: 20 } });
+
+      expect(answer.data.items).toHaveLength(1);
+      expect(JSON.stringify(answer)).not.toMatch(/mazzo|cartella|carteEstratte|gettoni/);
+    });
+
+    test('cancelGame refunds, answers and tells each player, who leave the room of the game', async () => {
+      addGame('g1', 'playing', ['p1', 'p2']);
+
+      const answer = await call(cancelGame, { params: { gameId: 'g1' }, body: { reason: 'bloccata' } });
+
+      expect(answer.data).toMatchObject({ gameId: 'g1', previousStatus: 'playing' });
+      expect(answer.data.players).toEqual([
+        { playerId: 'p1', credits: 200, refund: 100 },
+        { playerId: 'p2', credits: 150, refund: 100 },
+      ]);
+      expect(emitted).toEqual(expect.arrayContaining([
+        { room: playerRoom('p1'), event: 'gameCancelled', payload: { gameId: 'g1', gettoni: 200, refund: 100 } },
+        { room: playerRoom('p2'), event: 'gameCancelled', payload: { gameId: 'g1', gettoni: 150, refund: 100 } },
+        { room: playerRoom('p1'), event: 'socketsLeave', payload: 'g1' },
+      ]));
+    });
+
+    test('cancelGame tells nobody when it is refused', async () => {
+      await expect(call(cancelGame, { params: { gameId: 'ghost' }, body: { reason: 'x' } })).rejects.toMatchObject({ statusCode: 404 });
+
+      expect(emitted).toEqual([]);
+    });
+
+    test('getStats answers with the numbers', async () => {
+      addGame('g1', 'playing', ['p1']);
+
+      const answer = await call(getStats);
+
+      expect(answer.data).toMatchObject({ users: { registered: 3, inGame: 1 }, games: { playing: 1 } });
+    });
   });
 });
