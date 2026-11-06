@@ -34,6 +34,7 @@ const userView = (account, gameState) => ({
   role: account.role,
   credits: gameState.players[account.playerId]?.credits ?? 0,
   createdAt: account.createdAt,
+  suspended: account.suspended,
   inGame: activeGameOf(gameState, account.playerId) !== null,
 });
 
@@ -181,6 +182,61 @@ export async function adjustUserCredits(store, gameState, playerId, { amount, re
     player.credits += amount;
   }
   return { playerId, credits: player.credits };
+}
+
+// Suspend, reinstate or close the sessions: the store decides and writes the trace
+async function changeAccessOf(store, gameState, playerId, change) {
+  await getUser(store, gameState, playerId);
+  try {
+    await change();
+  } catch (err) {
+    if (err.code === LAST_ADMIN) {
+      throw new AppError("Cannot suspend the last admin", 409);
+    }
+    console.error(`❌ Could not change the access of player ${playerId}: ${err.message}`);
+    throw new AppError(STORAGE_UNAVAILABLE, 503);
+  }
+  return getUser(store, gameState, playerId);
+}
+
+/**
+ * Suspend a user: they lose the access at the next request and their sessions are closed. The game
+ * they are in is left as it is: the admin can cancel it, or the user can go back to it when reinstated.
+ * @param {Object} suspension - { reason }
+ * @param {Object} actor - { type: 'player', id } of the admin
+ * @returns {Promise<Object>} The user as it is now
+ * @throws {AppError} 404 if the user does not exist, 409 for oneself or the last admin, 503 if the store cannot write
+ */
+export async function suspendUser(store, gameState, playerId, { reason }, actor) {
+  if (actor.id === playerId) {
+    throw new AppError("You cannot suspend yourself", 409);
+  }
+  return changeAccessOf(store, gameState, playerId, () =>
+    store.setAccountSuspended(playerId, true, { actor, reason }));
+}
+
+/**
+ * Reinstate a suspended user
+ * @param {Object} reinstatement - { reason }
+ * @param {Object} actor - { type: 'player', id } of the admin
+ * @returns {Promise<Object>} The user as it is now
+ * @throws {AppError} 404 if the user does not exist, 503 if the store cannot write
+ */
+export async function unsuspendUser(store, gameState, playerId, { reason }, actor) {
+  return changeAccessOf(store, gameState, playerId, () =>
+    store.setAccountSuspended(playerId, false, { actor, reason }));
+}
+
+/**
+ * Close every session of a user: the access tokens and the refresh tokens stop working
+ * @param {Object} revocation - { reason }
+ * @param {Object} actor - { type: 'player', id } of the admin
+ * @returns {Promise<Object>} The user as it is now
+ * @throws {AppError} 404 if the user does not exist, 503 if the store cannot write
+ */
+export async function revokeUserSessions(store, gameState, playerId, { reason }, actor) {
+  return changeAccessOf(store, gameState, playerId, () =>
+    store.revokeAccountSessions(playerId, { actor, reason }));
 }
 
 // A game as the admin sees it: metadata only. Never the deck, the grids, the cards drawn or the balances.

@@ -8,34 +8,46 @@ import { AppError } from "../utils/AppError.js";
 import { verifyAccessToken } from "../services/auth.service.js";
 
 /**
- * Identify a player from an access token
+ * Identify a player from an access token. The token is valid for 15 minutes, but the account is read
+ * from the store every time: a suspended account, or one whose sessions were closed after the token was
+ * signed, is not let in, and the role is the one of the account now.
  * @param {string} token - Access token
  * @param {Object} gameState - Global game state
- * @returns {Object|null} { playerId, role }, or null if not authenticated
+ * @param {Object} store - Persistence store
+ * @returns {Promise<Object|null>} { playerId, role }, or null if not authenticated
  */
-export function authenticateToken(token, gameState) {
+export async function authenticateToken(token, gameState, store) {
   if (typeof token !== "string") {
     return null;
   }
   const auth = verifyAccessToken(token);
-  return auth && gameState.players[auth.playerId] ? auth : null;
+  if (!auth || !gameState.players[auth.playerId]) {
+    return null;
+  }
+  const account = await store.findAccountById(auth.playerId);
+  if (!account || account.suspended || account.sessionVersion !== auth.sessionVersion) {
+    return null;
+  }
+  return { playerId: auth.playerId, role: account.role };
 }
 
 /**
- * Require a valid access token. Sets req.auth to { playerId, role }.
- * The role is the one in the token, which can be up to 15 minutes old: never decide
- * on it. Use requireRole, which reads it again from the store.
+ * Require a valid access token. Sets req.auth to { playerId, role }, with the role of the account now.
  */
-export const requireAuth = (req, res, next) => {
-  const [scheme, token] = (req.headers.authorization ?? "").split(" ");
-  const auth = scheme === "Bearer" ? authenticateToken(token, req.gameState) : null;
+export const requireAuth = async (req, res, next) => {
+  try {
+    const [scheme, token] = (req.headers.authorization ?? "").split(" ");
+    const auth = scheme === "Bearer" ? await authenticateToken(token, req.gameState, req.store) : null;
 
-  if (!auth) {
-    return next(new AppError("Authentication required", 401));
+    if (!auth) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    req.auth = auth;
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  req.auth = auth;
-  next();
 };
 
 /**

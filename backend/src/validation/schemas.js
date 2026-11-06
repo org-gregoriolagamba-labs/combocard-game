@@ -83,6 +83,11 @@ export const adminAdjustCreditsSchema = Joi.object({
   reason: Joi.string().trim().min(1).max(200).required(),
 });
 
+// Suspend, reinstate or close the sessions of a user: always with the reason that goes in the audit log
+export const adminUserActionSchema = Joi.object({
+  reason: Joi.string().trim().min(1).max(200).required(),
+});
+
 export const adminListGamesQuerySchema = Joi.object({
   // Only the games that can still be cancelled
   status: Joi.string().valid("waiting", "playing"),
