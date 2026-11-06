@@ -64,7 +64,7 @@ describe('AdminScreen: suspension and sessions', () => {
   });
 
   test('closes the sessions with a reason, and the user stays as they were', async () => {
-    adminService.revokeSessions.mockResolvedValue(anna);
+    adminService.revokeSessions.mockResolvedValue({ ...anna, suspended: false });
     const { store } = await open();
 
     reason('furto');
@@ -78,7 +78,7 @@ describe('AdminScreen: suspension and sessions', () => {
 
   test('a suspended user can only be reinstated', async () => {
     adminService.listUsers.mockResolvedValue(pageOf([suspendedAnna, carlo, dario]));
-    adminService.unsuspendUser.mockResolvedValue(anna);
+    adminService.unsuspendUser.mockResolvedValue({ ...anna, suspended: false });
     const { dialog, store } = await open();
 
     expect(within(dialog).queryByRole('button', { name: "Sospendi l'accesso" })).not.toBeInTheDocument();
