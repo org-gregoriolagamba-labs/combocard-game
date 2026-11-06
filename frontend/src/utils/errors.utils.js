@@ -24,6 +24,7 @@ const EXACT = {
   "Insufficient credits": "Non hai crediti sufficienti",
   "Game not found": "Partita non trovata: controlla il codice",
   "Game already started": "La partita è già iniziata",
+  "The game is already finished": "La partita è già finita",
   "Game not in playing state": "La partita non è in corso",
   "Already in game": "Sei già in questa partita",
   "Cannot rename a player who is in a game": "Il giocatore è in una partita: il nome si può cambiare dopo",

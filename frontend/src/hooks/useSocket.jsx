@@ -16,6 +16,7 @@ import {
   clearJollyInCorso,
   updatePlayerCards,
   updatePlayerGettoni,
+  clearGame,
 } from "../store/slices/gameSlice";
 import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
 import { updateCredits } from "../store/slices/playerSlice";
@@ -203,6 +204,25 @@ export function useSocket() {
       refreshGameState();
     };
 
+    // An admin cancelled the game: back to the hall, with the balance the server says
+    const handleGameCancelled = ({ gameId, gettoni, refund }) => {
+      if (typeof gettoni === "number") {
+        dispatch(updateCredits(gettoni));
+      }
+      if (gameId !== currentGameId) {
+        return;
+      }
+      dispatch(clearGame());
+      dispatch(setScreen("hall"));
+      dispatch(addToast({
+        message: refund > 0
+          ? `La partita è stata annullata dall'amministrazione: ti sono stati restituiti ${refund} crediti`
+          : "La partita è stata annullata dall'amministrazione",
+        type: "warning",
+        duration: 8000,
+      }));
+    };
+
     // Register event listeners
     socket.on("playerJoined", handlePlayerJoined);
     socket.on("playerLeft", handlePlayerLeft);
@@ -216,6 +236,7 @@ export function useSocket() {
     socket.on("jollyAnnullato", handleJollyAnnullato);
     socket.on("jollyUsato", handleJollyUsato);
     socket.on("gameFinished", handleGameFinished);
+    socket.on("gameCancelled", handleGameCancelled);
 
     // Cleanup
     return () => {
@@ -231,6 +252,7 @@ export function useSocket() {
       socket.off("jollyAnnullato", handleJollyAnnullato);
       socket.off("jollyUsato", handleJollyUsato);
       socket.off("gameFinished", handleGameFinished);
+      socket.off("gameCancelled", handleGameCancelled);
     };
   }, [currentGameId, playerId, game, dispatch, refreshGameState]);
 

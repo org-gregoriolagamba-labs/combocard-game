@@ -37,6 +37,12 @@ export function frase(e) {
   if (e.action === "username_changed") {
     return `${chi} ha cambiato il nome di ${e.details.from} in ${e.details.to}`;
   }
+  if (e.action === "game_cancelled") {
+    const { reason, previousStatus, refunds = [] } = e.details;
+    const rimborsati = refunds.reduce((total, r) => total + r.amount, 0);
+    const stato = previousStatus === "playing" ? "in corso" : "in attesa";
+    return `${chi} ha annullato una partita ${stato}: «${reason}»${rimborsati > 0 ? `, rimborsati ${crediti(rimborsati)}` : ""}`;
+  }
   return `${chi}: ${e.action}`;
 }
 

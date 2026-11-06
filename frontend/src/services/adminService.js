@@ -1,7 +1,8 @@
 /**
  * Admin Service
  *
- * API calls of the admin area: the users, their name, role and credits, and the audit log.
+ * API calls of the admin area: the users, their name, role and credits, the games, the statistics
+ * and the audit log.
  * Every one of them is refused by the server (403) to whoever is not an admin.
  */
 
@@ -68,5 +69,35 @@ export const adjustCredits = async (playerId, { amount, reason }) => {
  */
 export const listAudit = async ({ targetId, page, limit } = {}) => {
   const response = await api.get(`/admin/audit${query({ targetId, page, limit })}`);
+  return response.data;
+};
+
+/**
+ * One page of the games waiting or in progress, the oldest first: metadata only
+ * @param {Object} filters - { status ('waiting' or 'playing'), page, limit }
+ * @returns {Promise<Object>} { items, total, page, limit }
+ */
+export const listGames = async ({ status, page, limit } = {}) => {
+  const response = await api.get(`/admin/games${query({ status, page, limit })}`);
+  return response.data;
+};
+
+/**
+ * Cancel a game that is stuck: the players still in it get the entry fee back
+ * @param {string} gameId - Game ID
+ * @param {Object} cancellation - { reason }
+ * @returns {Promise<Object>} { gameId, previousStatus, players: [{ playerId, credits, refund }] }
+ */
+export const cancelGame = async (gameId, { reason }) => {
+  const response = await api.post(`/admin/games/${encodeURIComponent(gameId)}/cancel`, { reason });
+  return response.data;
+};
+
+/**
+ * The numbers of the platform
+ * @returns {Promise<Object>} { users, games, credits, prizesDistributed }
+ */
+export const getStats = async () => {
+  const response = await api.get("/admin/stats");
   return response.data;
 };

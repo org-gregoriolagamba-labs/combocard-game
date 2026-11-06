@@ -1,7 +1,7 @@
 /**
  * AdminScreen Component
  *
- * The admin area: the users (search, name, role, credits) and the audit log. It is shown only to
+ * The admin area: the users (search, name, role, credits), the games, the statistics and the audit log. It is shown only to
  * an admin, but the server decides: a 403 sends the player back to the hall.
  */
 
@@ -12,9 +12,13 @@ import { setRole } from "../../store/slices/playerSlice";
 import { addToast, setScreen } from "../../store/slices/uiSlice";
 import UsersPanel from "./UsersPanel";
 import AuditPanel from "./AuditPanel";
+import GamesPanel from "./GamesPanel";
+import StatsPanel from "./StatsPanel";
 
 const TABS = [
   { id: "utenti", label: "Utenti" },
+  { id: "partite", label: "Partite" },
+  { id: "statistiche", label: "Statistiche" },
   { id: "registro", label: "Registro" },
 ];
 
@@ -73,11 +77,10 @@ function AdminScreen() {
           aria-labelledby={`scheda-${tab}`}
           className="superficie p-4 max-[359px]:p-3 sm:p-6"
         >
-          {tab === "utenti" ? (
-            <UsersPanel onForbidden={handleForbidden} />
-          ) : (
-            <AuditPanel onForbidden={handleForbidden} />
-          )}
+          {tab === "utenti" && <UsersPanel onForbidden={handleForbidden} />}
+          {tab === "partite" && <GamesPanel onForbidden={handleForbidden} />}
+          {tab === "statistiche" && <StatsPanel onForbidden={handleForbidden} />}
+          {tab === "registro" && <AuditPanel onForbidden={handleForbidden} />}
         </section>
       </div>
     </div>

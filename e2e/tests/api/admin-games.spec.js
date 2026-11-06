@@ -47,11 +47,16 @@ test.describe('Admin area: games and statistics @admin', () => {
     const admin = await registerAdmin(request, API_URL);
     const { gameId, creator } = await startedGame(request);
 
-    const response = await request.get(`${API_URL}/api/admin/games?status=playing&limit=100`, { headers: admin.headers });
+    // The list is the oldest first and in pages: on a database shared by many tests the game is on a later page
+    let game;
+    for (let page = 1; !game && page <= 50; page += 1) {
+      const response = await request.get(`${API_URL}/api/admin/games?status=playing&limit=100&page=${page}`, { headers: admin.headers });
+      expect(response.status()).toBe(200);
+      const { items } = (await response.json()).data;
+      game = items.find((g) => g.id === gameId);
+      if (items.length === 0) break;
+    }
 
-    expect(response.status()).toBe(200);
-    const { items } = (await response.json()).data;
-    const game = items.find((g) => g.id === gameId);
     expect(game).toMatchObject({ status: 'playing', requiredCredits: 100, montepremi: 200 });
     expect(game.players.map((p) => p.id)).toContain(creator.id);
     expect(JSON.stringify(game)).not.toMatch(/mazzo|cartella|coperte|carteEstratte|gettoni|credits/);
