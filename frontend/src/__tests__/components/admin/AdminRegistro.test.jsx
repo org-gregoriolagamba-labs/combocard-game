@@ -29,6 +29,9 @@ const EVENTS = [
   event(1, 'username_changed', { from: 'Carlo Rossi', to: 'Carlo Bianchi' }, { targetId: 'p2', targetName: 'Carlo Bianchi' }),
   event(6, 'game_cancelled', { reason: 'bloccata', previousStatus: 'playing', refunds: [{ playerId: 'p1', amount: 100 }, { playerId: 'p2', amount: 100 }] }, { targetId: 'g1', targetName: null }),
   event(7, 'game_cancelled', { reason: 'abbandonata', previousStatus: 'waiting', refunds: [] }, { targetId: 'g2', targetName: null }),
+  event(8, 'user_suspended', { reason: 'abuso' }),
+  event(9, 'user_unsuspended', { reason: 'chiarito' }),
+  event(10, 'sessions_revoked', { reason: 'furto' }),
 ];
 
 describe('AdminScreen: the audit log', () => {
@@ -67,6 +70,9 @@ describe('AdminScreen: the audit log', () => {
     expect(sentences[5]).toContain('Dario ha annullato una partita in corso: «bloccata», rimborsati 200 crediti');
     expect(sentences[6]).toContain('Dario ha annullato una partita in attesa: «abbandonata»');
     expect(sentences[6]).not.toContain('rimborsati');
+    expect(sentences[7]).toContain('Dario ha sospeso Anna: «abuso»');
+    expect(sentences[8]).toContain('Dario ha riabilitato Anna: «chiarito»');
+    expect(sentences[9]).toContain('Dario ha chiuso le sessioni di Anna: «furto»');
   });
 
   test('every action has its time', async () => {
