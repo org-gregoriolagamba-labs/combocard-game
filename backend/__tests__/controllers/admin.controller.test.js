@@ -13,6 +13,9 @@ import {
   listGames,
   listAuditLog,
   listUsers,
+  revokeSessions,
+  suspendUser,
+  unsuspendUser,
   updateUser,
 } from '../../src/controllers/admin.controller.js';
 import { createMemoryStore } from '../../src/db/store.js';
@@ -43,7 +46,7 @@ describe('admin controller', () => {
     store = createMemoryStore();
     gameState = { players: {}, games: {} };
     emitted = [];
-    io = { to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }), in: (room) => ({ socketsJoin: () => {}, socketsLeave: (gameId) => emitted.push({ room, event: 'socketsLeave', payload: gameId }) }) };
+    io = { to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }), in: (room) => ({ socketsJoin: () => {}, socketsLeave: (gameId) => emitted.push({ room, event: 'socketsLeave', payload: gameId }), disconnectSockets: (close) => emitted.push({ room, event: 'disconnectSockets', payload: close }) }) };
     for (const [id, username, credits] of [['p1', 'Anna', 100], ['p2', 'Carlo', 50], ['p3', 'Dario', 0]]) {
       await store.createAccount({ id }, { username, usernameKey: username.toLowerCase(), passwordHash: 'hash' });
       gameState.players[id] = { id, name: username, credits, currentGameId: null };
@@ -128,6 +131,42 @@ describe('admin controller', () => {
         { room: playerRoom('p2'), event: 'gameCancelled', payload: { gameId: 'g1', gettoni: 150, refund: 100 } },
         { room: playerRoom('p1'), event: 'socketsLeave', payload: 'g1' },
       ]));
+    });
+
+    test('suspendUser suspends, tells the user that the session is over and closes their connections', async () => {
+      const answer = await call(suspendUser, { params: { playerId: 'p1' }, body: { reason: 'abuso' } });
+
+      expect(answer.data).toMatchObject({ playerId: 'p1', suspended: true });
+      expect(emitted).toEqual([
+        { room: playerRoom('p1'), event: 'sessionEnded', payload: { reason: 'suspended' } },
+        { room: playerRoom('p1'), event: 'disconnectSockets', payload: true },
+      ]);
+    });
+
+    test('revokeSessions closes the connections of the user, who is not suspended', async () => {
+      const answer = await call(revokeSessions, { params: { playerId: 'p1' }, body: { reason: 'furto' } });
+
+      expect(answer.data).toMatchObject({ playerId: 'p1', suspended: false });
+      expect(emitted).toEqual([
+        { room: playerRoom('p1'), event: 'sessionEnded', payload: { reason: 'revoked' } },
+        { room: playerRoom('p1'), event: 'disconnectSockets', payload: true },
+      ]);
+    });
+
+    test('unsuspendUser reinstates and tells nobody', async () => {
+      await call(suspendUser, { params: { playerId: 'p1' }, body: { reason: 'abuso' } });
+      emitted.length = 0;
+
+      const answer = await call(unsuspendUser, { params: { playerId: 'p1' }, body: { reason: 'chiarito' } });
+
+      expect(answer.data).toMatchObject({ suspended: false });
+      expect(emitted).toEqual([]);
+    });
+
+    test('suspendUser acts as the admin who asks, tells nobody when it is refused', async () => {
+      await expect(call(suspendUser, { params: { playerId: 'p3' }, body: { reason: 'x' }, playerId: 'p3' })).rejects.toMatchObject({ statusCode: 409 });
+      await expect(call(suspendUser, { params: { playerId: 'ghost' }, body: { reason: 'x' } })).rejects.toMatchObject({ statusCode: 404 });
+      expect(emitted).toEqual([]);
     });
 
     test('cancelGame tells nobody when it is refused', async () => {
