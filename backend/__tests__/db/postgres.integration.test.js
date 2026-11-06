@@ -152,8 +152,10 @@ describeWithDb('PostgreSQL store', () => {
         playerId: 'p1',
         passwordHash: 'hash',
         role: 'player',
+        suspended: false,
+        sessionVersion: 0,
       });
-      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'player' });
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'player' });
       const { players } = await createPostgresStore(pool).loadState();
       expect(players.p1.name).toBe('Anna');
     });
@@ -192,7 +194,7 @@ describeWithDb('PostgreSQL store', () => {
 
     test('getAccount gives the account as the admin area shows it, without the password hash, or null', async () => {
       await expect(store.getAccount('p2')).resolves.toEqual({
-        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date),
+        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date), suspended: false,
       });
       await expect(store.getAccount('ghost')).resolves.toBeNull();
     });
@@ -203,7 +205,7 @@ describeWithDb('PostgreSQL store', () => {
 
         expect(total).toBe(4);
         expect(items.map((a) => a.username)).toEqual(['Anna', 'Anna Maria', 'Carlo Rossi', 'Dario']);
-        expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date) });
+        expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date), suspended: false });
         expect(JSON.stringify(items)).not.toMatch(/hash/);
       });
 
@@ -477,12 +479,12 @@ describeWithDb('PostgreSQL store', () => {
     test('promotes and demotes, and the new role is the one found at the next request', async () => {
       await expect(store.setAccountRole('p1', 'admin', { actor: system }))
         .resolves.toEqual({ playerId: 'p1', role: 'admin', previousRole: 'player', changed: true });
-      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'admin' });
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'admin' });
       await expect(store.findAccountByUsernameKey('p1')).resolves.toMatchObject({ role: 'admin' });
 
       await store.setAccountRole('p2', 'admin', { actor: system });
       await expect(store.setAccountRole('p1', 'player', { actor: system })).resolves.toMatchObject({ changed: true });
-      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'player' });
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'player' });
     });
 
     test('an unknown player gives null, a role that does not exist is refused before the database', async () => {
@@ -538,6 +540,107 @@ describeWithDb('PostgreSQL store', () => {
     test('the audit log refuses an actor type that does not exist', async () => {
       await expect(pool.query("INSERT INTO audit_log (actor_type, action) VALUES ('robot', 'x')"))
         .rejects.toMatchObject({ code: '23514' });
+    });
+  });
+
+  describe('suspension and sessions', () => {
+    const system = { type: 'system' };
+    const admin = { type: 'player', id: 'p9' };
+    const makeAccount = (id) =>
+      store.createAccount({ ...player, id, name: id }, { username: id, usernameKey: id, passwordHash: 'hash' });
+    const token = (playerId, tokenHash, familyId = `f-${tokenHash}`) =>
+      store.createRefreshToken({ tokenHash, familyId, playerId, expiresAt: new Date(Date.now() + 60000) });
+    const next = (tokenHash) => ({ tokenHash, expiresAt: new Date(Date.now() + 60000), graceSeconds: 10 });
+
+    beforeEach(async () => {
+      for (const id of ['p1', 'p2', 'p9']) {
+        await makeAccount(id);
+      }
+      await store.setAccountRole('p9', 'admin', { actor: system });
+    });
+
+    test('the existing accounts are active, with the first version of the session', async () => {
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false, sessionVersion: 0 });
+      await expect(store.findAccountByUsernameKey('p1')).resolves.toMatchObject({ suspended: false, sessionVersion: 0 });
+      await expect(store.getAccount('p1')).resolves.toMatchObject({ suspended: false });
+    });
+
+    test('suspends, closes the sessions and writes the audit row, in one transaction', async () => {
+      await token('p1', 'h1');
+      await token('p2', 'h-other');
+
+      await expect(store.setAccountSuspended('p1', true, { actor: admin, reason: '  abuso ' }))
+        .resolves.toEqual({ playerId: 'p1', suspended: true, previousSuspended: false, changed: true });
+
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: true, sessionVersion: 1 });
+      await expect(store.rotateRefreshToken('h1', next('h2'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('h-other', next('h3'))).resolves.toBe('p2');
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'user_suspended', actorId: 'p9', details: { reason: 'abuso' } });
+    });
+
+    test('reinstates, and doing it twice changes and writes nothing', async () => {
+      await store.setAccountSuspended('p1', true, { actor: admin, reason: 'abuso' });
+      await expect(store.setAccountSuspended('p1', true, { actor: admin, reason: 'ancora' })).resolves.toMatchObject({ changed: false });
+
+      await expect(store.setAccountSuspended('p1', false, { actor: admin, reason: 'chiarito' })).resolves.toMatchObject({ changed: true });
+
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false });
+      await expect(store.countAuditEvents({ targetId: 'p1' })).resolves.toBe(2);
+    });
+
+    test('an unknown account gives null; without a reason or an actor nothing happens', async () => {
+      await expect(store.setAccountSuspended('ghost', true, { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.setAccountSuspended('p1', true, { actor: admin })).rejects.toThrow(TypeError);
+      await expect(store.setAccountSuspended('p1', true, { reason: 'x' })).rejects.toThrow(TypeError);
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false });
+    });
+
+    test('the last active admin cannot be suspended or demoted, and the refusal leaves no trace', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await store.setAccountSuspended('p2', true, { actor: system, reason: 'x' });
+      const events = await store.countAuditEvents({});
+
+      await expect(store.setAccountSuspended('p9', true, { actor: system, reason: 'x' })).rejects.toMatchObject({ code: LAST_ADMIN });
+      await expect(store.setAccountRole('p9', 'player', { actor: system })).rejects.toMatchObject({ code: LAST_ADMIN });
+
+      await expect(store.countAuditEvents({})).resolves.toBe(events);
+    });
+
+    test('a suspended admin can be demoted', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await store.setAccountSuspended('p2', true, { actor: system, reason: 'x' });
+
+      await expect(store.setAccountRole('p2', 'player', { actor: system })).resolves.toMatchObject({ changed: true });
+    });
+
+    test('two suspensions at the same time of the only two admins leave one active', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+
+      const results = await Promise.allSettled([
+        store.setAccountSuspended('p9', true, { actor: system, reason: 'x' }),
+        store.setAccountSuspended('p2', true, { actor: system, reason: 'x' }),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected').map((r) => r.reason.code)).toEqual([LAST_ADMIN]);
+    });
+
+    test('revoking the sessions moves the version on, revokes the tokens of the account only, and is traced', async () => {
+      await token('p1', 'a1');
+      await token('p1', 'a2');
+      await token('p2', 'b1');
+
+      await expect(store.revokeAccountSessions('p1', { actor: admin, reason: 'furto' })).resolves.toEqual({ playerId: 'p1' });
+
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false, sessionVersion: 1 });
+      await expect(store.rotateRefreshToken('a1', next('n1'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('a2', next('n2'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('b1', next('n3'))).resolves.toBe('p2');
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'sessions_revoked', details: { reason: 'furto' } });
+      await expect(store.revokeAccountSessions('ghost', { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.revokeAccountSessions('p1', { actor: admin })).rejects.toThrow(TypeError);
     });
   });
 

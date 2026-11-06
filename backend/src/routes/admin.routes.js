@@ -16,6 +16,7 @@ import {
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
+  adminUserActionSchema,
 } from "../validation/schemas.js";
 
 const router = Router();
@@ -56,6 +57,27 @@ router.patch("/users/:playerId", validate(adminUpdateUserSchema), adminControlle
  * @access  Admin
  */
 router.post("/users/:playerId/credits", validate(adminAdjustCreditsSchema), adminController.adjustCredits);
+
+/**
+ * @route   POST /api/admin/users/:playerId/suspend
+ * @desc    Suspend a user, with a reason: they lose the access at once and their sessions are closed
+ * @access  Admin
+ */
+router.post("/users/:playerId/suspend", validate(adminUserActionSchema), adminController.suspendUser);
+
+/**
+ * @route   POST /api/admin/users/:playerId/unsuspend
+ * @desc    Reinstate a suspended user, with a reason
+ * @access  Admin
+ */
+router.post("/users/:playerId/unsuspend", validate(adminUserActionSchema), adminController.unsuspendUser);
+
+/**
+ * @route   POST /api/admin/users/:playerId/sessions/revoke
+ * @desc    Close every session of a user, with a reason
+ * @access  Admin
+ */
+router.post("/users/:playerId/sessions/revoke", validate(adminUserActionSchema), adminController.revokeSessions);
 
 /**
  * @route   GET /api/admin/games

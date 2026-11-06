@@ -31,7 +31,7 @@ function usernameTakenError() {
 }
 
 function lastAdminError() {
-  return Object.assign(new Error("The last admin cannot be demoted"), { code: LAST_ADMIN });
+  return Object.assign(new Error("The last admin cannot be demoted or suspended"), { code: LAST_ADMIN });
 }
 
 /**
@@ -84,6 +84,26 @@ function assertGameCancellation(reason, actor) {
   assertActor(actor);
 }
 
+/**
+ * Suspending an account, reinstating it or closing its sessions needs a reason and who does it
+ * @param {string} reason - Why
+ * @param {Object} actor - { type: 'system' } or { type: 'player', id }
+ */
+function assertAccountAction(reason, actor) {
+  if (typeof reason !== "string" || reason.trim() === "") {
+    throw new TypeError("This change needs a reason");
+  }
+  assertActor(actor);
+}
+
+// The account as the authentication reads it
+const authView = (account) => ({
+  playerId: account.playerId,
+  role: account.role,
+  suspended: Boolean(account.suspendedAt),
+  sessionVersion: account.sessionVersion,
+});
+
 // What the audit log keeps of a cancelled game
 const cancellationDetails = (game, refunds, reason) => ({
   reason: reason.trim(),
@@ -124,7 +144,21 @@ export function createMemoryStore() {
   const refreshTokens = new Map();
   const audit = [];
 
-  const toProfile = ({ playerId, username, role, createdAt }) => ({ playerId, username, role, createdAt });
+  const toProfile = ({ playerId, username, role, createdAt, suspendedAt }) => ({
+    playerId,
+    username,
+    role,
+    createdAt,
+    suspended: Boolean(suspendedAt),
+  });
+  const activeAdmins = () => [...accounts.values()].filter((a) => a.role === "admin" && !a.suspendedAt);
+  const revokeTokensOf = (playerId) => {
+    for (const token of refreshTokens.values()) {
+      if (token.playerId === playerId) {
+        token.revokedAt ??= new Date();
+      }
+    }
+  };
   const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
   const pushAudit = (actor, action, targetId, details) => {
     audit.push({
@@ -153,9 +187,14 @@ export function createMemoryStore() {
         passwordHash,
         role: "player",
         createdAt: new Date(),
+        suspendedAt: null,
+        sessionVersion: 0,
       });
     },
-    findAccountByUsernameKey: async (usernameKey) => accounts.get(usernameKey) ?? null,
+    async findAccountByUsernameKey(usernameKey) {
+      const account = accounts.get(usernameKey);
+      return account ? { ...account, ...authView(account) } : null;
+    },
     async getAccount(playerId) {
       const account = [...accounts.values()].find((a) => a.playerId === playerId);
       return account ? toProfile(account) : null;
@@ -196,7 +235,40 @@ export function createMemoryStore() {
       return { playerId, amount };
     },
     async findAccountById(playerId) {
-      return [...accounts.values()].find((a) => a.playerId === playerId) ?? null;
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      return account ? { ...account, ...authView(account) } : null;
+    },
+    async setAccountSuspended(playerId, suspended, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      const previousSuspended = Boolean(account.suspendedAt);
+      if (previousSuspended === suspended) {
+        return { playerId, suspended, previousSuspended, changed: false };
+      }
+      if (suspended && account.role === "admin" && activeAdmins().length <= 1) {
+        throw lastAdminError();
+      }
+      account.suspendedAt = suspended ? new Date() : null;
+      if (suspended) {
+        account.sessionVersion += 1;
+        revokeTokensOf(playerId);
+      }
+      pushAudit(actor, suspended ? "user_suspended" : "user_unsuspended", playerId, { reason: reason.trim() });
+      return { playerId, suspended, previousSuspended, changed: true };
+    },
+    async revokeAccountSessions(playerId, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      account.sessionVersion += 1;
+      revokeTokensOf(playerId);
+      pushAudit(actor, "sessions_revoked", playerId, { reason: reason.trim() });
+      return { playerId };
     },
     async setAccountRole(playerId, role, { actor } = {}) {
       assertRoleChange(role, actor);
@@ -208,7 +280,8 @@ export function createMemoryStore() {
       if (previousRole === role) {
         return { playerId, role, previousRole, changed: false };
       }
-      if (previousRole === "admin" && [...accounts.values()].filter((a) => a.role === "admin").length <= 1) {
+      // A suspended admin is not one of the admins who can act: demoting them leaves the others as they are
+      if (previousRole === "admin" && !account.suspendedAt && activeAdmins().length <= 1) {
         throw lastAdminError();
       }
       account.role = role;
@@ -347,6 +420,13 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     await client.query(
       "UPDATE refresh_tokens SET revoked_at = now() WHERE family_id = $1 AND revoked_at IS NULL",
       [familyId],
+    );
+  }
+
+  async function revokeTokensOf(client, playerId) {
+    await client.query(
+      "UPDATE refresh_tokens SET revoked_at = now() WHERE player_id = $1 AND revoked_at IS NULL",
+      [playerId],
     );
   }
 
@@ -520,11 +600,12 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     /**
      * Find an account by its normalized username
      * @param {string} usernameKey - Normalized username
-     * @returns {Promise<Object|null>} { playerId, passwordHash, role }
+     * @returns {Promise<Object|null>} { playerId, passwordHash, role, suspended, sessionVersion }
      */
     async findAccountByUsernameKey(usernameKey) {
       const { rows } = await pool.query(
-        `SELECT player_id AS "playerId", password_hash AS "passwordHash", role
+        `SELECT player_id AS "playerId", password_hash AS "passwordHash", role,
+                suspended_at IS NOT NULL AS suspended, session_version AS "sessionVersion"
          FROM user_accounts WHERE username_key = $1`,
         [usernameKey],
       );
@@ -534,11 +615,13 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     /**
      * Find an account by its player
      * @param {string} playerId - Player ID
-     * @returns {Promise<Object|null>} { playerId, role }
+     * @returns {Promise<Object|null>} { playerId, role, suspended, sessionVersion }
      */
     async findAccountById(playerId) {
       const { rows } = await pool.query(
-        `SELECT player_id AS "playerId", role FROM user_accounts WHERE player_id = $1`,
+        `SELECT player_id AS "playerId", role, suspended_at IS NOT NULL AS suspended,
+                session_version AS "sessionVersion"
+         FROM user_accounts WHERE player_id = $1`,
         [playerId],
       );
       return rows[0] ?? null;
@@ -557,7 +640,10 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
       assertRoleChange(role, actor);
       return withTransaction(async (client) => {
         await client.query("SELECT pg_advisory_xact_lock($1)", [ROLE_LOCK_ID]);
-        const { rows } = await client.query("SELECT role FROM user_accounts WHERE player_id = $1", [playerId]);
+        const { rows } = await client.query(
+          "SELECT role, suspended_at IS NOT NULL AS suspended FROM user_accounts WHERE player_id = $1",
+          [playerId],
+        );
         if (rows.length === 0) {
           return null;
         }
@@ -566,9 +652,10 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
         if (previousRole === role) {
           return { playerId, role, previousRole, changed: false };
         }
-        if (previousRole === "admin") {
+        // A suspended admin is not one of the admins who can act: demoting them leaves the others as they are
+        if (previousRole === "admin" && !rows[0].suspended) {
           const { rows: [{ count }] } = await client.query(
-            "SELECT count(*) AS count FROM user_accounts WHERE role = 'admin'",
+            "SELECT count(*) AS count FROM user_accounts WHERE role = 'admin' AND suspended_at IS NULL",
           );
           if (Number(count) <= 1) {
             throw lastAdminError();
@@ -586,13 +673,100 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     },
 
     /**
+     * Suspend an account or reinstate it, with the trace, in one transaction. Suspending also closes the
+     * sessions: the version moves on and the refresh tokens are revoked. The last active admin cannot
+     * be suspended, even by two requests at the same time.
+     * @param {string} playerId - Player of the account
+     * @param {boolean} suspended - True to suspend, false to reinstate
+     * @param {Object} options - { actor, reason }
+     * @returns {Promise<Object|null>} { playerId, suspended, previousSuspended, changed }, or null if there is no account
+     * @throws {Error} With code LAST_ADMIN
+     */
+    async setAccountSuspended(playerId, suspended, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      return withTransaction(async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock($1)", [ROLE_LOCK_ID]);
+        const { rows } = await client.query(
+          "SELECT role, suspended_at IS NOT NULL AS suspended FROM user_accounts WHERE player_id = $1",
+          [playerId],
+        );
+        if (rows.length === 0) {
+          return null;
+        }
+
+        const previousSuspended = rows[0].suspended;
+        if (previousSuspended === suspended) {
+          return { playerId, suspended, previousSuspended, changed: false };
+        }
+        if (suspended && rows[0].role === "admin") {
+          const { rows: [{ count }] } = await client.query(
+            "SELECT count(*) AS count FROM user_accounts WHERE role = 'admin' AND suspended_at IS NULL",
+          );
+          if (Number(count) <= 1) {
+            throw lastAdminError();
+          }
+        }
+
+        if (suspended) {
+          await client.query(
+            "UPDATE user_accounts SET suspended_at = now(), session_version = session_version + 1 WHERE player_id = $1",
+            [playerId],
+          );
+          await revokeTokensOf(client, playerId);
+        } else {
+          await client.query("UPDATE user_accounts SET suspended_at = NULL WHERE player_id = $1", [playerId]);
+        }
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            actor.type,
+            actor.id ?? null,
+            suspended ? "user_suspended" : "user_unsuspended",
+            playerId,
+            JSON.stringify({ reason: reason.trim() }),
+          ],
+        );
+        return { playerId, suspended, previousSuspended, changed: true };
+      });
+    },
+
+    /**
+     * Close every session of an account: the version moves on, so the access tokens signed before stop
+     * working, and the refresh tokens are revoked. With the trace, in one transaction.
+     * @param {string} playerId - Player of the account
+     * @param {Object} options - { actor, reason }
+     * @returns {Promise<Object|null>} { playerId }, or null if there is no account
+     */
+    async revokeAccountSessions(playerId, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      return withTransaction(async (client) => {
+        const { rowCount } = await client.query(
+          "UPDATE user_accounts SET session_version = session_version + 1 WHERE player_id = $1",
+          [playerId],
+        );
+        if (rowCount === 0) {
+          return null;
+        }
+        await revokeTokensOf(client, playerId);
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'sessions_revoked', $3, $4)`,
+          [actor.type, actor.id ?? null, playerId, JSON.stringify({ reason: reason.trim() })],
+        );
+        return { playerId };
+      });
+    },
+
+    /**
      * One account, as the admin area shows it
      * @param {string} playerId - Player ID
      * @returns {Promise<Object|null>} { playerId, username, role, createdAt }, or null
      */
     async getAccount(playerId) {
       const { rows } = await pool.query(
-        `SELECT player_id AS "playerId", username, role, created_at AS "createdAt"
+        `SELECT player_id AS "playerId", username, role, created_at AS "createdAt",
+                suspended_at IS NOT NULL AS suspended
          FROM user_accounts WHERE player_id = $1`,
         [playerId],
       );
@@ -621,7 +795,8 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
 
       const { rows: [{ count }] } = await pool.query(`SELECT count(*) AS count FROM user_accounts ${where}`, params);
       const { rows } = await pool.query(
-        `SELECT player_id AS "playerId", username, role, created_at AS "createdAt"
+        `SELECT player_id AS "playerId", username, role, created_at AS "createdAt",
+                suspended_at IS NOT NULL AS suspended
          FROM user_accounts ${where}
          ORDER BY username_key COLLATE "C", player_id
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,

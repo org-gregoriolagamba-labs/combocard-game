@@ -63,6 +63,39 @@ export const adjustCredits = async (playerId, { amount, reason }) => {
 };
 
 /**
+ * Suspend a user: they lose the access at once and their sessions are closed
+ * @param {string} playerId - Player ID
+ * @param {Object} action - { reason }
+ * @returns {Promise<Object>} The user as it is now
+ */
+export const suspendUser = async (playerId, { reason }) => {
+  const response = await api.post(`/admin/users/${encodeURIComponent(playerId)}/suspend`, { reason });
+  return response.data;
+};
+
+/**
+ * Reinstate a suspended user
+ * @param {string} playerId - Player ID
+ * @param {Object} action - { reason }
+ * @returns {Promise<Object>} The user as it is now
+ */
+export const unsuspendUser = async (playerId, { reason }) => {
+  const response = await api.post(`/admin/users/${encodeURIComponent(playerId)}/unsuspend`, { reason });
+  return response.data;
+};
+
+/**
+ * Close every session of a user, without suspending them
+ * @param {string} playerId - Player ID
+ * @param {Object} action - { reason }
+ * @returns {Promise<Object>} The user as it is now
+ */
+export const revokeSessions = async (playerId, { reason }) => {
+  const response = await api.post(`/admin/users/${encodeURIComponent(playerId)}/sessions/revoke`, { reason });
+  return response.data;
+};
+
+/**
  * One page of the audit log, the latest first
  * @param {Object} filters - { targetId, page, limit }
  * @returns {Promise<Object>} { items, total, page, limit }

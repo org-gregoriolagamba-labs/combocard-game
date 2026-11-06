@@ -43,6 +43,15 @@ export function frase(e) {
     const stato = previousStatus === "playing" ? "in corso" : "in attesa";
     return `${chi} ha annullato una partita ${stato}: «${reason}»${rimborsati > 0 ? `, rimborsati ${crediti(rimborsati)}` : ""}`;
   }
+  if (e.action === "user_suspended") {
+    return `${chi} ha sospeso ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "user_unsuspended") {
+    return `${chi} ha riabilitato ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "sessions_revoked") {
+    return `${chi} ha chiuso le sessioni di ${bersaglio}: «${e.details.reason}»`;
+  }
   return `${chi}: ${e.action}`;
 }
 

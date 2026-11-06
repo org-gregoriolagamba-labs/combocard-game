@@ -30,6 +30,9 @@ describe('translateServerError', () => {
     ['Cannot remove the last admin', "Non si può togliere il ruolo all'ultimo admin"],
     ['The player does not have enough credits', 'Il giocatore non ha abbastanza crediti'],
     ['User not found', 'Utente non trovato'],
+    ['This account is suspended', "Questo account è sospeso: rivolgiti all'amministrazione"],
+    ['You cannot suspend yourself', 'Non puoi sospendere te stesso'],
+    ['Cannot suspend the last admin', "Non si può sospendere l'ultimo admin"],
     ['You do not have permission to do this', 'Non hai i permessi per farlo'],
     ['Waiting for all players to confirm they read the rules', 'Aspetta che tutti i giocatori confermino di aver letto le regole'],
   ])('"%s" is shown as "%s"', (english, italian) => {

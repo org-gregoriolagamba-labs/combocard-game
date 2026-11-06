@@ -96,7 +96,7 @@ describe('the admin area: users, credits, audit', () => {
 
       expect(page).toMatchObject({ total: 4, page: 1, limit: 20 });
       expect(page.items[0]).toEqual({
-        playerId: 'p1', username: 'Anna', role: 'player', credits: 100, createdAt: expect.any(Date), inGame: false,
+        playerId: 'p1', username: 'Anna', role: 'player', credits: 100, createdAt: expect.any(Date), inGame: false, suspended: false,
       });
       expect(page.items.map((u) => u.username)).toEqual(['Anna', 'Anna Maria', 'Carlo Rossi', 'Dario']);
     });
