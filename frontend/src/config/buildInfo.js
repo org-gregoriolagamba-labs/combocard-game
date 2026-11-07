@@ -21,3 +21,17 @@ export function formatBuildDate(iso) {
     timeZone: "Europe/Rome",
   });
 }
+
+/**
+ * The years of the copyright: "2026" or "2026–2027", from the first year to the year of the build
+ * (the year in Rome). Without a usable date of the build, or if it is before the first year,
+ * it is the first year alone.
+ */
+export function copyrightYears(firstYear, buildDate) {
+  const date = new Date(buildDate);
+  if (!buildDate || Number.isNaN(date.getTime())) {
+    return String(firstYear);
+  }
+  const year = Number(date.toLocaleDateString("en-GB", { year: "numeric", timeZone: "Europe/Rome" }));
+  return year > firstYear ? `${firstYear}–${year}` : String(firstYear);
+}

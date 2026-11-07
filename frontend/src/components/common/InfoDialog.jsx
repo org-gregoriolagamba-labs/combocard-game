@@ -9,14 +9,17 @@ import React from "react";
 import PropTypes from "prop-types";
 import Modal from "./Modal";
 import { APP_VERSION, BUILD_DATE, formatBuildDate } from "../../config/buildInfo";
-import { CONTATTI } from "../../config/contatti";
+import { CONTATTI, CREDITI_MAZZO } from "../../config/contatti";
 
 const linkClass =
   "inline-flex min-h-[44px] items-center font-bold text-oro underline decoration-2 underline-offset-4 [overflow-wrap:anywhere] hover:text-oro-dark";
 
-function ExternalLink({ href, children }) {
+// A link inside a sentence keeps the line height of the text, a link in a list is a 44 px target
+const inlineLinkClass = "font-bold text-oro underline decoration-2 underline-offset-4 hover:text-oro-dark";
+
+function ExternalLink({ href, children, inline = false }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={linkClass}>
+    <a href={href} target="_blank" rel="noopener noreferrer" className={inline ? inlineLinkClass : linkClass}>
       {children}
       <span className="sr-only"> (si apre in una nuova scheda)</span>
     </a>
@@ -26,6 +29,7 @@ function ExternalLink({ href, children }) {
 ExternalLink.propTypes = {
   href: PropTypes.string.isRequired,
   children: PropTypes.node.isRequired,
+  inline: PropTypes.bool,
 };
 
 function InfoDialog({ onClose }) {
@@ -49,6 +53,15 @@ function InfoDialog({ onClose }) {
           </dd>
         </div>
       </dl>
+
+      <div className="mt-4 border-t border-linea pt-4">
+        <h3 className="titolo text-lg text-testo">Le carte</h3>
+        <p className="mt-1 text-sm text-testo-2 [overflow-wrap:anywhere] [text-wrap:pretty]">
+          Le illustrazioni derivano da un {CREDITI_MAZZO.descrizione}. Fonte:{" "}
+          <ExternalLink href={CREDITI_MAZZO.url} inline>{CREDITI_MAZZO.fonte}</ExternalLink>, nelle fotografie di
+          Wikimedia Commons.
+        </p>
+      </div>
 
       <div className="mt-4 border-t border-linea pt-4">
         <h3 className="titolo text-lg text-testo">Contatti</h3>

@@ -63,6 +63,8 @@ describe('the footer', () => {
     renderWithProviders(<Footer />);
     const link = within(screen.getByRole('contentinfo')).getByRole('button', { name: 'Info e contatti' });
 
+    // A real tap focuses the button first; fireEvent does not
+    link.focus();
     fireEvent.click(link);
     expect(screen.getByRole('dialog', { name: 'Info e contatti' })).toBeInTheDocument();
 

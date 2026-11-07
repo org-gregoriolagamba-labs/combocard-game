@@ -11,8 +11,7 @@ import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
-import { Modal, Button, Input } from "../common";
-import InfoDialog from "../common/InfoDialog";
+import { Modal, Button, Input, Footer } from "../common";
 import Credito from "./Credito";
 import DeleteAccountDialog from "./DeleteAccountDialog";
 
@@ -44,7 +43,6 @@ function HallScreen() {
   const [createErrors, setCreateErrors] = useState({});
   const [privateError, setPrivateError] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
   const inFlight = useRef(false);
 
   // Load lobbies on mount and periodically
@@ -301,15 +299,7 @@ function HallScreen() {
           )}
         </section>
 
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => setShowInfo(true)}
-            className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
-          >
-            Info e contatti
-          </button>
-        </div>
+        <Footer />
       </div>
 
       {/* Cash Register Modal */}
@@ -437,7 +427,6 @@ function HallScreen() {
       </Modal>
 
       {showDelete && <DeleteAccountDialog onClose={() => setShowDelete(false)} />}
-      {showInfo && <InfoDialog onClose={() => setShowInfo(false)} />}
     </div>
   );
 }
