@@ -6,14 +6,20 @@
  */
 
 import { jest } from '@jest/globals';
-import { register, login, refresh, logout, changePassword } from '../../src/controllers/auth.controller.js';
+import { register, login, refresh, logout, changePassword, deleteOwnAccount } from '../../src/controllers/auth.controller.js';
 import { hashRefreshToken, verifyAccessToken } from '../../src/services/auth.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
+import { playerRoom } from '../../src/sockets/index.js';
 
 const CREDENTIALS = { username: 'Anna', password: 'correct horse' };
 
 function createContext() {
-  const context = { gameState: { games: {}, players: {} }, store: createMemoryStore(), cookie: null };
+  const emitted = [];
+  const io = {
+    to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }),
+    in: (room) => ({ disconnectSockets: (close) => emitted.push({ room, event: 'disconnectSockets', payload: close }) }),
+  };
+  const context = { gameState: { games: {}, players: {} }, store: createMemoryStore(), cookie: null, emitted, io };
 
   context.call = (handler, { body = {}, cookie = context.cookie, auth } = {}) =>
     new Promise((resolve, reject) => {
@@ -41,6 +47,7 @@ function createContext() {
         cookies: cookie ? { combocard_refresh: cookie } : {},
         gameState: context.gameState,
         store: context.store,
+        io: context.io,
         auth,
       };
       handler(req, res, reject);
@@ -318,6 +325,70 @@ describe('auth controller', () => {
         auth: { playerId, role: 'player' },
         body: { currentPassword: CREDENTIALS.password, newPassword: 'my new password' },
       })).rejects.toMatchObject({ statusCode: 503 });
+
+      expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
+      jest.restoreAllMocks();
+    });
+  });
+
+  describe('deleteOwnAccount', () => {
+    let playerId;
+
+    beforeEach(async () => {
+      playerId = (await ctx.call(register, { body: CREDENTIALS })).data.player.id;
+    });
+
+    const remove = (password = CREDENTIALS.password) =>
+      ctx.call(deleteOwnAccount, { auth: { playerId, role: 'player' }, body: { password } });
+
+    test('with the password, deletes the account: nobody logs in, the cookie goes, the player leaves the game state', async () => {
+      const res = await remove();
+
+      expect(res.status).toBe(200);
+      expect(res.data).toEqual({ playerId, credits: 0 });
+      expect(res.clearedCookie).toBe(true);
+      expect(ctx.gameState.players[playerId]).toBeUndefined();
+      await expect(ctx.call(login, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 401 });
+      await expect(ctx.call(refresh, { cookie: 'anything' })).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('closes the connections of every device, and tells them the account is gone', async () => {
+      await remove();
+
+      expect(ctx.emitted).toEqual([
+        { room: playerRoom(playerId), event: 'sessionEnded', payload: { reason: 'deleted' } },
+        { room: playerRoom(playerId), event: 'disconnectSockets', payload: true },
+      ]);
+    });
+
+    test('a wrong password is a 400 and nothing is deleted or sent', async () => {
+      await expect(remove('not it')).rejects.toMatchObject({ statusCode: 400, message: 'Current password is incorrect' });
+
+      expect(ctx.gameState.players[playerId]).toBeDefined();
+      expect(ctx.emitted).toEqual([]);
+      expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
+    });
+
+    test('a player who is in a game cannot delete the account', async () => {
+      ctx.gameState.games.g1 = { id: 'g1', status: 'waiting', players: [{ id: playerId, name: 'Anna' }] };
+
+      await expect(remove()).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(ctx.gameState.players[playerId]).toBeDefined();
+      expect(ctx.emitted).toEqual([]);
+    });
+
+    test('the last active admin cannot', async () => {
+      await ctx.store.setAccountRole(playerId, 'admin', { actor: { type: 'system' } });
+
+      await expect(remove()).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    test('if the store cannot write, the answer is a 503 and the account stays', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      ctx.store.deleteAccount = async () => { throw new Error('down'); };
+
+      await expect(remove()).rejects.toMatchObject({ statusCode: 503 });
 
       expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
       jest.restoreAllMocks();

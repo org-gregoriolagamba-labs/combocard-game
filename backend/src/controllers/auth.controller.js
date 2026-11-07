@@ -19,6 +19,8 @@ import {
   generateTokenFamilyId,
   refreshTokenExpiry,
 } from "../services/auth.service.js";
+import { deleteAccount } from "../services/account.service.js";
+import { playerRoom } from "../sockets/index.js";
 import { USERNAME_TAKEN } from "../db/store.js";
 
 const REFRESH_COOKIE = "combocard_refresh";
@@ -178,6 +180,28 @@ export const changePassword = asyncHandler(async (req, res) => {
     sessionVersion: changed.sessionVersion,
   });
   sendSuccess(res, session, "Password changed successfully");
+});
+
+/**
+ * Delete the own account, for good. The password is asked again (a stolen token is not enough); nobody who
+ * is in a game, and not the last active admin, can. The sessions of every device end.
+ * DELETE /api/auth/account
+ */
+export const deleteOwnAccount = asyncHandler(async (req, res) => {
+  const { playerId } = req.auth;
+
+  const valid = await verifyPassword(await req.store.getPasswordHash(playerId), req.body.password);
+  if (!valid) {
+    // Not a 401: the client would take it for an expired session
+    throw new AppError("Current password is incorrect", 400);
+  }
+
+  const result = await deleteAccount(req.store, req.gameState, playerId, {}, { type: "player", id: playerId });
+
+  req.io.to(playerRoom(playerId)).emit("sessionEnded", { reason: "deleted" });
+  req.io.in(playerRoom(playerId)).disconnectSockets(true);
+  clearRefreshCookie(res);
+  sendSuccess(res, result, "Account deleted");
 });
 
 /**

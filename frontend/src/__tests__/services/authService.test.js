@@ -45,6 +45,15 @@ describe('authService: the role of whoever is logged in', () => {
     expect(setAccessToken).toHaveBeenCalledWith('t2');
   });
 
+  test('deleteAccount sends the password with the delete and forgets the token', async () => {
+    api.delete = vi.fn().mockResolvedValue({ data: { playerId: 'p1', credits: 0 } });
+
+    await expect(authService.deleteAccount('la mia password')).resolves.toEqual({ playerId: 'p1', credits: 0 });
+
+    expect(api.delete).toHaveBeenCalledWith('/auth/account', { password: 'la mia password' });
+    expect(setAccessToken).toHaveBeenLastCalledWith(null);
+  });
+
   test('without a session there is nobody', async () => {
     refreshSession.mockResolvedValue(null);
 

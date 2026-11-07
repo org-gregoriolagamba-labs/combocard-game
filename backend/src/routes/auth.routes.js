@@ -8,8 +8,8 @@ import { Router } from "express";
 import * as authController from "../controllers/auth.controller.js";
 import { validate } from "../middleware/validation.middleware.js";
 import { loginLimiter, strictLimiter } from "../middleware/rateLimiter.middleware.js";
-import { requireAuthToChangePassword } from "../middleware/auth.middleware.js";
-import { registerSchema, loginSchema, changePasswordSchema } from "../validation/schemas.js";
+import { requireAuth, requireAuthToChangePassword } from "../middleware/auth.middleware.js";
+import { registerSchema, loginSchema, changePasswordSchema, deleteAccountSchema } from "../validation/schemas.js";
 
 const router = Router();
 
@@ -47,5 +47,13 @@ router.post("/logout", authController.logout);
  * @access  Private (also with a temporary password: this is the only route open to it)
  */
 router.post("/password", loginLimiter, requireAuthToChangePassword, validate(changePasswordSchema), authController.changePassword);
+
+/**
+ * @route   DELETE /api/auth/account
+ * @desc    Delete the own account, with the password: irreversible. Under /auth so that the refresh cookie,
+ *          which only travels there, can be cleared.
+ * @access  Private
+ */
+router.delete("/account", loginLimiter, requireAuth, validate(deleteAccountSchema), authController.deleteOwnAccount);
 
 export default router;

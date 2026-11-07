@@ -13,6 +13,7 @@ import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
 import { Modal, Button, Input } from "../common";
 import Credito from "./Credito";
+import DeleteAccountDialog from "./DeleteAccountDialog";
 
 // The number typed in a field, NaN when it is empty or is not a whole number
 const numero = (testo) => (/^\d+$/.test(testo) ? parseInt(testo, 10) : NaN);
@@ -41,6 +42,7 @@ function HallScreen() {
   const [privateGameCode, setPrivateGameCode] = useState("");
   const [createErrors, setCreateErrors] = useState({});
   const [privateError, setPrivateError] = useState(null);
+  const [showDelete, setShowDelete] = useState(false);
   const inFlight = useRef(false);
 
   // Load lobbies on mount and periodically
@@ -245,6 +247,15 @@ function HallScreen() {
               Esci dall&apos;account
             </button>
           </div>
+          <div className="mt-1 text-right">
+            <button
+              type="button"
+              onClick={() => setShowDelete(true)}
+              className="min-h-[44px] [overflow-wrap:anywhere] rounded-lg px-3 text-sm font-bold text-testo-3 underline decoration-2 underline-offset-4 hover:text-coppe"
+            >
+              Elimina il mio account
+            </button>
+          </div>
         </section>
 
         {/* Games waiting for players */}
@@ -412,6 +423,8 @@ function HallScreen() {
           </Button>
         </div>
       </Modal>
+
+      {showDelete && <DeleteAccountDialog onClose={() => setShowDelete(false)} />}
     </div>
   );
 }
