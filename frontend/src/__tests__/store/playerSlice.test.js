@@ -21,6 +21,7 @@ describe('playerSlice', () => {
     sessionChecked: false,
     regoleAccettateIl: null,
     role: 'player',
+    mustChangePassword: false,
   };
 
   test('should return initial state', () => {

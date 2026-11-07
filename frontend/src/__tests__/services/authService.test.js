@@ -21,13 +21,28 @@ describe('authService: the role of whoever is logged in', () => {
   test('restoreSession gives the player with the role in it', async () => {
     refreshSession.mockResolvedValue({ accessToken: 't', player, role: 'admin' });
 
-    await expect(authService.restoreSession()).resolves.toEqual({ ...player, role: 'admin' });
+    await expect(authService.restoreSession()).resolves.toEqual({ ...player, role: 'admin', mustChangePassword: false });
   });
 
   test('a session without a role is a player', async () => {
     refreshSession.mockResolvedValue({ accessToken: 't', player });
 
     await expect(authService.restoreSession()).resolves.toMatchObject({ role: 'player' });
+  });
+
+  test('restoreSession says when the password must be changed', async () => {
+    refreshSession.mockResolvedValue({ accessToken: 't', player, role: 'player', mustChangePassword: true });
+
+    await expect(authService.restoreSession()).resolves.toMatchObject({ mustChangePassword: true });
+  });
+
+  test('changePassword sends both passwords, keeps the new token and gives the new session', async () => {
+    api.post.mockResolvedValue({ data: { accessToken: 't2', player, role: 'player', mustChangePassword: false } });
+
+    await expect(authService.changePassword('temporary', 'my new password')).resolves.toMatchObject({ accessToken: 't2' });
+
+    expect(api.post).toHaveBeenCalledWith('/auth/password', { currentPassword: 'temporary', newPassword: 'my new password' });
+    expect(setAccessToken).toHaveBeenCalledWith('t2');
   });
 
   test('without a session there is nobody', async () => {
