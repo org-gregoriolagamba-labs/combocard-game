@@ -28,6 +28,11 @@ export async function authenticateToken(token, gameState, store) {
   if (!account || account.suspended || account.sessionVersion !== auth.sessionVersion) {
     return null;
   }
+  // The account is being deleted: from here to the end of the deletion it cannot do anything. The check is
+  // after the read, so nothing happens between it and the handler that runs next.
+  if (gameState.players[auth.playerId]?.deleting) {
+    return null;
+  }
   return { playerId: auth.playerId, role: account.role, mustChangePassword: account.mustChangePassword };
 }
 

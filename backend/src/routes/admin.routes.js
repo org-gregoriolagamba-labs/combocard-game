@@ -87,6 +87,13 @@ router.post("/users/:playerId/sessions/revoke", validate(adminUserActionSchema),
 router.post("/users/:playerId/password/reset", validate(adminUserActionSchema), adminController.resetPassword);
 
 /**
+ * @route   DELETE /api/admin/users/:playerId
+ * @desc    Delete an account, with a reason: irreversible (see docs/DATABASE.md for what stays)
+ * @access  Admin
+ */
+router.delete("/users/:playerId", validate(adminUserActionSchema), adminController.deleteUser);
+
+/**
  * @route   GET /api/admin/games
  * @desc    The games waiting or in progress: metadata only, never the deck or the grids
  * @access  Admin

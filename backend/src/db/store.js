@@ -21,6 +21,10 @@ export const USERNAME_TAKEN = "USERNAME_TAKEN";
 export const LAST_ADMIN = "LAST_ADMIN";
 export const INVALID_ROLE = "INVALID_ROLE";
 export const INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS";
+export const PLAYER_IN_GAME = "PLAYER_IN_GAME";
+
+// What the name of a player who deleted the account (or whose account was deleted) becomes
+export const DELETED_PLAYER_NAME = "Utente eliminato";
 
 const ACTOR_TYPES = ["system", "player"];
 // Role changes are rare: one lock for all of them keeps the count of admins exact
@@ -103,6 +107,32 @@ const authView = (account) => ({
   suspended: Boolean(account.suspendedAt),
   sessionVersion: account.sessionVersion,
   mustChangePassword: Boolean(account.mustChangePassword),
+});
+
+/**
+ * Replace the name of a player wherever a game state names them: an object with the id of the player
+ * and a name (the players of the game, the winners of a collection). The id stays.
+ * @param {*} value - A game state, or any part of it (changed in place)
+ * @param {string} playerId - Player ID
+ * @returns {*} The same value
+ */
+export function anonymizePlayerIn(value, playerId) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => anonymizePlayerIn(item, playerId));
+  } else if (value && typeof value === "object") {
+    if (value.id === playerId && typeof value.name === "string") {
+      value.name = DELETED_PLAYER_NAME;
+    }
+    Object.values(value).forEach((item) => anonymizePlayerIn(item, playerId));
+  }
+  return value;
+}
+
+// What the audit log keeps of a deleted account: never the username
+const deletionDetails = (account, reason, actor, playerId) => ({
+  role: account.role,
+  reason: typeof reason === "string" && reason.trim() !== "" ? reason.trim() : null,
+  self: actor.type === "player" && actor.id === playerId,
 });
 
 // What the audit log keeps of a cancelled game
@@ -297,6 +327,29 @@ export function createMemoryStore() {
       account.sessionVersion += 1;
       revokeTokensOf(playerId);
       pushAudit(actor, "sessions_revoked", playerId, { reason: reason.trim() });
+      return { playerId };
+    },
+    async deleteAccount(playerId, { actor, reason } = {}) {
+      assertActor(actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      if (account.role === "admin" && !account.suspendedAt && activeAdmins().length <= 1) {
+        throw lastAdminError();
+      }
+      accounts.delete(account.usernameKey);
+      for (const [hash, token] of refreshTokens) {
+        if (token.playerId === playerId) {
+          refreshTokens.delete(hash);
+        }
+      }
+      for (const event of audit) {
+        if (event.targetId === playerId && event.action === "username_changed") {
+          event.details = { from: DELETED_PLAYER_NAME, to: DELETED_PLAYER_NAME };
+        }
+      }
+      pushAudit(actor, "user_deleted", playerId, deletionDetails(account, reason, actor, playerId));
       return { playerId };
     },
     async setAccountRole(playerId, role, { actor } = {}) {
@@ -565,7 +618,7 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
      */
     async loadState() {
       const [playerRows, gameRows] = await Promise.all([
-        pool.query("SELECT id, name, credits, created_at, rules_accepted_at FROM players"),
+        pool.query("SELECT id, name, credits, created_at, rules_accepted_at FROM players WHERE deleted_at IS NULL"),
         pool.query("SELECT state FROM games WHERE status <> 'finished'"),
       ]);
 
@@ -758,6 +811,75 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
           ],
         );
         return { playerId, suspended, previousSuspended, changed: true };
+      });
+    },
+
+    /**
+     * Delete an account, with the trace, in one transaction: the balance is closed with a movement, the
+     * player stays anonymized (so the movements stay whole), the account and the tokens go, the name is
+     * replaced in the finished games and in the earlier events of the audit log, and the audit row of the
+     * deletion is written without the username. What is still waiting to be written for the games is
+     * written first, so nothing arrives for the player afterwards. The last active admin cannot be deleted
+     * (not even by two requests at the same time) and neither can a player who is in a game that is not finished.
+     * @param {string} playerId - Player of the account
+     * @param {Object} options - { actor, reason }: the reason is for the admin, the user themselves needs none
+     * @returns {Promise<Object|null>} { playerId }, or null if there is no account
+     * @throws {Error} With code LAST_ADMIN or PLAYER_IN_GAME
+     */
+    async deleteAccount(playerId, { actor, reason } = {}) {
+      assertActor(actor);
+      await Promise.all([...pending.entries()].map(([gameId, entry]) => flush(gameId, entry)));
+
+      return withTransaction(async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock($1)", [ROLE_LOCK_ID]);
+        const { rows } = await client.query(
+          "SELECT role, suspended_at IS NOT NULL AS suspended FROM user_accounts WHERE player_id = $1 FOR UPDATE",
+          [playerId],
+        );
+        if (rows.length === 0) {
+          return null;
+        }
+        const account = rows[0];
+        if (account.role === "admin" && !account.suspended) {
+          const { rows: [{ count }] } = await client.query(
+            "SELECT count(*) AS count FROM user_accounts WHERE role = 'admin' AND suspended_at IS NULL",
+          );
+          if (Number(count) <= 1) {
+            throw lastAdminError();
+          }
+        }
+
+        const inPlayers = JSON.stringify([{ id: playerId }]);
+        const { rows: active } = await client.query(
+          "SELECT 1 FROM games WHERE status <> 'finished' AND state->'players' @> $1::jsonb LIMIT 1",
+          [inPlayers],
+        );
+        if (active.length > 0) {
+          throw Object.assign(new Error(`Player ${playerId} is in a game that is not finished`), { code: PLAYER_IN_GAME });
+        }
+
+        const { rows: [{ credits }] } = await client.query("SELECT credits FROM players WHERE id = $1 FOR UPDATE", [playerId]);
+        if (Number(credits) > 0) {
+          await applyMovement(client, { playerId, type: "account_closed", amount: -Number(credits) });
+        }
+        await client.query("UPDATE players SET name = $2, deleted_at = now(), updated_at = now() WHERE id = $1", [playerId, DELETED_PLAYER_NAME]);
+        await client.query("DELETE FROM user_accounts WHERE player_id = $1", [playerId]);
+        await client.query("DELETE FROM refresh_tokens WHERE player_id = $1", [playerId]);
+
+        const { rows: games } = await client.query("SELECT id, state FROM games WHERE state->'players' @> $1::jsonb", [inPlayers]);
+        for (const { id, state } of games) {
+          await client.query("UPDATE games SET state = $2 WHERE id = $1", [id, JSON.stringify(anonymizePlayerIn(state, playerId))]);
+        }
+        await client.query(
+          `UPDATE audit_log SET details = $2 WHERE action = 'username_changed' AND target_id = $1`,
+          [playerId, JSON.stringify({ from: DELETED_PLAYER_NAME, to: DELETED_PLAYER_NAME })],
+        );
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'user_deleted', $3, $4)`,
+          [actor.type, actor.id ?? null, playerId, JSON.stringify(deletionDetails(account, reason, actor, playerId))],
+        );
+        return { playerId };
       });
     },
 

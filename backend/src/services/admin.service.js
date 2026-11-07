@@ -6,6 +6,7 @@
  */
 
 import { AppError } from "../utils/AppError.js";
+import { deleteAccount } from "./account.service.js";
 import { generateTemporaryPassword, hashPassword, normalizeUsername } from "./auth.service.js";
 import { activeGameOf } from "./game.service.js";
 import { GAME_STATUS } from "../config/constants.js";
@@ -257,6 +258,21 @@ export async function resetUserPassword(store, gameState, playerId, { reason }, 
   const user = await changeAccessOf(store, gameState, playerId, () =>
     store.resetAccountPassword(playerId, passwordHash, { actor, reason }));
   return { user, temporaryPassword };
+}
+
+/**
+ * Delete the account of a user (see deleteAccount of the account service). An admin does not delete
+ * themselves from here: they have the way of every user.
+ * @param {Object} deletion - { reason }
+ * @param {Object} actor - { type: 'player', id } of the admin
+ * @returns {Promise<Object>} { playerId, credits }
+ * @throws {AppError} 404 if the user does not exist, 409 for oneself, a player in a game or the last admin, 503 if the store cannot write
+ */
+export async function deleteUser(store, gameState, playerId, { reason }, actor) {
+  if (actor.id === playerId) {
+    throw new AppError("You cannot delete your own account from the admin area", 409);
+  }
+  return deleteAccount(store, gameState, playerId, { reason }, actor);
 }
 
 // A game as the admin sees it: metadata only. Never the deck, the grids, the cards drawn or the balances.

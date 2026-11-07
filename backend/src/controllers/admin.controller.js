@@ -121,6 +121,16 @@ export const resetPassword = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Delete the account of a user, who is told and loses the connections
+ * DELETE /api/admin/users/:playerId
+ */
+export const deleteUser = asyncHandler(async (req, res) => {
+  const result = await adminService.deleteUser(req.store, req.gameState, req.params.playerId, req.body, actorOf(req));
+  endSessionsOf(req, result.playerId, "deleted");
+  sendSuccess(res, result, "Account deleted");
+});
+
+/**
  * The games waiting or in progress, a page at a time
  * GET /api/admin/games
  */
