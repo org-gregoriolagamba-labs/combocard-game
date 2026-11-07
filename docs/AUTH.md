@@ -17,6 +17,18 @@ I giocatori accedono con nome utente e password. L'identità di ogni richiesta a
 3. Quando il token scade il server risponde `401`: il frontend lo rinnova e ripete la richiesta, senza che l'utente veda nulla.
 4. Ricaricando la pagina il token in memoria si perde: il frontend ne ottiene uno nuovo dal cookie e riporta il giocatore nella partita in corso.
 
+### Eliminazione di un account
+
+Si elimina un account per le richieste di cancellazione dei dati, gli abusi o gli account di prova. Che cosa resta e che cosa no è stato deciso nella #97:
+
+- **Va via:** l'account (nome utente e password), i refresh token e il ruolo. Il nome utente si libera subito. Le connessioni dell'utente si chiudono (`sessionEnded` con `reason: "deleted"`).
+- **Resta, anonimizzato:** la riga di `players` (nome «Utente eliminato», `deleted_at`) e **tutti i movimenti di crediti**, così la somma dei movimenti continua a tornare. Il saldo residuo si chiude con un movimento `account_closed` negativo, senza rimborso: i crediti non hanno valore reale.
+- **Partite finite:** nello stato di ogni partita finita in cui ha giocato il nome diventa «Utente eliminato»; l'id resta, ma non identifica più nessuno perché la riga di `players` è anonima.
+- **Registro:** le righe precedenti che nominano l'utente restano (hanno solo id), ma i nomi nei `username_changed` si riscrivono. La riga `user_deleted` ha id, ruolo, motivo e se l'ha fatto l'utente stesso (`self`), **mai il nome utente**.
+- **Regole:** non si elimina l'ultimo admin attivo (conta chi è admin e non è sospeso, anche con due richieste insieme) né chi è in una partita in attesa o in corso (`409`: prima si annulla la partita, o l'utente la lascia). Un admin non elimina sé stesso dall'area di amministrazione.
+- **Atomicità:** tutto avviene in un'unica transazione, dopo aver scritto ciò che le partite avevano ancora in coda; se il database non risponde non cambia nulla (`503`). Mentre la cancellazione è in corso il token dell'utente non è accettato, così non può entrare in una partita nel frattempo.
+- **Limite noto:** una richiesta già in corso che aggiunge crediti (per esempio la Cassa) nel momento esatto della cancellazione potrebbe lasciare un saldo sulla riga anonima; il caso richiede due richieste dello stesso utente in contemporanea con la cancellazione.
+
 ### Password provvisoria
 
 Quando un admin reimposta una password (`POST /api/admin/users/:playerId/password/reset`, con motivo) il server genera una password provvisoria casuale (tre gruppi di quattro caratteri senza lettere ambigue, circa 59 bit, con un generatore sicuro) e la risponde **una sola volta** all'admin, con `Cache-Control: no-store`. Non finisce mai nel registro, nei log né in nessuna risposta successiva: del registro resta chi, per chi e perché (`password_reset`); del cambio resta chi e quando (`password_changed`), mai la password né l'hash. Un admin non può reimpostare la propria password (`409`).
@@ -94,6 +106,7 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 | `POST /api/admin/users/:playerId/suspend` | `{ reason }` (obbligatorio, fino a 200 caratteri): sospende l'utente e chiude le sue sessioni e connessioni (`404` se non esiste, `409` se sei tu o l'ultimo admin attivo). Risponde con l'utente (`suspended: true`) |
 | `POST /api/admin/users/:playerId/unsuspend` | `{ reason }`: riabilita l'utente, che rientra con la sua password |
 | `POST /api/admin/users/:playerId/sessions/revoke` | `{ reason }`: chiude tutte le sessioni dell'utente senza sospenderlo |
+| `DELETE /api/admin/users/:playerId` | `{ reason }` (obbligatorio): elimina l'account, **senza ritorno** (vedi "Eliminazione di un account"). `404` se non esiste, `409` se sei tu, se è l'ultimo admin attivo o se sta giocando una partita in attesa o in corso. Risponde `{ playerId, credits }` (il saldo che è stato chiuso) |
 | `POST /api/admin/users/:playerId/password/reset` | `{ reason }`: reimposta la password (vedi "Password provvisoria"). Risponde `{ user, temporaryPassword }` (`404` se non esiste, `409` se sei tu) |
 | `GET /api/admin/games?status=&page=&limit=` | Le partite in attesa o in corso, dalla più vecchia, **solo metadati**: id, stato, quota, massimo di giocatori, montepremi, data e nomi dei giocatori. Mai `mazzo`, cartelle, carte estratte né saldi. L'id di una partita privata è il suo codice: l'admin lo vede |
 | `POST /api/admin/games/:gameId/cancel` | `{ reason }` (obbligatorio, fino a 200 caratteri): annulla una partita in attesa o in corso (`404` se non esiste, `409` se è già finita). Se era in corso, ogni giocatore **ancora presente** riceve la quota d'ingresso (`game_refund`); i premi già assegnati ma non ancora accreditati si perdono, perché la partita conta come mai giocata. Chi l'aveva lasciata ha già perso la quota e non è rimborsato. I giocatori ricevono `gameCancelled` `{ gameId, gettoni, refund }` |
