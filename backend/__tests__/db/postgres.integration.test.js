@@ -702,6 +702,129 @@ describeWithDb('PostgreSQL store', () => {
     });
   });
 
+  describe('deleteAccount', () => {
+    const system = { type: 'system' };
+    const admin = { type: 'player', id: 'p9' };
+    const makeAccount = (id, name = id) =>
+      store.createAccount({ ...player, id, name }, { username: name, usernameKey: name.toLowerCase(), passwordHash: `hash-${id}` });
+    const finished = (overrides = {}) =>
+      game({
+        id: 'g9', status: 'finished', montepremi: 200,
+        players: [{ id: 'p1', name: 'Anna', gettoni: 0 }, { id: 'p2', name: 'Carlo', gettoni: 0 }],
+        collezioni: { tris: { vincitore: { id: 'p1', name: 'Anna' }, vincitori: [{ id: 'p1', name: 'Anna' }] } },
+        ...overrides,
+      });
+
+    beforeEach(async () => {
+      await makeAccount('p1', 'Anna');
+      await makeAccount('p2', 'Carlo');
+      await makeAccount('p9', 'Admin');
+      await store.setAccountRole('p9', 'admin', { actor: system });
+      await store.recordPurchase('p1', 300);
+    });
+
+    test('closes the balance with a movement, anonymizes the player, removes the account and keeps the ledger whole', async () => {
+      await expect(store.deleteAccount('p1', { actor: admin, reason: 'abuso' })).resolves.toEqual({ playerId: 'p1' });
+
+      await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+      const { rows: movements } = await pool.query("SELECT type, amount FROM credit_transactions WHERE player_id = 'p1' ORDER BY id");
+      expect(movements.map((m) => [m.type, Number(m.amount)])).toEqual([['purchase', 300], ['account_closed', -300]]);
+      const { rows: [row] } = await pool.query("SELECT name, deleted_at FROM players WHERE id = 'p1'");
+      expect(row.name).toBe('Utente eliminato');
+      expect(row.deleted_at).toBeInstanceOf(Date);
+      await expect(store.findAccountById('p1')).resolves.toBeNull();
+      await expect(store.findAccountByUsernameKey('anna')).resolves.toBeNull();
+    });
+
+    test('a player with no credits gets no closing movement', async () => {
+      await store.deleteAccount('p2', { actor: admin, reason: 'x' });
+
+      const { rows } = await pool.query("SELECT 1 FROM credit_transactions WHERE player_id = 'p2'");
+      expect(rows).toHaveLength(0);
+    });
+
+    test('the name is free again, and the deleted player is not loaded into the game', async () => {
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      await expect(makeAccount('p5', 'Anna')).resolves.toBeUndefined();
+      const { players } = await createPostgresStore(pool).loadState();
+      expect(players.p1).toBeUndefined();
+      expect(players.p2).toBeDefined();
+    });
+
+    test('the tokens are removed', async () => {
+      await store.createRefreshToken({ tokenHash: 'h1', familyId: 'f1', playerId: 'p1', expiresAt: new Date(Date.now() + 60000) });
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      await expect(store.rotateRefreshToken('h1', { tokenHash: 'n', expiresAt: new Date(Date.now() + 60000), graceSeconds: 10 })).resolves.toBeNull();
+      const { rows } = await pool.query("SELECT 1 FROM refresh_tokens WHERE player_id = 'p1'");
+      expect(rows).toHaveLength(0);
+    });
+
+    test('the name in the finished games becomes "Utente eliminato" everywhere, the id stays; other games are untouched', async () => {
+      await store.saveGame(finished());
+      await store.saveGame(finished({ id: 'g8', players: [{ id: 'p2', name: 'Carlo', gettoni: 0 }], collezioni: {} }));
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      const state = await store.findGame('g9');
+      expect(state.players).toEqual([{ id: 'p1', name: 'Utente eliminato', gettoni: 0 }, { id: 'p2', name: 'Carlo', gettoni: 0 }]);
+      expect(state.collezioni.tris.vincitore).toEqual({ id: 'p1', name: 'Utente eliminato' });
+      expect(JSON.stringify(state)).not.toContain('Anna');
+      expect((await store.findGame('g8')).players[0].name).toBe('Carlo');
+    });
+
+    test('the audit log: the names of that user are rewritten, user_deleted has no username', async () => {
+      await store.setAccountUsername('p1', { username: 'Anna Rossi', usernameKey: 'anna rossi' }, { actor: admin });
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'abuso' });
+
+      const events = await store.listAuditEvents({ targetId: 'p1' });
+      expect(events[0]).toMatchObject({ action: 'user_deleted', details: { role: 'player', reason: 'abuso', self: false } });
+      expect(events[1].details).toEqual({ from: 'Utente eliminato', to: 'Utente eliminato' });
+      expect(JSON.stringify(events)).not.toMatch(/Anna/);
+    });
+
+    test('a player who is in a game that is waiting or in progress cannot be deleted, and nothing changes', async () => {
+      await store.saveGame(game({ id: 'g1', status: 'playing', players: [{ id: 'p1', name: 'Anna', gettoni: 0 }] }));
+
+      await expect(store.deleteAccount('p1', { actor: admin, reason: 'x' })).rejects.toMatchObject({ code: 'PLAYER_IN_GAME' });
+
+      await expect(store.findAccountById('p1')).resolves.not.toBeNull();
+      await expect(balance('p1')).resolves.toEqual({ credits: 300, ledger: 300 });
+    });
+
+    test('what is still waiting to be written for a game is written first: nothing arrives after the closing', async () => {
+      const slow = createPostgresStore(pool, { retryDelayMs: 60000 });
+      await slow.saveGame(finished({ id: 'g7' }), [{ playerId: 'p1', gameId: 'g7', type: 'game_payout', amount: 50 }]);
+
+      await slow.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+    });
+
+    test('the last active admin cannot be deleted, even by two requests at the same time', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+
+      const results = await Promise.allSettled([
+        store.deleteAccount('p9', { actor: system, reason: 'x' }),
+        store.deleteAccount('p2', { actor: system, reason: 'x' }),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected').map((r) => r.reason.code)).toEqual([LAST_ADMIN]);
+    });
+
+    test('an unknown account gives null, an actor is needed, and a suspended admin can go', async () => {
+      await expect(store.deleteAccount('ghost', { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.deleteAccount('p1', { reason: 'x' })).rejects.toThrow(TypeError);
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await store.setAccountSuspended('p2', true, { actor: system, reason: 'x' });
+      await expect(store.deleteAccount('p2', { actor: system, reason: 'x' })).resolves.toEqual({ playerId: 'p2' });
+    });
+  });
+
   describe('admin script', () => {
     beforeEach(async () => {
       await store.createAccount(

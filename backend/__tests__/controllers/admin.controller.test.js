@@ -8,6 +8,7 @@ import { jest } from '@jest/globals';
 import {
   adjustCredits,
   cancelGame,
+  deleteUser,
   getStats,
   getUser,
   listGames,
@@ -174,6 +175,23 @@ describe('admin controller', () => {
     test('resetPassword tells nobody when it is refused', async () => {
       await expect(call(resetPassword, { params: { playerId: 'p3' }, body: { reason: 'x' }, playerId: 'p3' })).rejects.toMatchObject({ statusCode: 409 });
       await expect(call(resetPassword, { params: { playerId: 'ghost' }, body: { reason: 'x' } })).rejects.toMatchObject({ statusCode: 404 });
+      expect(emitted).toEqual([]);
+    });
+
+    test('deleteUser deletes, tells the user that the account is gone and closes their connections', async () => {
+      const answer = await call(deleteUser, { params: { playerId: 'p1' }, body: { reason: 'abuso' } });
+
+      expect(answer.data).toEqual({ playerId: 'p1', credits: 100 });
+      expect(emitted).toEqual([
+        { room: playerRoom('p1'), event: 'sessionEnded', payload: { reason: 'deleted' } },
+        { room: playerRoom('p1'), event: 'disconnectSockets', payload: true },
+      ]);
+      expect(gameState.players.p1).toBeUndefined();
+    });
+
+    test('deleteUser tells nobody when it is refused', async () => {
+      await expect(call(deleteUser, { params: { playerId: 'p3' }, body: { reason: 'x' }, playerId: 'p3' })).rejects.toMatchObject({ statusCode: 409 });
+      await expect(call(deleteUser, { params: { playerId: 'ghost' }, body: { reason: 'x' } })).rejects.toMatchObject({ statusCode: 404 });
       expect(emitted).toEqual([]);
     });
 
