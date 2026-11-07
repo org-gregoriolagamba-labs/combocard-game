@@ -35,6 +35,8 @@ const EVENTS = [
   event(11, 'password_reset', { reason: 'dimenticata' }),
   event(12, 'password_changed', {}, { actorId: 'p1', actorName: 'Anna' }),
   event(13, 'password_changed', {}, { actorId: 'p3', actorName: 'Dario', targetId: 'p3', targetName: 'Dario' }),
+  event(14, 'user_deleted', { role: 'player', reason: 'abuso', self: false }, { targetName: null }),
+  event(15, 'user_deleted', { role: 'player', reason: null, self: true }, { actorName: null, targetName: null }),
 ];
 
 describe('AdminScreen: the audit log', () => {
@@ -79,6 +81,8 @@ describe('AdminScreen: the audit log', () => {
     expect(sentences[10]).toContain('Dario ha reimpostato la password di Anna: «dimenticata»');
     expect(sentences[11]).toContain('Anna ha cambiato la propria password');
     expect(sentences[12]).toContain('Dario ha cambiato la propria password');
+    expect(sentences[13]).toContain('Dario ha eliminato un account: «abuso»');
+    expect(sentences[14]).toContain('Un utente ha eliminato il proprio account');
   });
 
   test('every action has its time', async () => {

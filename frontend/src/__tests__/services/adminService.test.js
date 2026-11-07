@@ -2,7 +2,7 @@ import api from '../../services/api';
 import * as adminService from '../../services/adminService';
 
 vi.mock('../../services/api', () => ({
-  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 describe('adminService', () => {
@@ -10,6 +10,7 @@ describe('adminService', () => {
     api.get.mockResolvedValue({ data: 'answer' });
     api.post.mockResolvedValue({ data: 'answer' });
     api.patch.mockResolvedValue({ data: 'answer' });
+    api.delete.mockResolvedValue({ data: 'answer' });
   });
 
   test('listUsers asks for the page with what was filled in, and leaves out what is empty', async () => {
@@ -47,6 +48,12 @@ describe('adminService', () => {
       .resolves.toEqual({ user: { playerId: 'p 1' }, temporaryPassword: 'ABCD-EFGH-JKMN' });
 
     expect(api.post).toHaveBeenCalledWith('/admin/users/p%201/password/reset', { reason: 'dimenticata' });
+  });
+
+  test('deleteUser sends the reason with the delete', async () => {
+    await expect(adminService.deleteUser('p 1', { reason: 'richiesta' })).resolves.toBe('answer');
+
+    expect(api.delete).toHaveBeenCalledWith('/admin/users/p%201', { reason: 'richiesta' });
   });
 
   test('getUser asks for one user', async () => {

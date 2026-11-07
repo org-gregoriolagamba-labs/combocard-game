@@ -42,10 +42,10 @@ function Input({
         {...props}
       />
       {hint && !error && (
-        <p id={hintId} className="mt-1 text-xs text-testo-2">{hint}</p>
+        <p id={hintId} className="mt-1 text-xs text-testo-2 [overflow-wrap:anywhere]">{hint}</p>
       )}
       {error && (
-        <p id={errorId} role="alert" className="mt-1 text-sm font-bold text-coppe">{error}</p>
+        <p id={errorId} role="alert" className="mt-1 text-sm font-bold text-coppe [overflow-wrap:anywhere]">{error}</p>
       )}
     </div>
   );

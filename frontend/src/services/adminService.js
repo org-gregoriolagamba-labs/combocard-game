@@ -107,6 +107,17 @@ export const resetPassword = async (playerId, { reason }) => {
 };
 
 /**
+ * Delete the account of a user, for good: the balance is closed, the name is free, the personal data go
+ * @param {string} playerId - Player ID
+ * @param {Object} action - { reason }
+ * @returns {Promise<Object>} { playerId, credits }
+ */
+export const deleteUser = async (playerId, { reason }) => {
+  const response = await api.delete(`/admin/users/${encodeURIComponent(playerId)}`, { reason });
+  return response.data;
+};
+
+/**
  * One page of the audit log, the latest first
  * @param {Object} filters - { targetId, page, limit }
  * @returns {Promise<Object>} { items, total, page, limit }

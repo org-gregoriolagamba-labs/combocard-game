@@ -58,6 +58,12 @@ export function frase(e) {
   if (e.action === "password_changed") {
     return suSeStesso ? `${chi} ha cambiato la propria password` : `${chi} ha cambiato la password di ${bersaglio}`;
   }
+  if (e.action === "user_deleted") {
+    if (e.details.self) {
+      return `${chi} ha eliminato il proprio account`;
+    }
+    return `${chi} ha eliminato un account: «${e.details.reason}»`;
+  }
   return `${chi}: ${e.action}`;
 }
 

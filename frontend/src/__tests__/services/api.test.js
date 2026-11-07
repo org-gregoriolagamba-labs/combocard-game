@@ -48,6 +48,17 @@ describe('api client', () => {
     expect(options.credentials).toBe('include');
   });
 
+  test('delete can carry a body, and without one sends none', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(200, { data: 1 }));
+
+    await api.delete('/admin/users/p1', { reason: 'x' });
+    await api.delete('/something');
+
+    expect(global.fetch.mock.calls[0][1]).toMatchObject({ method: 'DELETE', body: JSON.stringify({ reason: 'x' }) });
+    expect(global.fetch.mock.calls[1][1].method).toBe('DELETE');
+    expect(global.fetch.mock.calls[1][1].body).toBeUndefined();
+  });
+
   test('without a token sends no Authorization header', async () => {
     global.fetch.mockResolvedValue(jsonResponse(200, { data: 1 }));
 
