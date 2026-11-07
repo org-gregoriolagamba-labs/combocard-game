@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
 import Seme from "../components/game/Seme";
+import InfoDialog from "../components/common/InfoDialog";
 import { INCHIOSTRO_SEME } from "../utils";
 
 const MIN_USERNAME_LENGTH = 3;
@@ -22,6 +23,7 @@ function HomePage() {
   const [formError, setFormError] = useState(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showInfo, setShowInfo] = useState(false);
 
   // The message is shown in the form, once: server errors arrive already in Italian
   const message = formError ?? error;
@@ -166,7 +168,19 @@ function HomePage() {
         <p className="mt-4 text-center text-xs text-testo-2 [text-wrap:balance]">
           Si gioca con crediti di gioco, senza pagamenti e senza valore reale.
         </p>
+
+        <div className="mt-1 text-center">
+          <button
+            type="button"
+            onClick={() => setShowInfo(true)}
+            className="min-h-[44px] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
+          >
+            Info e contatti
+          </button>
+        </div>
       </div>
+
+      {showInfo && <InfoDialog onClose={() => setShowInfo(false)} />}
     </div>
   );
 }

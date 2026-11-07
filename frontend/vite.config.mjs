@@ -1,10 +1,17 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
 
 const BACKEND = 'http://localhost:3001';
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 export default defineConfig({
   plugins: [react()],
+  // Shown in "Info e contatti": the version of package.json and the moment of the build
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+    'import.meta.env.VITE_BUILD_DATE': JSON.stringify(new Date().toISOString()),
+  },
   // Build in `build/` as with CRA, so Nginx, CI and the docs keep working.
   build: { outDir: 'build', sourcemap: false },
   server: {
