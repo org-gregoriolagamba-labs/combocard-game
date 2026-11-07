@@ -43,7 +43,7 @@ function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, cookieOptions());
 }
 
-async function startSession(req, res, player, { role, sessionVersion }) {
+async function startSession(req, res, player, { role, sessionVersion, mustChangePassword = false }) {
   const refreshToken = generateRefreshToken();
   await req.store.createRefreshToken({
     tokenHash: hashRefreshToken(refreshToken),
@@ -54,7 +54,7 @@ async function startSession(req, res, player, { role, sessionVersion }) {
   setRefreshCookie(res, refreshToken);
   // The role is beside the player, not inside it: the player is what the game shows, the role is
   // only for whoever logs in (the screen of the admin needs it)
-  return { accessToken: signAccessToken(player.id, role, sessionVersion), player, role };
+  return { accessToken: signAccessToken(player.id, role, sessionVersion), player, role, mustChangePassword };
 }
 
 /**
@@ -138,7 +138,46 @@ export const refresh = asyncHandler(async (req, res) => {
     accessToken: signAccessToken(playerId, account.role, account.sessionVersion),
     player,
     role: account.role,
+    mustChangePassword: account.mustChangePassword,
   });
+});
+
+/**
+ * Choose a new password. The current one is checked again (a stolen token is not enough), every
+ * session closes and the caller gets a new one.
+ * POST /api/auth/password
+ */
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const { playerId } = req.auth;
+
+  const valid = await verifyPassword(await req.store.getPasswordHash(playerId), currentPassword);
+  if (!valid) {
+    // Not a 401: the client would take it for an expired session
+    throw new AppError("Current password is incorrect", 400);
+  }
+  if (newPassword === currentPassword) {
+    throw new AppError("The new password must be different", 400);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  let changed;
+  try {
+    changed = await req.store.changeAccountPassword(playerId, passwordHash, { actor: { type: "player", id: playerId } });
+  } catch (err) {
+    console.error(`❌ Could not save the new password of player ${playerId}: ${err.message}`);
+    throw new AppError(STORAGE_UNAVAILABLE, 503);
+  }
+  const player = req.gameState.players[playerId];
+  if (!changed || !player) {
+    throw new AppError("Authentication required", 401);
+  }
+
+  const session = await startSession(req, res, player, {
+    role: req.auth.role,
+    sessionVersion: changed.sessionVersion,
+  });
+  sendSuccess(res, session, "Password changed successfully");
 });
 
 /**

@@ -14,7 +14,7 @@ import { verifyAccessToken } from "../services/auth.service.js";
  * @param {string} token - Access token
  * @param {Object} gameState - Global game state
  * @param {Object} store - Persistence store
- * @returns {Promise<Object|null>} { playerId, role }, or null if not authenticated
+ * @returns {Promise<Object|null>} { playerId, role, mustChangePassword }, or null if not authenticated
  */
 export async function authenticateToken(token, gameState, store) {
   if (typeof token !== "string") {
@@ -28,13 +28,11 @@ export async function authenticateToken(token, gameState, store) {
   if (!account || account.suspended || account.sessionVersion !== auth.sessionVersion) {
     return null;
   }
-  return { playerId: auth.playerId, role: account.role };
+  return { playerId: auth.playerId, role: account.role, mustChangePassword: account.mustChangePassword };
 }
 
-/**
- * Require a valid access token. Sets req.auth to { playerId, role }, with the role of the account now.
- */
-export const requireAuth = async (req, res, next) => {
+// An account with a temporary password may only choose its own: until then every route is closed to it
+const authenticate = (allowPasswordChange) => async (req, res, next) => {
   try {
     const [scheme, token] = (req.headers.authorization ?? "").split(" ");
     const auth = scheme === "Bearer" ? await authenticateToken(token, req.gameState, req.store) : null;
@@ -42,13 +40,28 @@ export const requireAuth = async (req, res, next) => {
     if (!auth) {
       return next(new AppError("Authentication required", 401));
     }
+    if (auth.mustChangePassword && !allowPasswordChange) {
+      return next(new AppError("You must change your password first", 403));
+    }
 
-    req.auth = auth;
+    req.auth = { playerId: auth.playerId, role: auth.role };
     next();
   } catch (err) {
     next(err);
   }
 };
+
+/**
+ * Require a valid access token. Sets req.auth to { playerId, role }, with the role of the account now.
+ * An account that must change its password (an admin reset it) gets a 403 here.
+ */
+export const requireAuth = authenticate(false);
+
+/**
+ * Like requireAuth, but it lets in an account that must change its password. Only for the route
+ * where it does so.
+ */
+export const requireAuthToChangePassword = authenticate(true);
 
 /**
  * Allow access only to accounts with one of the given roles. Goes after requireAuth.

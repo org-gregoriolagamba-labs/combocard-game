@@ -4,7 +4,7 @@
  * Password hashing, access tokens (JWT) and refresh tokens (opaque).
  */
 
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import config from "../config/index.js";
@@ -47,6 +47,19 @@ export async function verifyPassword(hash, password) {
   dummyHash ??= await argon2.hash(randomBytes(32).toString("hex"));
   await argon2.verify(dummyHash, password);
   return false;
+}
+
+// Letters and digits that cannot be confused when read aloud or copied: no 0, O, 1, I, L
+const TEMPORARY_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/**
+ * A temporary password for an account whose password an admin reset: three groups of four, easy to
+ * read to someone. About 59 bits, drawn with a secure generator.
+ * @returns {string} For example "K7QM-X2PD-9WJT"
+ */
+export function generateTemporaryPassword() {
+  const group = () => Array.from({ length: 4 }, () => TEMPORARY_ALPHABET[randomInt(TEMPORARY_ALPHABET.length)]).join("");
+  return `${group()}-${group()}-${group()}`;
 }
 
 /**

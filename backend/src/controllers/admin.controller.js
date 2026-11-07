@@ -109,6 +109,18 @@ export const revokeSessions = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Reset the password of a user and give the temporary one to the admin, once. The answer must not be
+ * kept by anybody on the way. The sessions of the user close.
+ * POST /api/admin/users/:playerId/password/reset
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const result = await adminService.resetUserPassword(req.store, req.gameState, req.params.playerId, req.body, actorOf(req));
+  endSessionsOf(req, result.user.playerId, "revoked");
+  res.set("Cache-Control", "no-store");
+  sendSuccess(res, result, "Password reset");
+});
+
+/**
  * The games waiting or in progress, a page at a time
  * GET /api/admin/games
  */

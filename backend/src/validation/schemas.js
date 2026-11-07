@@ -33,6 +33,12 @@ export const loginSchema = Joi.object({
   password: Joi.string().max(128).required(),
 });
 
+// The user chooses a new password, with the current one (the temporary one, after a reset)
+export const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().max(128).required(),
+  newPassword: Joi.string().min(8).max(128).required(),
+});
+
 // Player routes
 export const buyCreditsSchema = Joi.object({
   amount: integer.min(1).required(),

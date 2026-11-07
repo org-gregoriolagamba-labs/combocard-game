@@ -68,7 +68,7 @@ describe('auth controller', () => {
 
     test('never returns the password or its hash', async () => {
       const res = await ctx.call(register, { body: CREDENTIALS });
-      expect(JSON.stringify(res)).not.toMatch(/password|argon2/i);
+      expect(JSON.stringify(res)).not.toMatch(/passwordHash|correct horse|argon2/i);
     });
 
     test('sets a cookie that JavaScript cannot read, only for the auth routes', async () => {

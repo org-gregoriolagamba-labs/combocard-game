@@ -6,7 +6,7 @@
  */
 
 import { AppError } from "../utils/AppError.js";
-import { normalizeUsername } from "./auth.service.js";
+import { generateTemporaryPassword, hashPassword, normalizeUsername } from "./auth.service.js";
 import { activeGameOf } from "./game.service.js";
 import { GAME_STATUS } from "../config/constants.js";
 import { INSUFFICIENT_CREDITS, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from "../db/store.js";
@@ -237,6 +237,26 @@ export async function unsuspendUser(store, gameState, playerId, { reason }, acto
 export async function revokeUserSessions(store, gameState, playerId, { reason }, actor) {
   return changeAccessOf(store, gameState, playerId, () =>
     store.revokeAccountSessions(playerId, { actor, reason }));
+}
+
+/**
+ * Reset the password of a user: the server makes a temporary one, the admin sees it once and tells it to
+ * the user, who must choose their own at the next login. The sessions of the user close. The password is
+ * never written anywhere: not in the audit log, not in the logs.
+ * @param {Object} reset - { reason }
+ * @param {Object} actor - { type: 'player', id } of the admin
+ * @returns {Promise<Object>} { user, temporaryPassword }
+ * @throws {AppError} 404 if the user does not exist, 409 for oneself, 503 if the store cannot write
+ */
+export async function resetUserPassword(store, gameState, playerId, { reason }, actor) {
+  if (actor.id === playerId) {
+    throw new AppError("You cannot reset your own password", 409);
+  }
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = await hashPassword(temporaryPassword);
+  const user = await changeAccessOf(store, gameState, playerId, () =>
+    store.resetAccountPassword(playerId, passwordHash, { actor, reason }));
+  return { user, temporaryPassword };
 }
 
 // A game as the admin sees it: metadata only. Never the deck, the grids, the cards drawn or the balances.

@@ -8,7 +8,8 @@ import { Router } from "express";
 import * as authController from "../controllers/auth.controller.js";
 import { validate } from "../middleware/validation.middleware.js";
 import { loginLimiter, strictLimiter } from "../middleware/rateLimiter.middleware.js";
-import { registerSchema, loginSchema } from "../validation/schemas.js";
+import { requireAuthToChangePassword } from "../middleware/auth.middleware.js";
+import { registerSchema, loginSchema, changePasswordSchema } from "../validation/schemas.js";
 
 const router = Router();
 
@@ -39,5 +40,12 @@ router.post("/refresh", authController.refresh);
  * @access  Refresh cookie
  */
 router.post("/logout", authController.logout);
+
+/**
+ * @route   POST /api/auth/password
+ * @desc    Choose a new password, with the current one: closes the other sessions and opens a new one
+ * @access  Private (also with a temporary password: this is the only route open to it)
+ */
+router.post("/password", loginLimiter, requireAuthToChangePassword, validate(changePasswordSchema), authController.changePassword);
 
 export default router;
