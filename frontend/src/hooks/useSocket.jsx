@@ -233,9 +233,10 @@ export function useSocket() {
       dispatch(clearGame());
       dispatch(setScreen("home"));
       dispatch(addToast({
-        message: reason === "suspended"
-          ? "Il tuo account è stato sospeso"
-          : "L'amministrazione ha chiuso la tua sessione: accedi di nuovo",
+        message: {
+          suspended: "Il tuo account è stato sospeso",
+          deleted: "Il tuo account è stato eliminato",
+        }[reason] ?? "L'amministrazione ha chiuso la tua sessione: accedi di nuovo",
         type: "warning",
         duration: 8000,
       }));

@@ -12,7 +12,7 @@ import PropTypes from "prop-types";
 import { Modal, Button, Input } from "../common";
 import { adminService } from "../../services";
 
-function AccessDialog({ user, onClose, onDone }) {
+function AccessDialog({ user, onClose, onDone, onDelete }) {
   const [reason, setReason] = useState("");
   const [problem, setProblem] = useState(null);
   const [serverError, setServerError] = useState(null);
@@ -129,6 +129,9 @@ function AccessDialog({ user, onClose, onDone }) {
           <Button type="button" variant="secondary" disabled={sending} onClick={() => send("reset")}>
             Reimposta la password
           </Button>
+          <Button type="button" variant="danger" disabled={sending} onClick={onDelete}>
+            Elimina l&apos;account
+          </Button>
           <Button type="button" variant="outline" onClick={onClose}>
             Indietro
           </Button>
@@ -146,6 +149,7 @@ AccessDialog.propTypes = {
   }).isRequired,
   onClose: PropTypes.func.isRequired,
   onDone: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
 };
 
 export default AccessDialog;

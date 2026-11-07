@@ -149,8 +149,6 @@ describe('AdminScreen: suspension and sessions', () => {
     test('is offered for an active user and for a suspended one, and says it cannot be undone', async () => {
       const { dialog } = await openDelete();
       expect(dialog).toHaveTextContent('Non si può annullare');
-
-      adminService.listUsers.mockResolvedValue(pageOf([suspendedAnna, carlo, dario]));
     });
 
     test('is offered also for a suspended user', async () => {

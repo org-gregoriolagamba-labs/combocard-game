@@ -14,6 +14,7 @@ import { setPlayer, setRole, updateCredits } from "../../store/slices/playerSlic
 import { addToast, setScreen } from "../../store/slices/uiSlice";
 import AccessDialog from "./AccessDialog";
 import CreditsDialog from "./CreditsDialog";
+import DeleteUserDialog from "./DeleteUserDialog";
 import EditUserDialog from "./EditUserDialog";
 import Pager from "./Pager";
 
@@ -120,6 +121,16 @@ function UsersPanel({ onForbidden }) {
     if (!keepOpen) {
       setDialog(null);
     }
+  };
+
+  const deleteDone = (user) => {
+    setData((current) => ({
+      ...current,
+      items: current.items.filter((u) => u.playerId !== user.playerId),
+      total: current.total - 1,
+    }));
+    dispatch(addToast({ message: `Account eliminato: ${user.username}`, type: "success" }));
+    setDialog(null);
   };
 
   const select =
@@ -231,7 +242,11 @@ function UsersPanel({ onForbidden }) {
           user={dialog.user}
           onClose={() => setDialog(null)}
           onDone={(updated, kind, options) => accessDone(dialog.user, updated, kind, options)}
+          onDelete={() => setDialog({ type: "delete", user: dialog.user })}
         />
+      )}
+      {dialog?.type === "delete" && (
+        <DeleteUserDialog user={dialog.user} onClose={() => setDialog(null)} onDone={() => deleteDone(dialog.user)} />
       )}
       {dialog?.type === "edit" && (
         <EditUserDialog
