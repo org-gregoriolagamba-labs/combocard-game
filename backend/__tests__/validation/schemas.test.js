@@ -17,6 +17,7 @@ import {
   adminCancelGameSchema,
   adminUserActionSchema,
   changePasswordSchema,
+  deleteAccountSchema,
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
@@ -283,6 +284,20 @@ describe('admin schemas', () => {
       ['a field that is not allowed', { currentPassword: 'x', newPassword: 'long enough', playerId: 'p2' }],
     ])('rejects %s', (_name, body) => {
       expect(changePasswordSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('deleteAccountSchema', () => {
+    test('takes the password', () => {
+      expect(isValid(deleteAccountSchema, { password: 'whatever it is' })).toBe(true);
+    });
+
+    test.each([
+      ['no password', {}],
+      ['a password that is too long', { password: 'x'.repeat(129) }],
+      ['a field that is not allowed', { password: 'x', playerId: 'p2' }],
+    ])('rejects %s', (_name, body) => {
+      expect(deleteAccountSchema.validate(body).error).toBeDefined();
     });
   });
 });

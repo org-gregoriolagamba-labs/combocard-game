@@ -38,6 +38,8 @@ describe('translateServerError', () => {
     ['Cannot delete a player who is in a game', 'Il giocatore sta giocando una partita: annullala o aspetta che finisca'],
     ['Cannot delete the last admin', "Non si può eliminare l'ultimo admin"],
     ['You cannot delete your own account from the admin area', "Non puoi eliminare il tuo account da qui"],
+    ['You cannot delete your account while you are in a game', 'Non puoi eliminare il tuo account mentre sei in una partita: lasciala o aspetta che finisca'],
+    ['You are the last active admin: make another admin first', "Sei l'ultimo admin attivo: promuovi prima un altro admin"],
     ['You cannot reset your own password', 'Non puoi reimpostare la tua password: usa il cambio password'],
     ['Cannot suspend the last admin', "Non si può sospendere l'ultimo admin"],
     ['You do not have permission to do this', 'Non hai i permessi per farlo'],

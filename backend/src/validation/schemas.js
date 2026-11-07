@@ -39,6 +39,11 @@ export const changePasswordSchema = Joi.object({
   newPassword: Joi.string().min(8).max(128).required(),
 });
 
+// The user deletes their own account: the password is asked again
+export const deleteAccountSchema = Joi.object({
+  password: Joi.string().max(128).required(),
+});
+
 // Player routes
 export const buyCreditsSchema = Joi.object({
   amount: integer.min(1).required(),

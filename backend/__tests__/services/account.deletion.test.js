@@ -96,6 +96,30 @@ describe('account deletion', () => {
     expect(seen).toBeNull();
   });
 
+  describe('the user deleting their own account', () => {
+    const self = { type: 'player', id: 'p1' };
+
+    test('gets their own messages: in a game, or the last active admin', async () => {
+      gameState.games.g1 = { id: 'g1', status: 'playing', players: [{ id: 'p1', name: 'Anna' }] };
+      await expect(deleteAccount(store, gameState, 'p1', {}, self)).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'You cannot delete your account while you are in a game',
+      });
+
+      await expect(deleteAccount(store, gameState, 'p9', {}, { type: 'player', id: 'p9' })).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'You are the last active admin: make another admin first',
+      });
+    });
+
+    test('needs no reason, and the audit log says that they did it themselves', async () => {
+      await deleteAccount(store, gameState, 'p1', {}, self);
+
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'user_deleted', actorId: 'p1', details: { reason: null, self: true } });
+    });
+  });
+
   describe('deleteUser, for the admin', () => {
     test('an admin cannot delete themselves from the admin area', async () => {
       await expect(deleteUser(store, gameState, 'p9', { reason: 'x' }, admin)).rejects.toMatchObject({ statusCode: 409 });
