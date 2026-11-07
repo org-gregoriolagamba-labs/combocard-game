@@ -3,7 +3,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { requireAuth, requireRole, requireSelf } from '../../src/middleware/auth.middleware.js';
+import { requireAuth, requireAuthToChangePassword, requireRole, requireSelf } from '../../src/middleware/auth.middleware.js';
 import { authenticateSocket, initializeSocketHandlers, playerRoom } from '../../src/sockets/index.js';
 import { signAccessToken } from '../../src/services/auth.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
@@ -89,6 +89,40 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
+  describe('an account that must change the password', () => {
+    beforeEach(async () => {
+      await store.resetAccountPassword('p1', 'temp-hash', { actor: admin, reason: 'dimenticata' });
+    });
+    const header = async () => `Bearer ${signAccessToken('p1', 'player', (await store.findAccountById('p1')).sessionVersion)}`;
+
+    test('is refused with a 403 on every route, with a valid token', async () => {
+      const { req, next } = await runRequireAuth(await header());
+
+      expect(req.auth).toBeUndefined();
+      expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403, message: 'You must change your password first' });
+    });
+
+    test('is let through only by the guard of the password change', async () => {
+      const req = { headers: { authorization: await header() }, gameState, store };
+      const next = jest.fn();
+
+      await requireAuthToChangePassword(req, {}, next);
+
+      expect(req.auth).toEqual({ playerId: 'p1', role: 'player' });
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    test('the guard of the password change is not a door for the others: a suspended account is refused', async () => {
+      const req = { headers: { authorization: await header() }, gameState, store };
+      const next = jest.fn();
+      await store.setAccountSuspended('p1', true, { actor: admin, reason: 'x' });
+
+      await requireAuthToChangePassword(req, {}, next);
+
+      expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 401 });
+    });
+  });
+
   test('if the store cannot answer, the request fails with the error and is not let through', async () => {
     store.findAccountById = jest.fn().mockRejectedValue(new Error('db down'));
 
@@ -126,6 +160,15 @@ describe('authenticateSocket', () => {
 
     expect(socket.data.playerId).toBe('p1');
     expect(next).toHaveBeenCalledWith();
+  });
+
+  test('rejects an account that must change the password: the game is not for it yet', async () => {
+    await store.resetAccountPassword('p1', 'temp-hash', { actor: admin, reason: 'x' });
+    const { sessionVersion } = await store.findAccountById('p1');
+
+    const { next } = await connect({ token: signAccessToken('p1', 'player', sessionVersion) });
+
+    expect(next.mock.calls[0][0].message).toBe('Unauthorized');
   });
 
   test.each([[{}], [{ token: 'nope' }], [{ token: 123 }], [undefined]])('rejects %j', async (auth) => {

@@ -13,6 +13,7 @@ import {
   listGames,
   listAuditLog,
   listUsers,
+  resetPassword,
   revokeSessions,
   suspendUser,
   unsuspendUser,
@@ -35,7 +36,11 @@ describe('admin controller', () => {
           return res;
         },
         json: (payload) => {
-          resolve({ code: res.code, ...payload });
+          resolve({ code: res.code, headers: res.headers, ...payload });
+          return res;
+        },
+        set: (name, value) => {
+          res.headers = { ...res.headers, [name]: value };
           return res;
         },
       };
@@ -151,6 +156,25 @@ describe('admin controller', () => {
         { room: playerRoom('p1'), event: 'sessionEnded', payload: { reason: 'revoked' } },
         { room: playerRoom('p1'), event: 'disconnectSockets', payload: true },
       ]);
+    });
+
+    test('resetPassword gives the temporary password once, not to be kept, and closes the sessions of the user', async () => {
+      const answer = await call(resetPassword, { params: { playerId: 'p1' }, body: { reason: 'dimenticata' } });
+
+      expect(answer.data.user).toMatchObject({ playerId: 'p1', username: 'Anna' });
+      expect(answer.data.temporaryPassword).toEqual(expect.any(String));
+      expect(answer.headers['Cache-Control']).toBe('no-store');
+      expect(emitted).toEqual([
+        { room: playerRoom('p1'), event: 'sessionEnded', payload: { reason: 'revoked' } },
+        { room: playerRoom('p1'), event: 'disconnectSockets', payload: true },
+      ]);
+      expect(JSON.stringify(await store.listAuditEvents({}))).not.toContain(answer.data.temporaryPassword);
+    });
+
+    test('resetPassword tells nobody when it is refused', async () => {
+      await expect(call(resetPassword, { params: { playerId: 'p3' }, body: { reason: 'x' }, playerId: 'p3' })).rejects.toMatchObject({ statusCode: 409 });
+      await expect(call(resetPassword, { params: { playerId: 'ghost' }, body: { reason: 'x' } })).rejects.toMatchObject({ statusCode: 404 });
+      expect(emitted).toEqual([]);
     });
 
     test('unsuspendUser reinstates and tells nobody', async () => {

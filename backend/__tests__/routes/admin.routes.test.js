@@ -53,6 +53,7 @@ describe('the routes of the admin area', () => {
     ['/users/:playerId/suspend', 'post', 2],
     ['/users/:playerId/unsuspend', 'post', 2],
     ['/users/:playerId/sessions/revoke', 'post', 2],
+    ['/users/:playerId/password/reset', 'post', 2],
   ])('%s %s exists and has its validation', (path, method, handlers) => {
     expect(routeOf(path, method)?.stack.length).toBeGreaterThanOrEqual(handlers);
   });

@@ -6,7 +6,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { register, login, refresh, logout } from '../../src/controllers/auth.controller.js';
+import { register, login, refresh, logout, changePassword } from '../../src/controllers/auth.controller.js';
 import { hashRefreshToken, verifyAccessToken } from '../../src/services/auth.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 
@@ -15,7 +15,7 @@ const CREDENTIALS = { username: 'Anna', password: 'correct horse' };
 function createContext() {
   const context = { gameState: { games: {}, players: {} }, store: createMemoryStore(), cookie: null };
 
-  context.call = (handler, { body = {}, cookie = context.cookie } = {}) =>
+  context.call = (handler, { body = {}, cookie = context.cookie, auth } = {}) =>
     new Promise((resolve, reject) => {
       const result = { status: 200 };
       const res = {
@@ -41,6 +41,7 @@ function createContext() {
         cookies: cookie ? { combocard_refresh: cookie } : {},
         gameState: context.gameState,
         store: context.store,
+        auth,
       };
       handler(req, res, reject);
     });
@@ -220,6 +221,106 @@ describe('auth controller', () => {
       });
 
       await expect(ctx.call(refresh, { cookie: 'expired' })).rejects.toMatchObject({ statusCode: 401 });
+    });
+  });
+
+  describe('the password that an admin reset', () => {
+    const admin = { type: 'player', id: 'p9' };
+    let playerId;
+
+    beforeEach(async () => {
+      playerId = (await ctx.call(register, { body: CREDENTIALS })).data.player.id;
+      ctx.cookie = null;
+    });
+
+    const reset = async () => {
+      const { hashPassword } = await import('../../src/services/auth.service.js');
+      await ctx.store.resetAccountPassword(playerId, await hashPassword('temporary-1'), { actor: admin, reason: 'x' });
+    };
+
+    test('the old password no longer works; the temporary one logs in and says the password must change', async () => {
+      await reset();
+
+      await expect(ctx.call(login, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 401 });
+      const res = await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } });
+
+      expect(res.status).toBe(200);
+      expect(res.data.mustChangePassword).toBe(true);
+    });
+
+    test('a normal login says the password does not have to change; so do the refresh and the registration', async () => {
+      const res = await ctx.call(login, { body: CREDENTIALS });
+      expect(res.data.mustChangePassword).toBe(false);
+      expect((await ctx.call(refresh)).data.mustChangePassword).toBe(false);
+      ctx.cookie = null;
+      expect((await ctx.call(register, { body: { username: 'Carlo', password: 'another pass' } })).data.mustChangePassword).toBe(false);
+    });
+
+    test('the refresh of a session opened with the temporary password still says it', async () => {
+      await reset();
+      await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } });
+
+      expect((await ctx.call(refresh)).data.mustChangePassword).toBe(true);
+    });
+
+    test('changePassword: with the current password sets the new one, clears the obligation and opens a new session', async () => {
+      await reset();
+      const first = await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } });
+      const oldCookie = ctx.cookie;
+
+      const res = await ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: 'temporary-1', newPassword: 'my new password' },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.data).toMatchObject({ role: 'player', player: { id: playerId } });
+      expect(res.data.mustChangePassword).toBe(false);
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBeGreaterThan(verifyAccessToken(first.data.accessToken).sessionVersion);
+      expect(ctx.cookie).not.toBe(oldCookie);
+      await expect(ctx.call(refresh, { cookie: oldCookie })).rejects.toMatchObject({ statusCode: 401 });
+      await expect(ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } })).rejects.toMatchObject({ statusCode: 401 });
+      expect((await ctx.call(login, { body: { username: 'Anna', password: 'my new password' } })).data.mustChangePassword).toBe(false);
+    });
+
+    test('changePassword: a wrong current password is a 400 and nothing changes', async () => {
+      await reset();
+
+      await expect(ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: 'not it', newPassword: 'my new password' },
+      })).rejects.toMatchObject({ statusCode: 400, message: 'Current password is incorrect' });
+
+      expect((await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } })).data.mustChangePassword).toBe(true);
+    });
+
+    test('changePassword: the new password must be different', async () => {
+      await expect(ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: CREDENTIALS.password, newPassword: CREDENTIALS.password },
+      })).rejects.toMatchObject({ statusCode: 400, message: 'The new password must be different' });
+    });
+
+    test('changePassword: the new password is never in the answer', async () => {
+      const res = await ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: CREDENTIALS.password, newPassword: 'my new password' },
+      });
+
+      expect(JSON.stringify(res)).not.toMatch(/my new password|argon2/);
+    });
+
+    test('changePassword: if the store cannot write, the answer is a 503 and the password stays', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      ctx.store.changeAccountPassword = async () => { throw new Error('down'); };
+
+      await expect(ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: CREDENTIALS.password, newPassword: 'my new password' },
+      })).rejects.toMatchObject({ statusCode: 503 });
+
+      expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
+      jest.restoreAllMocks();
     });
   });
 
