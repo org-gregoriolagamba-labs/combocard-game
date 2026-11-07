@@ -93,6 +93,23 @@ describe('the events of the jolly pause', () => {
   });
 });
 
+describe('sessionEnded', () => {
+  test.each([
+    ['suspended', 'Il tuo account è stato sospeso'],
+    ['revoked', "L'amministrazione ha chiuso la tua sessione: accedi di nuovo"],
+  ])('%s: the player is out, back at the start, and is told why', (reason, message) => {
+    const { store, emit } = arrange('carlo');
+
+    emit('sessionEnded', { reason });
+
+    const state = store.getState();
+    expect(state.player.id).toBeNull();
+    expect(state.game.currentGameId).toBeNull();
+    expect(state.ui.currentScreen).toBe('home');
+    expect(state.ui.toasts.map((t) => t.message)).toContain(message);
+  });
+});
+
 describe('gameCancelled', () => {
   test('the player of the game goes back to the hall, with the balance the server says, and is told', () => {
     const { store, emit } = arrange('carlo');

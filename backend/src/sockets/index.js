@@ -16,24 +16,31 @@ export const playerRoom = (playerId) => `player:${playerId}`;
 /**
  * Socket.IO middleware: only clients with a valid access token can connect
  * @param {Object} gameState - Global game state
+ * @param {Function} getStore - Returns the store (it is replaced at startup, so it is asked every time)
  * @returns {Function} Socket.IO middleware
  */
-export const authenticateSocket = (gameState) => (socket, next) => {
-  const auth = authenticateToken(socket.handshake.auth?.token, gameState);
-  if (!auth) {
-    return next(new Error("Unauthorized"));
+export const authenticateSocket = (gameState, getStore) => async (socket, next) => {
+  try {
+    const auth = await authenticateToken(socket.handshake.auth?.token, gameState, getStore());
+    if (!auth) {
+      return next(new Error("Unauthorized"));
+    }
+    socket.data.playerId = auth.playerId;
+    next();
+  } catch (err) {
+    console.error(`❌ Could not authenticate a socket: ${err.message}`);
+    next(new Error("Unauthorized"));
   }
-  socket.data.playerId = auth.playerId;
-  next();
 };
 
 /**
  * Initialize Socket.IO handlers
  * @param {Server} io - Socket.IO server instance
  * @param {Object} gameState - Global game state
+ * @param {Function} getStore - Returns the store
  */
-export const initializeSocketHandlers = (io, gameState) => {
-  io.use(authenticateSocket(gameState));
+export const initializeSocketHandlers = (io, gameState, getStore) => {
+  io.use(authenticateSocket(gameState, getStore));
 
   io.on("connection", (socket) => {
     const { playerId } = socket.data;

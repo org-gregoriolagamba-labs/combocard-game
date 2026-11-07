@@ -10,12 +10,21 @@ I giocatori accedono con nome utente e password. L'identità di ogni richiesta a
 | **Durata** | 15 minuti | 7 giorni, rinnovati a ogni uso |
 | **Nel browser** | Solo in memoria | Cookie `HttpOnly`, valido solo per `/api/auth` |
 | **Nel server** | Non salvato | Salvato solo come hash |
-| **Revoca** | No, scade da solo | Sì, con il logout |
+| **Revoca** | Sì, con la versione delle sessioni (vedi sotto); altrimenti scade da solo | Sì, con il logout o per mano di un admin |
 
 1. Registrazione o login restituiscono l'access token e impostano il cookie.
 2. Ogni chiamata API invia `Authorization: Bearer <token>`.
 3. Quando il token scade il server risponde `401`: il frontend lo rinnova e ripete la richiesta, senza che l'utente veda nulla.
 4. Ricaricando la pagina il token in memoria si perde: il frontend ne ottiene uno nuovo dal cookie e riporta il giocatore nella partita in corso.
+
+### Sospensione e chiusura delle sessioni
+
+L'access token porta la **versione delle sessioni** dell'account (`sv`, 0 per i token emessi prima della migrazione 008). A **ogni richiesta** e a ogni connessione Socket.IO il server rilegge l'account dal database e rifiuta il token con `401` se l'account è sospeso, se non esiste più o se la versione è cambiata. Una lettura per chiave primaria a richiesta: il ruolo che arriva in `req.auth.role` è quello dell'account adesso, non quello scritto nel token.
+
+- **Sospensione** (`suspended_at`): l'utente non fa login (`403 This account is suspended`, detto solo dopo la password giusta, così non rivela quali nomi esistono), non rinnova la sessione (`401`) e perde l'accesso alla richiesta successiva anche con un token ancora valido. Sospendere sale la versione e revoca tutti i refresh token dell'account.
+- **Chiusura delle sessioni**: sale la versione e revoca i refresh token, senza sospendere. L'utente rifà il login con la sua password.
+- Alle sue connessioni Socket.IO arriva `sessionEnded` `{ reason: "suspended" | "revoked" }` e subito dopo vengono chiuse. Il frontend riporta il giocatore alla schermata iniziale con l'avviso.
+- Una partita in corso di un utente sospeso resta com'è: l'admin può annullarla (con rimborso), oppure l'utente la ritrova se viene riabilitato.
 
 ### Rotazione del refresh token
 
@@ -46,15 +55,15 @@ Sono state rimosse `POST /api/players/register` e `GET /api/players`.
 
 ### Socket.IO
 
-La connessione richiede un access token valido in `auth.token`. Il server fa entrare un giocatore solo nelle stanze delle sue partite. Una connessione già aperta non viene chiusa alla scadenza del token: il token viene ricontrollato alla connessione successiva.
+La connessione richiede un access token valido in `auth.token`. Il server fa entrare un giocatore solo nelle stanze delle sue partite. Una connessione già aperta non viene chiusa alla scadenza del token: il token viene ricontrollato alla connessione successiva. Un account sospeso, o le cui sessioni sono state chiuse, non si connette (il token si ricontrolla sul database), e le connessioni già aperte vengono chiuse quando l'admin agisce.
 
 ## Ruoli
 
 Ogni account ha un ruolo: `player` (il giocatore normale, chiamato "user" nei testi di prodotto) oppure `admin`. Alla registrazione il ruolo è sempre `player`. Un admin gioca come qualsiasi giocatore, con le stesse regole e la stessa visibilità delle partite: l'amministrazione è una sezione in più, non un vantaggio nel gioco.
 
-- **Il ruolo nel token non decide nulla.** L'access token dura 15 minuti e non si può revocare: un admin declassato sarebbe rimasto admin fino alla scadenza. `requireAuth` mette il ruolo del token in `req.auth.role` solo come informazione. Le route riservate usano `requireRole('admin')`, che legge il ruolo dal database a ogni richiesta: chi viene declassato perde i privilegi alla richiesta successiva, e chi viene promosso li ha subito, senza rifare il login. Il ruolo non si legge mai dal corpo, dalla query o dalle intestazioni.
+- **Il ruolo nel token non decide nulla.** L'access token dura 15 minuti e non si può revocare: un admin declassato sarebbe rimasto admin fino alla scadenza. `requireAuth` rilegge l'account a ogni richiesta (vedi "Sospensione e chiusura delle sessioni") e mette in `req.auth.role` il ruolo di adesso. Le route riservate usano `requireRole('admin')`, che legge il ruolo dal database a ogni richiesta: chi viene declassato perde i privilegi alla richiesta successiva, e chi viene promosso li ha subito, senza rifare il login. Il ruolo non si legge mai dal corpo, dalla query o dalle intestazioni.
 - **`/api/admin`.** Il router parte con `requireAuth` e poi `requireRole('admin')`, per tutte le sue route (un test controlla che una route aggiunta dopo non possa saltarli). Con un token mancante la risposta è `401`, per un `player` `403`, per un admin `200` (le route sono nella tabella sotto).
-- **Non si può togliere il ruolo all'ultimo admin.** La regola vale anche per due richieste nello stesso istante.
+- **Non si può togliere il ruolo né sospendere l'ultimo admin.** Conta chi è admin e non è sospeso. La regola vale anche per due richieste nello stesso istante.
 - **Registro delle azioni.** Ogni cambio di ruolo scrive una riga in `audit_log` (chi, quando, su chi, ruolo prima e dopo), nella stessa transazione del cambio. Un cambio rifiutato non lascia nessuna riga.
 
 ### Il ruolo nelle risposte, e la schermata
@@ -72,6 +81,9 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 | `GET /api/admin/users/:playerId` | Un utente: nome, ruolo, crediti, data di registrazione, `inGame` |
 | `PATCH /api/admin/users/:playerId` | `{ username }` **oppure** `{ role }`, uno alla volta. Il nome non può cambiare se il giocatore è in una partita non finita (`409`) né essere già in uso (`409`); il ruolo segue la regola dell'ultimo admin (`409`) |
 | `POST /api/admin/users/:playerId/credits` | `{ amount, reason }`: accredito (positivo) o addebito (negativo), da 1 a 1.000.000, **con un motivo obbligatorio** (fino a 200 caratteri). Il saldo non scende mai sotto zero (`409`). Il giocatore vede il nuovo saldo subito (evento `gettoniAggiornati`) |
+| `POST /api/admin/users/:playerId/suspend` | `{ reason }` (obbligatorio, fino a 200 caratteri): sospende l'utente e chiude le sue sessioni e connessioni (`404` se non esiste, `409` se sei tu o l'ultimo admin attivo). Risponde con l'utente (`suspended: true`) |
+| `POST /api/admin/users/:playerId/unsuspend` | `{ reason }`: riabilita l'utente, che rientra con la sua password |
+| `POST /api/admin/users/:playerId/sessions/revoke` | `{ reason }`: chiude tutte le sessioni dell'utente senza sospenderlo |
 | `GET /api/admin/games?status=&page=&limit=` | Le partite in attesa o in corso, dalla più vecchia, **solo metadati**: id, stato, quota, massimo di giocatori, montepremi, data e nomi dei giocatori. Mai `mazzo`, cartelle, carte estratte né saldi. L'id di una partita privata è il suo codice: l'admin lo vede |
 | `POST /api/admin/games/:gameId/cancel` | `{ reason }` (obbligatorio, fino a 200 caratteri): annulla una partita in attesa o in corso (`404` se non esiste, `409` se è già finita). Se era in corso, ogni giocatore **ancora presente** riceve la quota d'ingresso (`game_refund`); i premi già assegnati ma non ancora accreditati si perdono, perché la partita conta come mai giocata. Chi l'aveva lasciata ha già perso la quota e non è rimborsato. I giocatori ricevono `gameCancelled` `{ gameId, gettoni, refund }` |
 | `GET /api/admin/stats` | Numeri della piattaforma, senza nomi: utenti registrati, in partita ora e admin; partite in attesa, in corso, finite e annullate; crediti in circolazione e nel montepremi delle partite in corso; montepremi distribuiti |
@@ -79,6 +91,7 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 
 - Chi agisce è sempre l'admin del token: un `actor` scritto nel corpo viene ignorato, come ogni campo sconosciuto.
 - **Un admin può rettificare anche i propri crediti** e quelli di altri admin, sempre con motivo e traccia (nel registro attore e bersaglio coincidono). Il divieto di accreditarsi da soli non protegge nulla finché la Cassa dà crediti gratis a chiunque: da rivedere se i crediti avranno mai un valore reale.
+- Sospensione, riabilitazione e chiusura delle sessioni cambiano l'account e scrivono la riga di audit (`user_suspended`, `user_unsuspended`, `sessions_revoked`, con il motivo) in un'unica transazione; se il database non risponde non cambia nulla e la risposta è `503`.
 - L'annullamento di una partita rimborsa, toglie la partita e scrive la riga `game_cancelled` (con motivo e rimborsi) in un'unica transazione, dopo aver scritto ciò che la partita aveva ancora in coda; se il database non risponde, la partita e i crediti tornano come prima e la risposta è `503`.
 - Una rettifica aggiorna i crediti in memoria del server e scrive in un'unica transazione il movimento (`admin_adjustment`) e la riga di audit; se il database non risponde, i crediti tornano come prima e la risposta è `503`.
 

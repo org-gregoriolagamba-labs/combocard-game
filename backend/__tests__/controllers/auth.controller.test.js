@@ -127,9 +127,57 @@ describe('auth controller', () => {
       expect(wrongPassword.message).toBe(unknownUser.message);
       expect(ctx.cookie).toBeNull();
     });
+
+    test('puts the version of the session in the access token', async () => {
+      const res = await ctx.call(login, { body: CREDENTIALS });
+
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBe(0);
+    });
+
+    test('a suspended account does not get in, and gets no session', async () => {
+      const [player] = Object.values(ctx.gameState.players);
+      await ctx.store.setAccountSuspended(player.id, true, { actor: { type: 'system' }, reason: 'abuso' });
+
+      await expect(ctx.call(login, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 403, message: 'This account is suspended' });
+      expect(ctx.cookie).toBeNull();
+    });
+
+    test('a suspended account with a wrong password is told nothing about it', async () => {
+      const [player] = Object.values(ctx.gameState.players);
+      await ctx.store.setAccountSuspended(player.id, true, { actor: { type: 'system' }, reason: 'abuso' });
+
+      await expect(ctx.call(login, { body: { ...CREDENTIALS, password: 'nope nope' } })).rejects.toMatchObject({ statusCode: 401 });
+    });
   });
 
   describe('refresh', () => {
+    test('a suspended account cannot renew the session', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      const cookie = ctx.cookie;
+      await ctx.store.setAccountSuspended(data.player.id, true, { actor: { type: 'system' }, reason: 'abuso' });
+
+      await expect(ctx.call(refresh, { cookie })).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('after the sessions are closed the cookie no longer works', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      const cookie = ctx.cookie;
+      await ctx.store.revokeAccountSessions(data.player.id, { actor: { type: 'system' }, reason: 'furto' });
+
+      await expect(ctx.call(refresh, { cookie })).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('a new access token has the current version of the session', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      await ctx.store.revokeAccountSessions(data.player.id, { actor: { type: 'system' }, reason: 'furto' });
+      const login2 = await ctx.call(login, { body: CREDENTIALS });
+
+      const res = await ctx.call(refresh);
+
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBe(verifyAccessToken(login2.data.accessToken).sessionVersion);
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBeGreaterThan(0);
+    });
+
     test('without a cookie reports no session, without an error', async () => {
       const res = await ctx.call(refresh);
       expect(res.status).toBe(200);

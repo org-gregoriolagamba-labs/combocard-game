@@ -383,7 +383,7 @@ describe('accounts of the memory store: list, rename, credits', () => {
 
       expect(total).toBe(4);
       expect(items.map((a) => a.username)).toEqual(['Anna', 'Anna Maria', 'Carlo Rossi', 'Dario']);
-      expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date) });
+      expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date), suspended: false });
       expect(JSON.stringify(items)).not.toMatch(/hash/);
     });
 
@@ -416,7 +416,7 @@ describe('accounts of the memory store: list, rename, credits', () => {
   describe('getAccount', () => {
     test('gives the account as the admin area shows it, without the password hash, or null', async () => {
       await expect(store.getAccount('p2')).resolves.toEqual({
-        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date),
+        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date), suspended: false,
       });
       await expect(store.getAccount('ghost')).resolves.toBeNull();
     });

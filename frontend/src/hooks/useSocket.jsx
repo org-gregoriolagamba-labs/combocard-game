@@ -19,7 +19,8 @@ import {
   clearGame,
 } from "../store/slices/gameSlice";
 import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
-import { updateCredits } from "../store/slices/playerSlice";
+import { updateCredits, clearPlayer } from "../store/slices/playerSlice";
+import { setAccessToken } from "../services/api";
 
 /**
  * Hook to manage socket connections and game events
@@ -223,6 +224,22 @@ export function useSocket() {
       }));
     };
 
+    // An admin suspended the account or closed its sessions: the server drops the connection and the
+    // tokens no longer work, so the player goes back to the start
+    const handleSessionEnded = ({ reason }) => {
+      setAccessToken(null);
+      dispatch(clearPlayer());
+      dispatch(clearGame());
+      dispatch(setScreen("home"));
+      dispatch(addToast({
+        message: reason === "suspended"
+          ? "Il tuo account è stato sospeso"
+          : "L'amministrazione ha chiuso la tua sessione: accedi di nuovo",
+        type: "warning",
+        duration: 8000,
+      }));
+    };
+
     // Register event listeners
     socket.on("playerJoined", handlePlayerJoined);
     socket.on("playerLeft", handlePlayerLeft);
@@ -237,6 +254,7 @@ export function useSocket() {
     socket.on("jollyUsato", handleJollyUsato);
     socket.on("gameFinished", handleGameFinished);
     socket.on("gameCancelled", handleGameCancelled);
+    socket.on("sessionEnded", handleSessionEnded);
 
     // Cleanup
     return () => {
@@ -253,6 +271,7 @@ export function useSocket() {
       socket.off("jollyUsato", handleJollyUsato);
       socket.off("gameFinished", handleGameFinished);
       socket.off("gameCancelled", handleGameCancelled);
+      socket.off("sessionEnded", handleSessionEnded);
     };
   }, [currentGameId, playerId, game, dispatch, refreshGameState]);
 

@@ -43,7 +43,7 @@ function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, cookieOptions());
 }
 
-async function startSession(req, res, player, role) {
+async function startSession(req, res, player, { role, sessionVersion }) {
   const refreshToken = generateRefreshToken();
   await req.store.createRefreshToken({
     tokenHash: hashRefreshToken(refreshToken),
@@ -54,7 +54,7 @@ async function startSession(req, res, player, role) {
   setRefreshCookie(res, refreshToken);
   // The role is beside the player, not inside it: the player is what the game shows, the role is
   // only for whoever logs in (the screen of the admin needs it)
-  return { accessToken: signAccessToken(player.id, role), player, role };
+  return { accessToken: signAccessToken(player.id, role, sessionVersion), player, role };
 }
 
 /**
@@ -81,7 +81,7 @@ export const register = asyncHandler(async (req, res) => {
     throw new AppError(STORAGE_UNAVAILABLE, 503);
   }
 
-  sendCreated(res, await startSession(req, res, player, "player"), "Account created successfully");
+  sendCreated(res, await startSession(req, res, player, { role: "player", sessionVersion: 0 }), "Account created successfully");
 });
 
 /**
@@ -99,7 +99,12 @@ export const login = asyncHandler(async (req, res) => {
     throw new AppError("Invalid username or password", 401);
   }
 
-  sendSuccess(res, await startSession(req, res, player, account.role), "Logged in successfully");
+  // The password is right, so saying that the account is suspended reveals nothing to a stranger
+  if (account.suspended) {
+    throw new AppError("This account is suspended", 403);
+  }
+
+  sendSuccess(res, await startSession(req, res, player, account), "Logged in successfully");
 });
 
 /**
@@ -121,7 +126,7 @@ export const refresh = asyncHandler(async (req, res) => {
   });
 
   const account = playerId ? await req.store.findAccountById(playerId) : null;
-  const player = account ? req.gameState.players[playerId] : null;
+  const player = account && !account.suspended ? req.gameState.players[playerId] : null;
 
   if (!player) {
     clearRefreshCookie(res);
@@ -129,7 +134,11 @@ export const refresh = asyncHandler(async (req, res) => {
   }
 
   setRefreshCookie(res, nextToken);
-  sendSuccess(res, { accessToken: signAccessToken(playerId, account.role), player, role: account.role });
+  sendSuccess(res, {
+    accessToken: signAccessToken(playerId, account.role, account.sessionVersion),
+    player,
+    role: account.role,
+  });
 });
 
 /**

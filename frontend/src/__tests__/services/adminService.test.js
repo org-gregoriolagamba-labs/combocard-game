@@ -30,6 +30,16 @@ describe('adminService', () => {
     expect(api.get).toHaveBeenCalledWith('/admin/users?q=Carlo+%26+Anna%2F1&page=1&limit=20');
   });
 
+  test.each([
+    ['suspendUser', '/admin/users/p%201/suspend'],
+    ['unsuspendUser', '/admin/users/p%201/unsuspend'],
+    ['revokeSessions', '/admin/users/p%201/sessions/revoke'],
+  ])('%s posts the reason to its route', async (name, path) => {
+    await expect(adminService[name]('p 1', { reason: 'abuso' })).resolves.toBe('answer');
+
+    expect(api.post).toHaveBeenCalledWith(path, { reason: 'abuso' });
+  });
+
   test('getUser asks for one user', async () => {
     await adminService.getUser('p 1');
 

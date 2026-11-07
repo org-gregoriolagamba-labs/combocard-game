@@ -15,6 +15,7 @@ import {
   adminAdjustCreditsSchema,
   adminAuditQuerySchema,
   adminCancelGameSchema,
+  adminUserActionSchema,
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
@@ -250,6 +251,21 @@ describe('admin schemas', () => {
       ['a reason that is too long', { reason: 'x'.repeat(201) }],
     ])('rejects %s', (_name, body) => {
       expect(adminCancelGameSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('adminUserActionSchema', () => {
+    test('takes a reason, trimmed', () => {
+      expect(adminUserActionSchema.validate({ reason: ' abuso ' }).value).toEqual({ reason: 'abuso' });
+    });
+
+    test.each([
+      ['no reason', {}],
+      ['an empty reason', { reason: '  ' }],
+      ['a reason that is too long', { reason: 'x'.repeat(201) }],
+      ['a field that is not allowed', { reason: 'x', playerId: 'p2' }],
+    ])('rejects %s', (_name, body) => {
+      expect(adminUserActionSchema.validate(body).error).toBeDefined();
     });
   });
 });
