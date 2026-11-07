@@ -47,7 +47,7 @@ function DeleteUserDialog({ user, onClose, onDone }) {
   return (
     <Modal isOpen onClose={onClose} title={`Elimina l'account di ${user.username}`}>
       <form onSubmit={submit} noValidate className="space-y-4">
-        <p className="font-bold text-coppe">Non si può annullare.</p>
+        <p className="font-bold text-coppe">Operazione irreversibile.</p>
         <p className="text-testo-2 [overflow-wrap:anywhere]">
           {`${user.username} non potrà più accedere e il suo nome utente sarà libero. I crediti che ha ancora si perdono, senza rimborso. Resta lo storico delle partite e dei movimenti, ma senza il suo nome: al suo posto compare «Utente eliminato». Un utente che sta giocando una partita, o l'ultimo admin, non si può eliminare.`}
         </p>
