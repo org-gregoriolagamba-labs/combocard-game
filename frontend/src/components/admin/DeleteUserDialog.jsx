@@ -83,7 +83,7 @@ function DeleteUserDialog({ user, onClose, onDone }) {
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row-reverse">
-          <Button type="submit" variant="danger" disabled={!confirmed || sending} className="flex-1">
+          <Button type="submit" variant="danger" disabled={!confirmed || sending} className="flex-1 [overflow-wrap:anywhere]">
             {sending ? "Eliminazione in corso…" : "Elimina definitivamente"}
           </Button>
           <Button type="button" variant="outline" onClick={onClose} className="flex-1">

@@ -78,7 +78,7 @@ function ModalDialog({ onClose, title, children, className = "" }) {
       >
         <div className="flex justify-between items-start gap-3 mb-4">
           {title && (
-            <h2 id={titleId} className="titolo text-xl text-testo break-words">
+            <h2 id={titleId} className="titolo min-w-0 text-xl text-testo [overflow-wrap:anywhere]">
               {title}
             </h2>
           )}
@@ -86,7 +86,7 @@ function ModalDialog({ onClose, title, children, className = "" }) {
             type="button"
             aria-label="Chiudi"
             onClick={onClose}
-            className="ml-auto -mr-2 -mt-2 min-h-[44px] min-w-[44px] rounded-lg text-3xl leading-none text-testo-2 hover:text-testo"
+            className="ml-auto -mr-2 -mt-2 min-h-[44px] min-w-[44px] shrink-0 rounded-lg text-3xl leading-none text-testo-2 hover:text-testo"
           >
             <span aria-hidden="true">×</span>
           </button>
