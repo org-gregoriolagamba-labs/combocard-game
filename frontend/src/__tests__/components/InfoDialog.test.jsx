@@ -26,7 +26,10 @@ const contatti = vi.hoisted(() => ({
     email: null,
   },
 }));
-vi.mock('../../config/contatti', () => contatti);
+vi.mock('../../config/contatti', async (importOriginal) => ({
+  ...(await importOriginal()),
+  ...contatti,
+}));
 
 const state = () => ({
   player: { id: 'p1', name: 'Anna', credits: 100, regoleAccettateIl: '2026-11-03T10:00:00.000Z', role: 'player' },
@@ -71,6 +74,18 @@ describe('the "Info e contatti" dialog', () => {
       expect(link.getAttribute('rel')).toMatch(/noreferrer/);
       expect(link).toHaveTextContent('si apre in una nuova scheda');
     });
+  });
+
+  test('credits the deck: the 1875 pack printed in Naples, with the source', () => {
+    renderWithProviders(<InfoDialog onClose={() => {}} />);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Pignalosa');
+    expect(dialog).toHaveTextContent('1875');
+    const source = within(dialog).getByRole('link', { name: /British Museum/ });
+    expect(source).toHaveAttribute('href', 'https://www.britishmuseum.org/collection/object/P_1875-1211-172-211');
+    expect(source).toHaveAttribute('target', '_blank');
+    expect(source.getAttribute('rel')).toMatch(/noopener/);
   });
 
   test('shows no email until there is an address to write to', () => {
