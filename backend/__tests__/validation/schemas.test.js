@@ -16,6 +16,7 @@ import {
   adminAuditQuerySchema,
   adminCancelGameSchema,
   adminUserActionSchema,
+  changePasswordSchema,
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
@@ -266,6 +267,22 @@ describe('admin schemas', () => {
       ['a field that is not allowed', { reason: 'x', playerId: 'p2' }],
     ])('rejects %s', (_name, body) => {
       expect(adminUserActionSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('changePasswordSchema', () => {
+    test('takes the current and the new password', () => {
+      expect(isValid(changePasswordSchema, { currentPassword: 'temporary-1', newPassword: 'long enough' })).toBe(true);
+    });
+
+    test.each([
+      ['no current password', { newPassword: 'long enough' }],
+      ['no new password', { currentPassword: 'x' }],
+      ['a new password that is too short', { currentPassword: 'x', newPassword: 'short' }],
+      ['a new password that is too long', { currentPassword: 'x', newPassword: 'x'.repeat(129) }],
+      ['a field that is not allowed', { currentPassword: 'x', newPassword: 'long enough', playerId: 'p2' }],
+    ])('rejects %s', (_name, body) => {
+      expect(changePasswordSchema.validate(body).error).toBeDefined();
     });
   });
 });

@@ -93,6 +93,22 @@ describe('the events of the jolly pause', () => {
   });
 });
 
+describe('the temporary password', () => {
+  test('the socket does not connect while the password must change: the server would refuse it and the retries would renew the session', () => {
+    const connect = vi.spyOn(socketService, 'connect');
+    const disconnect = vi.spyOn(socketService, 'disconnect');
+
+    renderWithProviders(<Probe />, {
+      preloadedState: { player: { id: 'carlo', name: 'Carlo', mustChangePassword: true }, game: mockGameState },
+    });
+
+    expect(connect).not.toHaveBeenCalled();
+    expect(disconnect).toHaveBeenCalled();
+    connect.mockRestore();
+    disconnect.mockRestore();
+  });
+});
+
 describe('sessionEnded', () => {
   test.each([
     ['suspended', 'Il tuo account è stato sospeso'],

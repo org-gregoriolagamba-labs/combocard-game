@@ -102,6 +102,7 @@ const authView = (account) => ({
   role: account.role,
   suspended: Boolean(account.suspendedAt),
   sessionVersion: account.sessionVersion,
+  mustChangePassword: Boolean(account.mustChangePassword),
 });
 
 // What the audit log keeps of a cancelled game
@@ -189,6 +190,7 @@ export function createMemoryStore() {
         createdAt: new Date(),
         suspendedAt: null,
         sessionVersion: 0,
+        mustChangePassword: false,
       });
     },
     async findAccountByUsernameKey(usernameKey) {
@@ -236,7 +238,7 @@ export function createMemoryStore() {
     },
     async findAccountById(playerId) {
       const account = [...accounts.values()].find((a) => a.playerId === playerId);
-      return account ? { ...account, ...authView(account) } : null;
+      return account ? authView(account) : null;
     },
     async setAccountSuspended(playerId, suspended, { actor, reason } = {}) {
       assertAccountAction(reason, actor);
@@ -258,6 +260,33 @@ export function createMemoryStore() {
       }
       pushAudit(actor, suspended ? "user_suspended" : "user_unsuspended", playerId, { reason: reason.trim() });
       return { playerId, suspended, previousSuspended, changed: true };
+    },
+    async getPasswordHash(playerId) {
+      return [...accounts.values()].find((a) => a.playerId === playerId)?.passwordHash ?? null;
+    },
+    async resetAccountPassword(playerId, passwordHash, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      Object.assign(account, { passwordHash, mustChangePassword: true });
+      account.sessionVersion += 1;
+      revokeTokensOf(playerId);
+      pushAudit(actor, "password_reset", playerId, { reason: reason.trim() });
+      return { playerId };
+    },
+    async changeAccountPassword(playerId, passwordHash, { actor } = {}) {
+      assertActor(actor);
+      const account = [...accounts.values()].find((a) => a.playerId === playerId);
+      if (!account) {
+        return null;
+      }
+      Object.assign(account, { passwordHash, mustChangePassword: false });
+      account.sessionVersion += 1;
+      revokeTokensOf(playerId);
+      pushAudit(actor, "password_changed", playerId, {});
+      return { playerId, sessionVersion: account.sessionVersion };
     },
     async revokeAccountSessions(playerId, { actor, reason } = {}) {
       assertAccountAction(reason, actor);
@@ -600,12 +629,13 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     /**
      * Find an account by its normalized username
      * @param {string} usernameKey - Normalized username
-     * @returns {Promise<Object|null>} { playerId, passwordHash, role, suspended, sessionVersion }
+     * @returns {Promise<Object|null>} { playerId, passwordHash, role, suspended, sessionVersion, mustChangePassword }
      */
     async findAccountByUsernameKey(usernameKey) {
       const { rows } = await pool.query(
         `SELECT player_id AS "playerId", password_hash AS "passwordHash", role,
-                suspended_at IS NOT NULL AS suspended, session_version AS "sessionVersion"
+                suspended_at IS NOT NULL AS suspended, session_version AS "sessionVersion",
+                must_change_password AS "mustChangePassword"
          FROM user_accounts WHERE username_key = $1`,
         [usernameKey],
       );
@@ -615,12 +645,12 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     /**
      * Find an account by its player
      * @param {string} playerId - Player ID
-     * @returns {Promise<Object|null>} { playerId, role, suspended, sessionVersion }
+     * @returns {Promise<Object|null>} { playerId, role, suspended, sessionVersion, mustChangePassword }
      */
     async findAccountById(playerId) {
       const { rows } = await pool.query(
         `SELECT player_id AS "playerId", role, suspended_at IS NOT NULL AS suspended,
-                session_version AS "sessionVersion"
+                session_version AS "sessionVersion", must_change_password AS "mustChangePassword"
          FROM user_accounts WHERE player_id = $1`,
         [playerId],
       );
@@ -728,6 +758,78 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
           ],
         );
         return { playerId, suspended, previousSuspended, changed: true };
+      });
+    },
+
+    /**
+     * The hash of the password of an account, only to check a password that is being changed: no
+     * other read of an account returns it by id
+     * @param {string} playerId - Player of the account
+     * @returns {Promise<string|null>} The hash, or null if there is no account
+     */
+    async getPasswordHash(playerId) {
+      const { rows } = await pool.query("SELECT password_hash AS hash FROM user_accounts WHERE player_id = $1", [playerId]);
+      return rows[0]?.hash ?? null;
+    },
+
+    /**
+     * An admin resets a password: the hash is replaced, the account must change it at the next login,
+     * the sessions close, with the trace, in one transaction. The audit row never holds the password.
+     * @param {string} playerId - Player of the account
+     * @param {string} passwordHash - Hash of the temporary password
+     * @param {Object} options - { actor, reason }
+     * @returns {Promise<Object|null>} { playerId }, or null if there is no account
+     */
+    async resetAccountPassword(playerId, passwordHash, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      return withTransaction(async (client) => {
+        const { rowCount } = await client.query(
+          `UPDATE user_accounts
+           SET password_hash = $2, must_change_password = true, session_version = session_version + 1
+           WHERE player_id = $1`,
+          [playerId, passwordHash],
+        );
+        if (rowCount === 0) {
+          return null;
+        }
+        await revokeTokensOf(client, playerId);
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'password_reset', $3, $4)`,
+          [actor.type, actor.id ?? null, playerId, JSON.stringify({ reason: reason.trim() })],
+        );
+        return { playerId };
+      });
+    },
+
+    /**
+     * A user chooses a new password: the hash is replaced, the obligation to change it is cleared and
+     * every session closes (the caller opens a new one with the version returned), with the trace, in
+     * one transaction
+     * @param {string} playerId - Player of the account
+     * @param {string} passwordHash - Hash of the new password
+     * @param {Object} options - { actor }
+     * @returns {Promise<Object|null>} { playerId, sessionVersion }, or null if there is no account
+     */
+    async changeAccountPassword(playerId, passwordHash, { actor } = {}) {
+      assertActor(actor);
+      return withTransaction(async (client) => {
+        const { rows } = await client.query(
+          `UPDATE user_accounts
+           SET password_hash = $2, must_change_password = false, session_version = session_version + 1
+           WHERE player_id = $1 RETURNING session_version AS "sessionVersion"`,
+          [playerId, passwordHash],
+        );
+        if (rows.length === 0) {
+          return null;
+        }
+        await revokeTokensOf(client, playerId);
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'password_changed', $3, '{}')`,
+          [actor.type, actor.id ?? null, playerId],
+        );
+        return { playerId, sessionVersion: rows[0].sessionVersion };
       });
     },
 

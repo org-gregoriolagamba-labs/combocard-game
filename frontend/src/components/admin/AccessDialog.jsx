@@ -3,7 +3,8 @@
  *
  * The admin suspends a user, reinstates a suspended one, or closes the sessions of a user, with the
  * reason that goes in the audit log. A suspended user can only be reinstated: their sessions are
- * already closed.
+ * already closed. The admin can also reset the password: the temporary one is shown here, once, and
+ * is not kept anywhere else.
  */
 
 import React, { useRef, useState } from "react";
@@ -16,6 +17,8 @@ function AccessDialog({ user, onClose, onDone }) {
   const [problem, setProblem] = useState(null);
   const [serverError, setServerError] = useState(null);
   const [sending, setSending] = useState(false);
+  // The temporary password, only while this dialog is open
+  const [temporaryPassword, setTemporaryPassword] = useState(null);
   // A double tap must not send it twice: the ref answers at once, the state would not
   const inFlight = useRef(false);
 
@@ -28,12 +31,24 @@ function AccessDialog({ user, onClose, onDone }) {
       return;
     }
 
-    const request = { suspend: adminService.suspendUser, unsuspend: adminService.unsuspendUser, revoke: adminService.revokeSessions }[kind];
+    const request = {
+      suspend: adminService.suspendUser,
+      unsuspend: adminService.unsuspendUser,
+      revoke: adminService.revokeSessions,
+      reset: adminService.resetPassword,
+    }[kind];
     inFlight.current = true;
     setSending(true);
     setServerError(null);
     try {
-      onDone(await request(user.playerId, { reason: reason.trim() }), kind);
+      const result = await request(user.playerId, { reason: reason.trim() });
+      if (kind === "reset") {
+        // The password stays in this dialog: the user and the toast do not carry it
+        setTemporaryPassword(result.temporaryPassword);
+        onDone(result.user, kind, { keepOpen: true });
+      } else {
+        onDone(result, kind);
+      }
     } catch (error) {
       setServerError(error.message);
     } finally {
@@ -41,6 +56,28 @@ function AccessDialog({ user, onClose, onDone }) {
       setSending(false);
     }
   };
+
+  if (temporaryPassword) {
+    return (
+      <Modal isOpen onClose={onClose} title={`Accesso di ${user.username}`}>
+        <div className="space-y-4">
+          <p className="text-testo-2">{`Password provvisoria di ${user.username}:`}</p>
+          <p
+            aria-label="Password provvisoria"
+            className="select-all rounded-xl border-2 border-linea-forte bg-notte-950 px-4 py-3 text-center font-mono text-xl font-bold tracking-wider text-testo [overflow-wrap:anywhere]"
+          >
+            {temporaryPassword}
+          </p>
+          <p className="text-testo-2">
+            {`Comunicala a ${user.username}: non sarà più visibile dopo aver chiuso questa finestra. Al prossimo accesso dovrà scegliere una password sua. Le sue sessioni sono state chiuse.`}
+          </p>
+          <Button type="button" onClick={onClose} fullWidth>
+            Fatto
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen onClose={onClose} title={`Accesso di ${user.username}`}>
@@ -89,6 +126,9 @@ function AccessDialog({ user, onClose, onDone }) {
               </Button>
             </>
           )}
+          <Button type="button" variant="secondary" disabled={sending} onClick={() => send("reset")}>
+            Reimposta la password
+          </Button>
           <Button type="button" variant="outline" onClick={onClose}>
             Indietro
           </Button>

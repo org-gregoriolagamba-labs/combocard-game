@@ -40,7 +40,21 @@ export const login = async (username, password) => {
  */
 export const restoreSession = async () => {
   const session = await refreshSession();
-  return session?.player ? { ...session.player, role: session.role ?? "player" } : null;
+  return session?.player
+    ? { ...session.player, role: session.role ?? "player", mustChangePassword: session.mustChangePassword === true }
+    : null;
+};
+
+/**
+ * Choose a new password, with the current one (the temporary one, after a reset by an admin). The other
+ * sessions close, and the server opens a new one for this device.
+ * @param {string} currentPassword - Current password
+ * @param {string} newPassword - New password
+ * @returns {Promise<Object>} { accessToken, player, role, mustChangePassword }
+ */
+export const changePassword = async (currentPassword, newPassword) => {
+  const response = await api.post("/auth/password", { currentPassword, newPassword });
+  return startSession(response.data);
 };
 
 /**

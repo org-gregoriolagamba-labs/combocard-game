@@ -40,6 +40,15 @@ describe('adminService', () => {
     expect(api.post).toHaveBeenCalledWith(path, { reason: 'abuso' });
   });
 
+  test('resetPassword posts the reason and gives back the user with the temporary password', async () => {
+    api.post.mockResolvedValue({ data: { user: { playerId: 'p 1' }, temporaryPassword: 'ABCD-EFGH-JKMN' } });
+
+    await expect(adminService.resetPassword('p 1', { reason: 'dimenticata' }))
+      .resolves.toEqual({ user: { playerId: 'p 1' }, temporaryPassword: 'ABCD-EFGH-JKMN' });
+
+    expect(api.post).toHaveBeenCalledWith('/admin/users/p%201/password/reset', { reason: 'dimenticata' });
+  });
+
   test('getUser asks for one user', async () => {
     await adminService.getUser('p 1');
 

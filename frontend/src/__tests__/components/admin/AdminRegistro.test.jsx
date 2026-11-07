@@ -32,6 +32,9 @@ const EVENTS = [
   event(8, 'user_suspended', { reason: 'abuso' }),
   event(9, 'user_unsuspended', { reason: 'chiarito' }),
   event(10, 'sessions_revoked', { reason: 'furto' }),
+  event(11, 'password_reset', { reason: 'dimenticata' }),
+  event(12, 'password_changed', {}, { actorId: 'p1', actorName: 'Anna' }),
+  event(13, 'password_changed', {}, { actorId: 'p3', actorName: 'Dario', targetId: 'p3', targetName: 'Dario' }),
 ];
 
 describe('AdminScreen: the audit log', () => {
@@ -73,6 +76,9 @@ describe('AdminScreen: the audit log', () => {
     expect(sentences[7]).toContain('Dario ha sospeso Anna: «abuso»');
     expect(sentences[8]).toContain('Dario ha riabilitato Anna: «chiarito»');
     expect(sentences[9]).toContain('Dario ha chiuso le sessioni di Anna: «furto»');
+    expect(sentences[10]).toContain('Dario ha reimpostato la password di Anna: «dimenticata»');
+    expect(sentences[11]).toContain('Anna ha cambiato la propria password');
+    expect(sentences[12]).toContain('Dario ha cambiato la propria password');
   });
 
   test('every action has its time', async () => {

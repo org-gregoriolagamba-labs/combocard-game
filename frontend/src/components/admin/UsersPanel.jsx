@@ -107,15 +107,19 @@ function UsersPanel({ onForbidden }) {
     setDialog(null);
   };
 
-  const accessDone = (user, updated, kind) => {
+  const accessDone = (user, updated, kind, { keepOpen = false } = {}) => {
     changeUser(updated);
     const message = {
       suspend: `Accesso sospeso: ${user.username}`,
       unsuspend: `Accesso riabilitato: ${user.username}`,
       revoke: `Sessioni chiuse: ${user.username}`,
+      reset: `Password reimpostata: ${user.username}`,
     }[kind];
     dispatch(addToast({ message, type: "success" }));
-    setDialog(null);
+    // After a reset the dialog shows the temporary password: it closes when the admin closes it
+    if (!keepOpen) {
+      setDialog(null);
+    }
   };
 
   const select =
@@ -226,7 +230,7 @@ function UsersPanel({ onForbidden }) {
         <AccessDialog
           user={dialog.user}
           onClose={() => setDialog(null)}
-          onDone={(updated, kind) => accessDone(dialog.user, updated, kind)}
+          onDone={(updated, kind, options) => accessDone(dialog.user, updated, kind, options)}
         />
       )}
       {dialog?.type === "edit" && (

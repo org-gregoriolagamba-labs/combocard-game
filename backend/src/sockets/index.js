@@ -22,7 +22,8 @@ export const playerRoom = (playerId) => `player:${playerId}`;
 export const authenticateSocket = (gameState, getStore) => async (socket, next) => {
   try {
     const auth = await authenticateToken(socket.handshake.auth?.token, gameState, getStore());
-    if (!auth) {
+    // Whoever must still change the password has nothing to do in the game yet
+    if (!auth || auth.mustChangePassword) {
       return next(new Error("Unauthorized"));
     }
     socket.data.playerId = auth.playerId;

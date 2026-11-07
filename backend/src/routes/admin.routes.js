@@ -80,6 +80,13 @@ router.post("/users/:playerId/unsuspend", validate(adminUserActionSchema), admin
 router.post("/users/:playerId/sessions/revoke", validate(adminUserActionSchema), adminController.revokeSessions);
 
 /**
+ * @route   POST /api/admin/users/:playerId/password/reset
+ * @desc    Reset the password with a temporary one, shown once: the user must change it at the next login
+ * @access  Admin
+ */
+router.post("/users/:playerId/password/reset", validate(adminUserActionSchema), adminController.resetPassword);
+
+/**
  * @route   GET /api/admin/games
  * @desc    The games waiting or in progress: metadata only, never the deck or the grids
  * @access  Admin

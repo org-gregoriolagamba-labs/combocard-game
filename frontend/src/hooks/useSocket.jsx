@@ -28,7 +28,7 @@ import { setAccessToken } from "../services/api";
 export function useSocket() {
   const dispatch = useDispatch();
   const { currentGameId, game } = useSelector((state) => state.game);
-  const { id: playerId } = useSelector((state) => state.player);
+  const { id: playerId, mustChangePassword } = useSelector((state) => state.player);
 
   // Refresh game state from server
   const refreshGameState = useCallback(async () => {
@@ -50,9 +50,10 @@ export function useSocket() {
   }, [currentGameId, playerId, dispatch]);
 
   // The server accepts only authenticated connections: connect after the login,
-  // disconnect after the logout
+  // disconnect after the logout. Not with a temporary password: the server refuses it, and every
+  // refusal would renew the session behind the back of the change of the password
   useEffect(() => {
-    if (!playerId) {
+    if (!playerId || mustChangePassword) {
       socketService.disconnect();
       return undefined;
     }
@@ -69,7 +70,7 @@ export function useSocket() {
     return () => {
       socket.off("connect", handleConnect);
     };
-  }, [playerId, currentGameId]);
+  }, [playerId, mustChangePassword, currentGameId]);
 
   // Join game room when gameId changes
   useEffect(() => {
@@ -80,7 +81,7 @@ export function useSocket() {
 
   // Game event handlers
   useEffect(() => {
-    if (!playerId) return undefined;
+    if (!playerId || mustChangePassword) return undefined;
 
     const socket = socketService.getSocket();
 
@@ -273,7 +274,7 @@ export function useSocket() {
       socket.off("gameCancelled", handleGameCancelled);
       socket.off("sessionEnded", handleSessionEnded);
     };
-  }, [currentGameId, playerId, game, dispatch, refreshGameState]);
+  }, [currentGameId, playerId, mustChangePassword, game, dispatch, refreshGameState]);
 
   return {
     refreshGameState,

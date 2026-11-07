@@ -15,6 +15,7 @@ export { default as RivelazioneCarta } from './RivelazioneCarta';
 export { default as StoricoCarte } from './StoricoCarte';
 export { default as RegoleGioco } from './RegoleGioco';
 export { default as RegoleScreen } from './RegoleScreen';
+export { default as ChangePasswordScreen } from './ChangePasswordScreen';
 export { default as Coriandoli } from './Coriandoli';
 export { default as HallScreen } from './HallScreen';
 export { default as LobbyScreen } from './LobbyScreen';

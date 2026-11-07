@@ -154,6 +154,7 @@ describeWithDb('PostgreSQL store', () => {
         role: 'player',
         suspended: false,
         sessionVersion: 0,
+        mustChangePassword: false,
       });
       await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'player' });
       const { players } = await createPostgresStore(pool).loadState();
@@ -641,6 +642,63 @@ describeWithDb('PostgreSQL store', () => {
       expect(event).toMatchObject({ action: 'sessions_revoked', details: { reason: 'furto' } });
       await expect(store.revokeAccountSessions('ghost', { actor: admin, reason: 'x' })).resolves.toBeNull();
       await expect(store.revokeAccountSessions('p1', { actor: admin })).rejects.toThrow(TypeError);
+    });
+  });
+
+  describe('password reset and change', () => {
+    const admin = { type: 'player', id: 'p9' };
+    const makeAccount = (id) =>
+      store.createAccount({ ...player, id, name: id }, { username: id, usernameKey: id, passwordHash: `hash-${id}` });
+    const next = (tokenHash) => ({ tokenHash, expiresAt: new Date(Date.now() + 60000), graceSeconds: 10 });
+
+    beforeEach(async () => {
+      await makeAccount('p1');
+      await makeAccount('p2');
+    });
+
+    test('an existing account does not have to change the password; the hash is read only by its own method', async () => {
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ mustChangePassword: false });
+      expect(await store.findAccountById('p1')).not.toHaveProperty('passwordHash');
+      await expect(store.getPasswordHash('p1')).resolves.toBe('hash-p1');
+      await expect(store.getPasswordHash('ghost')).resolves.toBeNull();
+    });
+
+    test('a reset replaces the hash, asks for a change, closes the sessions and is traced without the password', async () => {
+      await store.createRefreshToken({ tokenHash: 'h1', familyId: 'f1', playerId: 'p1', expiresAt: new Date(Date.now() + 60000) });
+      await store.createRefreshToken({ tokenHash: 'h-other', familyId: 'f2', playerId: 'p2', expiresAt: new Date(Date.now() + 60000) });
+
+      await expect(store.resetAccountPassword('p1', 'secret-new-hash', { actor: admin, reason: ' dimenticata ' })).resolves.toEqual({ playerId: 'p1' });
+
+      await expect(store.getPasswordHash('p1')).resolves.toBe('secret-new-hash');
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ mustChangePassword: true, sessionVersion: 1 });
+      await expect(store.rotateRefreshToken('h1', next('n1'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('h-other', next('n2'))).resolves.toBe('p2');
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'password_reset', actorId: 'p9', details: { reason: 'dimenticata' } });
+      expect(JSON.stringify(event)).not.toMatch(/secret-new-hash/);
+    });
+
+    test('a change clears the obligation, closes the other sessions and gives the new version, traced', async () => {
+      await store.resetAccountPassword('p1', 'temp-hash', { actor: admin, reason: 'x' });
+      await store.createRefreshToken({ tokenHash: 'h2', familyId: 'f3', playerId: 'p1', expiresAt: new Date(Date.now() + 60000) });
+
+      await expect(store.changeAccountPassword('p1', 'mine-hash', { actor: { type: 'player', id: 'p1' } }))
+        .resolves.toEqual({ playerId: 'p1', sessionVersion: 2 });
+
+      await expect(store.getPasswordHash('p1')).resolves.toBe('mine-hash');
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ mustChangePassword: false, sessionVersion: 2 });
+      await expect(store.rotateRefreshToken('h2', next('n3'))).resolves.toBeNull();
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'password_changed', actorId: 'p1' });
+      expect(JSON.stringify(event)).not.toMatch(/mine-hash/);
+    });
+
+    test('an unknown account gives null; a reason and an actor are needed and nothing changes without them', async () => {
+      await expect(store.resetAccountPassword('ghost', 'h', { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.changeAccountPassword('ghost', 'h', { actor: admin })).resolves.toBeNull();
+      await expect(store.resetAccountPassword('p1', 'h', { actor: admin })).rejects.toThrow(TypeError);
+      await expect(store.changeAccountPassword('p1', 'h')).rejects.toThrow(TypeError);
+      await expect(store.getPasswordHash('p1')).resolves.toBe('hash-p1');
     });
   });
 

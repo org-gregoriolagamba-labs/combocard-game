@@ -20,6 +20,17 @@ export const registerAccount = createAsyncThunk(
   }
 );
 
+export const changePassword = createAsyncThunk(
+  "player/changePassword",
+  async ({ currentPassword, newPassword }, { rejectWithValue }) => {
+    try {
+      return await authService.changePassword(currentPassword, newPassword);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const login = createAsyncThunk(
   "player/login",
   async ({ username, password }, { rejectWithValue }) => {
@@ -90,10 +101,13 @@ const initialState = {
   sessionChecked: false,
   // 'player' or 'admin': it decides only what the screens show, the server decides what is allowed
   role: "player",
+  // An admin reset the password: until the player chooses their own, the server accepts nothing else
+  mustChangePassword: false,
 };
 
-const applyPlayer = (state, player, role = player.role) => {
+const applyPlayer = (state, player, role = player.role, mustChangePassword = player.mustChangePassword === true) => {
   state.role = role ?? "player";
+  state.mustChangePassword = mustChangePassword;
   state.id = player.id;
   state.name = player.name;
   state.credits = player.credits;
@@ -133,7 +147,7 @@ const playerSlice = createSlice({
       })
       .addCase(registerAccount.fulfilled, (state, action) => {
         state.isLoading = false;
-        applyPlayer(state, action.payload.player, action.payload.role);
+        applyPlayer(state, action.payload.player, action.payload.role, action.payload.mustChangePassword === true);
       })
       .addCase(registerAccount.rejected, (state, action) => {
         state.isLoading = false;
@@ -145,7 +159,11 @@ const playerSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        applyPlayer(state, action.payload.player, action.payload.role);
+        applyPlayer(state, action.payload.player, action.payload.role, action.payload.mustChangePassword === true);
+      })
+      // The new password: the session that comes back is the one of the player, free to play
+      .addCase(changePassword.fulfilled, (state, action) => {
+        applyPlayer(state, action.payload.player, action.payload.role, false);
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;

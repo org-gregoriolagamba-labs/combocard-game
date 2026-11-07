@@ -36,6 +36,17 @@ describe('HomePage', () => {
     errorSpy.mockRestore();
   });
 
+  test('a login with a temporary password does not go to the hall: the password comes first', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(200, { data: { ...session.data, role: 'player', mustChangePassword: true } }));
+    const { store } = renderWithProviders(<HomePage />);
+
+    fill('Anna', 'K7QM-X2PD-9WJT');
+    fireEvent.click(screen.getByRole('button', { name: /accedi/i }));
+
+    await waitFor(() => expect(store.getState().player.mustChangePassword).toBe(true));
+    expect(store.getState().ui.currentScreen).not.toBe('hall');
+  });
+
   test('logs in by default, with a password field that hides the text', async () => {
     global.fetch.mockResolvedValue(jsonResponse(200, session));
     const { store } = renderWithProviders(<HomePage />);
