@@ -39,7 +39,7 @@ describe('the deletion of one\'s own account', () => {
     open();
 
     const dialog = await screen.findByRole('dialog', { name: 'Elimina il mio account' });
-    expect(dialog).toHaveTextContent('Non si può annullare');
+    expect(dialog).toHaveTextContent('Operazione irreversibile');
     expect(dialog).toHaveTextContent('crediti');
     expect(dialog).toHaveTextContent('Utente eliminato');
   });

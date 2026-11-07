@@ -50,7 +50,7 @@ function DeleteAccountDialog({ onClose }) {
   return (
     <Modal isOpen onClose={onClose} title="Elimina il mio account">
       <form onSubmit={submit} noValidate className="space-y-4">
-        <p className="font-bold text-coppe">Non si può annullare.</p>
+        <p className="font-bold text-coppe">Operazione irreversibile.</p>
         <p className="text-testo-2 [overflow-wrap:anywhere]">
           Non potrai più accedere e il tuo nome utente tornerà libero. I crediti che hai ancora si perdono, senza rimborso.
           Resta lo storico delle partite e dei movimenti, ma senza il tuo nome: al suo posto compare «Utente eliminato».
