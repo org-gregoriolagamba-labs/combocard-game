@@ -27,6 +27,16 @@ const EVENTS = [
   event(3, 'role_changed', { from: 'player', to: 'admin' }, { actorType: 'system', actorId: null, actorName: null, targetId: 'p3', targetName: 'Dario' }),
   event(2, 'role_changed', { from: 'admin', to: 'player' }, { targetName: 'Carlo Rossi', targetId: 'p2' }),
   event(1, 'username_changed', { from: 'Carlo Rossi', to: 'Carlo Bianchi' }, { targetId: 'p2', targetName: 'Carlo Bianchi' }),
+  event(6, 'game_cancelled', { reason: 'bloccata', previousStatus: 'playing', refunds: [{ playerId: 'p1', amount: 100 }, { playerId: 'p2', amount: 100 }] }, { targetId: 'g1', targetName: null }),
+  event(7, 'game_cancelled', { reason: 'abbandonata', previousStatus: 'waiting', refunds: [] }, { targetId: 'g2', targetName: null }),
+  event(8, 'user_suspended', { reason: 'abuso' }),
+  event(9, 'user_unsuspended', { reason: 'chiarito' }),
+  event(10, 'sessions_revoked', { reason: 'furto' }),
+  event(11, 'password_reset', { reason: 'dimenticata' }),
+  event(12, 'password_changed', {}, { actorId: 'p1', actorName: 'Anna' }),
+  event(13, 'password_changed', {}, { actorId: 'p3', actorName: 'Dario', targetId: 'p3', targetName: 'Dario' }),
+  event(14, 'user_deleted', { role: 'player', reason: 'abuso', self: false }, { targetName: null }),
+  event(15, 'user_deleted', { role: 'player', reason: null, self: true }, { actorName: null, targetName: null }),
 ];
 
 describe('AdminScreen: the audit log', () => {
@@ -42,12 +52,12 @@ describe('AdminScreen: the audit log', () => {
     return view;
   };
 
-  test('has two tabs, the users first', async () => {
+  test('has four tabs, the users first and the log last', async () => {
     renderWithProviders(<AdminScreen />, { preloadedState: adminState() });
 
     const tabs = await screen.findAllByRole('tab');
 
-    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Registro']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(adminService.listAudit).not.toHaveBeenCalled();
   });
@@ -62,6 +72,17 @@ describe('AdminScreen: the audit log', () => {
     expect(sentences[2]).toContain('Il sistema ha reso admin Dario');
     expect(sentences[3]).toContain('Dario ha reso giocatore Carlo Rossi');
     expect(sentences[4]).toContain('Dario ha cambiato il nome di Carlo Rossi in Carlo Bianchi');
+    expect(sentences[5]).toContain('Dario ha annullato una partita in corso: «bloccata», rimborsati 200 crediti');
+    expect(sentences[6]).toContain('Dario ha annullato una partita in attesa: «abbandonata»');
+    expect(sentences[6]).not.toContain('rimborsati');
+    expect(sentences[7]).toContain('Dario ha sospeso Anna: «abuso»');
+    expect(sentences[8]).toContain('Dario ha riabilitato Anna: «chiarito»');
+    expect(sentences[9]).toContain('Dario ha chiuso le sessioni di Anna: «furto»');
+    expect(sentences[10]).toContain('Dario ha reimpostato la password di Anna: «dimenticata»');
+    expect(sentences[11]).toContain('Anna ha cambiato la propria password');
+    expect(sentences[12]).toContain('Dario ha cambiato la propria password');
+    expect(sentences[13]).toContain('Dario ha eliminato un account: «abuso»');
+    expect(sentences[14]).toContain('Un utente ha eliminato il proprio account');
   });
 
   test('every action has its time', async () => {

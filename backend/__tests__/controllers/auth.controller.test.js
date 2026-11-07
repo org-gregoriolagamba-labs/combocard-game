@@ -6,16 +6,22 @@
  */
 
 import { jest } from '@jest/globals';
-import { register, login, refresh, logout } from '../../src/controllers/auth.controller.js';
+import { register, login, refresh, logout, changePassword, deleteOwnAccount } from '../../src/controllers/auth.controller.js';
 import { hashRefreshToken, verifyAccessToken } from '../../src/services/auth.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
+import { playerRoom } from '../../src/sockets/index.js';
 
 const CREDENTIALS = { username: 'Anna', password: 'correct horse' };
 
 function createContext() {
-  const context = { gameState: { games: {}, players: {} }, store: createMemoryStore(), cookie: null };
+  const emitted = [];
+  const io = {
+    to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }),
+    in: (room) => ({ disconnectSockets: (close) => emitted.push({ room, event: 'disconnectSockets', payload: close }) }),
+  };
+  const context = { gameState: { games: {}, players: {} }, store: createMemoryStore(), cookie: null, emitted, io };
 
-  context.call = (handler, { body = {}, cookie = context.cookie } = {}) =>
+  context.call = (handler, { body = {}, cookie = context.cookie, auth } = {}) =>
     new Promise((resolve, reject) => {
       const result = { status: 200 };
       const res = {
@@ -41,6 +47,8 @@ function createContext() {
         cookies: cookie ? { combocard_refresh: cookie } : {},
         gameState: context.gameState,
         store: context.store,
+        io: context.io,
+        auth,
       };
       handler(req, res, reject);
     });
@@ -67,7 +75,7 @@ describe('auth controller', () => {
 
     test('never returns the password or its hash', async () => {
       const res = await ctx.call(register, { body: CREDENTIALS });
-      expect(JSON.stringify(res)).not.toMatch(/password|argon2/i);
+      expect(JSON.stringify(res)).not.toMatch(/passwordHash|correct horse|argon2/i);
     });
 
     test('sets a cookie that JavaScript cannot read, only for the auth routes', async () => {
@@ -127,9 +135,57 @@ describe('auth controller', () => {
       expect(wrongPassword.message).toBe(unknownUser.message);
       expect(ctx.cookie).toBeNull();
     });
+
+    test('puts the version of the session in the access token', async () => {
+      const res = await ctx.call(login, { body: CREDENTIALS });
+
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBe(0);
+    });
+
+    test('a suspended account does not get in, and gets no session', async () => {
+      const [player] = Object.values(ctx.gameState.players);
+      await ctx.store.setAccountSuspended(player.id, true, { actor: { type: 'system' }, reason: 'abuso' });
+
+      await expect(ctx.call(login, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 403, message: 'This account is suspended' });
+      expect(ctx.cookie).toBeNull();
+    });
+
+    test('a suspended account with a wrong password is told nothing about it', async () => {
+      const [player] = Object.values(ctx.gameState.players);
+      await ctx.store.setAccountSuspended(player.id, true, { actor: { type: 'system' }, reason: 'abuso' });
+
+      await expect(ctx.call(login, { body: { ...CREDENTIALS, password: 'nope nope' } })).rejects.toMatchObject({ statusCode: 401 });
+    });
   });
 
   describe('refresh', () => {
+    test('a suspended account cannot renew the session', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      const cookie = ctx.cookie;
+      await ctx.store.setAccountSuspended(data.player.id, true, { actor: { type: 'system' }, reason: 'abuso' });
+
+      await expect(ctx.call(refresh, { cookie })).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('after the sessions are closed the cookie no longer works', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      const cookie = ctx.cookie;
+      await ctx.store.revokeAccountSessions(data.player.id, { actor: { type: 'system' }, reason: 'furto' });
+
+      await expect(ctx.call(refresh, { cookie })).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('a new access token has the current version of the session', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      await ctx.store.revokeAccountSessions(data.player.id, { actor: { type: 'system' }, reason: 'furto' });
+      const login2 = await ctx.call(login, { body: CREDENTIALS });
+
+      const res = await ctx.call(refresh);
+
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBe(verifyAccessToken(login2.data.accessToken).sessionVersion);
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBeGreaterThan(0);
+    });
+
     test('without a cookie reports no session, without an error', async () => {
       const res = await ctx.call(refresh);
       expect(res.status).toBe(200);
@@ -172,6 +228,170 @@ describe('auth controller', () => {
       });
 
       await expect(ctx.call(refresh, { cookie: 'expired' })).rejects.toMatchObject({ statusCode: 401 });
+    });
+  });
+
+  describe('the password that an admin reset', () => {
+    const admin = { type: 'player', id: 'p9' };
+    let playerId;
+
+    beforeEach(async () => {
+      playerId = (await ctx.call(register, { body: CREDENTIALS })).data.player.id;
+      ctx.cookie = null;
+    });
+
+    const reset = async () => {
+      const { hashPassword } = await import('../../src/services/auth.service.js');
+      await ctx.store.resetAccountPassword(playerId, await hashPassword('temporary-1'), { actor: admin, reason: 'x' });
+    };
+
+    test('the old password no longer works; the temporary one logs in and says the password must change', async () => {
+      await reset();
+
+      await expect(ctx.call(login, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 401 });
+      const res = await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } });
+
+      expect(res.status).toBe(200);
+      expect(res.data.mustChangePassword).toBe(true);
+    });
+
+    test('a normal login says the password does not have to change; so do the refresh and the registration', async () => {
+      const res = await ctx.call(login, { body: CREDENTIALS });
+      expect(res.data.mustChangePassword).toBe(false);
+      expect((await ctx.call(refresh)).data.mustChangePassword).toBe(false);
+      ctx.cookie = null;
+      expect((await ctx.call(register, { body: { username: 'Carlo', password: 'another pass' } })).data.mustChangePassword).toBe(false);
+    });
+
+    test('the refresh of a session opened with the temporary password still says it', async () => {
+      await reset();
+      await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } });
+
+      expect((await ctx.call(refresh)).data.mustChangePassword).toBe(true);
+    });
+
+    test('changePassword: with the current password sets the new one, clears the obligation and opens a new session', async () => {
+      await reset();
+      const first = await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } });
+      const oldCookie = ctx.cookie;
+
+      const res = await ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: 'temporary-1', newPassword: 'my new password' },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.data).toMatchObject({ role: 'player', player: { id: playerId } });
+      expect(res.data.mustChangePassword).toBe(false);
+      expect(verifyAccessToken(res.data.accessToken).sessionVersion).toBeGreaterThan(verifyAccessToken(first.data.accessToken).sessionVersion);
+      expect(ctx.cookie).not.toBe(oldCookie);
+      await expect(ctx.call(refresh, { cookie: oldCookie })).rejects.toMatchObject({ statusCode: 401 });
+      await expect(ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } })).rejects.toMatchObject({ statusCode: 401 });
+      expect((await ctx.call(login, { body: { username: 'Anna', password: 'my new password' } })).data.mustChangePassword).toBe(false);
+    });
+
+    test('changePassword: a wrong current password is a 400 and nothing changes', async () => {
+      await reset();
+
+      await expect(ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: 'not it', newPassword: 'my new password' },
+      })).rejects.toMatchObject({ statusCode: 400, message: 'Current password is incorrect' });
+
+      expect((await ctx.call(login, { body: { username: 'Anna', password: 'temporary-1' } })).data.mustChangePassword).toBe(true);
+    });
+
+    test('changePassword: the new password must be different', async () => {
+      await expect(ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: CREDENTIALS.password, newPassword: CREDENTIALS.password },
+      })).rejects.toMatchObject({ statusCode: 400, message: 'The new password must be different' });
+    });
+
+    test('changePassword: the new password is never in the answer', async () => {
+      const res = await ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: CREDENTIALS.password, newPassword: 'my new password' },
+      });
+
+      expect(JSON.stringify(res)).not.toMatch(/my new password|argon2/);
+    });
+
+    test('changePassword: if the store cannot write, the answer is a 503 and the password stays', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      ctx.store.changeAccountPassword = async () => { throw new Error('down'); };
+
+      await expect(ctx.call(changePassword, {
+        auth: { playerId, role: 'player' },
+        body: { currentPassword: CREDENTIALS.password, newPassword: 'my new password' },
+      })).rejects.toMatchObject({ statusCode: 503 });
+
+      expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
+      jest.restoreAllMocks();
+    });
+  });
+
+  describe('deleteOwnAccount', () => {
+    let playerId;
+
+    beforeEach(async () => {
+      playerId = (await ctx.call(register, { body: CREDENTIALS })).data.player.id;
+    });
+
+    const remove = (password = CREDENTIALS.password) =>
+      ctx.call(deleteOwnAccount, { auth: { playerId, role: 'player' }, body: { password } });
+
+    test('with the password, deletes the account: nobody logs in, the cookie goes, the player leaves the game state', async () => {
+      const res = await remove();
+
+      expect(res.status).toBe(200);
+      expect(res.data).toEqual({ playerId, credits: 0 });
+      expect(res.clearedCookie).toBe(true);
+      expect(ctx.gameState.players[playerId]).toBeUndefined();
+      await expect(ctx.call(login, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 401 });
+      await expect(ctx.call(refresh, { cookie: 'anything' })).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('closes the connections of every device, and tells them the account is gone', async () => {
+      await remove();
+
+      expect(ctx.emitted).toEqual([
+        { room: playerRoom(playerId), event: 'sessionEnded', payload: { reason: 'deleted' } },
+        { room: playerRoom(playerId), event: 'disconnectSockets', payload: true },
+      ]);
+    });
+
+    test('a wrong password is a 400 and nothing is deleted or sent', async () => {
+      await expect(remove('not it')).rejects.toMatchObject({ statusCode: 400, message: 'Current password is incorrect' });
+
+      expect(ctx.gameState.players[playerId]).toBeDefined();
+      expect(ctx.emitted).toEqual([]);
+      expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
+    });
+
+    test('a player who is in a game cannot delete the account', async () => {
+      ctx.gameState.games.g1 = { id: 'g1', status: 'waiting', players: [{ id: playerId, name: 'Anna' }] };
+
+      await expect(remove()).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(ctx.gameState.players[playerId]).toBeDefined();
+      expect(ctx.emitted).toEqual([]);
+    });
+
+    test('the last active admin cannot', async () => {
+      await ctx.store.setAccountRole(playerId, 'admin', { actor: { type: 'system' } });
+
+      await expect(remove()).rejects.toMatchObject({ statusCode: 409 });
+    });
+
+    test('if the store cannot write, the answer is a 503 and the account stays', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      ctx.store.deleteAccount = async () => { throw new Error('down'); };
+
+      await expect(remove()).rejects.toMatchObject({ statusCode: 503 });
+
+      expect((await ctx.call(login, { body: CREDENTIALS })).status).toBe(200);
+      jest.restoreAllMocks();
     });
   });
 

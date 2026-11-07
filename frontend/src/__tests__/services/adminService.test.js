@@ -2,7 +2,7 @@ import api from '../../services/api';
 import * as adminService from '../../services/adminService';
 
 vi.mock('../../services/api', () => ({
-  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 describe('adminService', () => {
@@ -10,6 +10,7 @@ describe('adminService', () => {
     api.get.mockResolvedValue({ data: 'answer' });
     api.post.mockResolvedValue({ data: 'answer' });
     api.patch.mockResolvedValue({ data: 'answer' });
+    api.delete.mockResolvedValue({ data: 'answer' });
   });
 
   test('listUsers asks for the page with what was filled in, and leaves out what is empty', async () => {
@@ -28,6 +29,31 @@ describe('adminService', () => {
     await adminService.listUsers({ q: 'Carlo & Anna/1', page: 1, limit: 20 });
 
     expect(api.get).toHaveBeenCalledWith('/admin/users?q=Carlo+%26+Anna%2F1&page=1&limit=20');
+  });
+
+  test.each([
+    ['suspendUser', '/admin/users/p%201/suspend'],
+    ['unsuspendUser', '/admin/users/p%201/unsuspend'],
+    ['revokeSessions', '/admin/users/p%201/sessions/revoke'],
+  ])('%s posts the reason to its route', async (name, path) => {
+    await expect(adminService[name]('p 1', { reason: 'abuso' })).resolves.toBe('answer');
+
+    expect(api.post).toHaveBeenCalledWith(path, { reason: 'abuso' });
+  });
+
+  test('resetPassword posts the reason and gives back the user with the temporary password', async () => {
+    api.post.mockResolvedValue({ data: { user: { playerId: 'p 1' }, temporaryPassword: 'ABCD-EFGH-JKMN' } });
+
+    await expect(adminService.resetPassword('p 1', { reason: 'dimenticata' }))
+      .resolves.toEqual({ user: { playerId: 'p 1' }, temporaryPassword: 'ABCD-EFGH-JKMN' });
+
+    expect(api.post).toHaveBeenCalledWith('/admin/users/p%201/password/reset', { reason: 'dimenticata' });
+  });
+
+  test('deleteUser sends the reason with the delete', async () => {
+    await expect(adminService.deleteUser('p 1', { reason: 'richiesta' })).resolves.toBe('answer');
+
+    expect(api.delete).toHaveBeenCalledWith('/admin/users/p%201', { reason: 'richiesta' });
   });
 
   test('getUser asks for one user', async () => {

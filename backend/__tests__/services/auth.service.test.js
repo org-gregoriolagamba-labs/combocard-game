@@ -56,7 +56,16 @@ describe('access tokens', () => {
     expect(verifyAccessToken(signAccessToken('p1', 'player'))).toEqual({
       playerId: 'p1',
       role: 'player',
+      sessionVersion: 0,
     });
+  });
+
+  test('carry the version of the sessions, and the tokens from before it was added have version 0', () => {
+    expect(verifyAccessToken(signAccessToken('p1', 'player', 3)).sessionVersion).toBe(3);
+    const legacy = jwt.sign({ role: 'player' }, config.jwtSecret, {
+      algorithm: 'HS256', issuer: 'combocard', audience: 'combocard-api', subject: 'p1', expiresIn: 60,
+    });
+    expect(verifyAccessToken(legacy)).toMatchObject({ playerId: 'p1', sessionVersion: 0 });
   });
 
   test('expire after the configured time', () => {

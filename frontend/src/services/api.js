@@ -148,7 +148,11 @@ const api = {
     body: JSON.stringify(body),
   }),
 
-  delete: (endpoint) => fetchApi(endpoint, { method: "DELETE" }),
+  // A delete may carry a body (the admin gives the reason)
+  delete: (endpoint, body) => fetchApi(endpoint, {
+    method: "DELETE",
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  }),
 };
 
 export default api;

@@ -33,6 +33,17 @@ export const loginSchema = Joi.object({
   password: Joi.string().max(128).required(),
 });
 
+// The user chooses a new password, with the current one (the temporary one, after a reset)
+export const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().max(128).required(),
+  newPassword: Joi.string().min(8).max(128).required(),
+});
+
+// The user deletes their own account: the password is asked again
+export const deleteAccountSchema = Joi.object({
+  password: Joi.string().max(128).required(),
+});
+
 // Player routes
 export const buyCreditsSchema = Joi.object({
   amount: integer.min(1).required(),
@@ -83,6 +94,19 @@ export const adminAdjustCreditsSchema = Joi.object({
   reason: Joi.string().trim().min(1).max(200).required(),
 });
 
+// Suspend, reinstate or close the sessions of a user: always with the reason that goes in the audit log
+export const adminUserActionSchema = Joi.object({
+  reason: Joi.string().trim().min(1).max(200).required(),
+});
+
+export const adminListGamesQuerySchema = Joi.object({
+  // Only the games that can still be cancelled
+  status: Joi.string().valid("waiting", "playing"),
+  ...pageQuery,
+});
+export const adminCancelGameSchema = Joi.object({
+  reason: Joi.string().trim().min(1).max(200).required(),
+});
 export const adminAuditQuerySchema = Joi.object({
   targetId: Joi.string().max(64),
   ...pageQuery,

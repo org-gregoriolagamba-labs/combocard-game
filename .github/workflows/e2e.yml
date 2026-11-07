@@ -51,8 +51,19 @@ jobs:
       - name: Install E2E dependencies
         run: npm --prefix e2e ci
 
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('./e2e/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-all
+
       - name: Install Playwright Browsers
-        run: npx --prefix e2e playwright install --with-deps
+        timeout-minutes: 15
+        run: bash .github/scripts/install-playwright.sh
 
       - name: Build frontend
         run: npm --prefix frontend run build
@@ -172,8 +183,19 @@ jobs:
           npm --prefix frontend ci
           npm --prefix e2e ci
 
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('./e2e/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-chromium
+
       - name: Install Playwright Browsers (Chromium only)
-        run: npx --prefix e2e playwright install chromium --with-deps
+        timeout-minutes: 15
+        run: bash .github/scripts/install-playwright.sh chromium
 
       - name: Build frontend
         run: npm --prefix frontend run build

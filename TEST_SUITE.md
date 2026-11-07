@@ -171,7 +171,7 @@ PORT=3001
 E2E_BASE_URL=http://localhost:3000
 E2E_API_URL=http://localhost:3001
 # Optional: the PostgreSQL database the server under test uses. Without it, the tests of the admin area
-# (tests/api/admin-users.spec.js) are skipped: an admin can only be made on a database, with
+# (tests/api/admin-users.spec.js, tests/api/admin-games.spec.js, tests/api/admin-suspension.spec.js, tests/api/admin-password.spec.js, tests/api/admin-delete.spec.js, tests/ui/admin-screen.spec.js, tests/ui/admin-games-screen.spec.js, tests/ui/admin-suspension-screen.spec.js, tests/ui/admin-password-screen.spec.js, tests/ui/admin-delete-screen.spec.js) are skipped: an admin can only be made on a database, with
 # npm run admin:promote. In CI the end-to-end job starts a PostgreSQL and sets it.
 E2E_DATABASE_URL=postgresql://combocard:combocard@localhost:5432/combocard_e2e
 ```

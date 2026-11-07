@@ -16,9 +16,11 @@ import {
   clearJollyInCorso,
   updatePlayerCards,
   updatePlayerGettoni,
+  clearGame,
 } from "../store/slices/gameSlice";
 import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
-import { updateCredits } from "../store/slices/playerSlice";
+import { updateCredits, clearPlayer } from "../store/slices/playerSlice";
+import { setAccessToken } from "../services/api";
 
 /**
  * Hook to manage socket connections and game events
@@ -26,7 +28,7 @@ import { updateCredits } from "../store/slices/playerSlice";
 export function useSocket() {
   const dispatch = useDispatch();
   const { currentGameId, game } = useSelector((state) => state.game);
-  const { id: playerId } = useSelector((state) => state.player);
+  const { id: playerId, mustChangePassword } = useSelector((state) => state.player);
 
   // Refresh game state from server
   const refreshGameState = useCallback(async () => {
@@ -48,9 +50,10 @@ export function useSocket() {
   }, [currentGameId, playerId, dispatch]);
 
   // The server accepts only authenticated connections: connect after the login,
-  // disconnect after the logout
+  // disconnect after the logout. Not with a temporary password: the server refuses it, and every
+  // refusal would renew the session behind the back of the change of the password
   useEffect(() => {
-    if (!playerId) {
+    if (!playerId || mustChangePassword) {
       socketService.disconnect();
       return undefined;
     }
@@ -67,7 +70,7 @@ export function useSocket() {
     return () => {
       socket.off("connect", handleConnect);
     };
-  }, [playerId, currentGameId]);
+  }, [playerId, mustChangePassword, currentGameId]);
 
   // Join game room when gameId changes
   useEffect(() => {
@@ -78,7 +81,7 @@ export function useSocket() {
 
   // Game event handlers
   useEffect(() => {
-    if (!playerId) return undefined;
+    if (!playerId || mustChangePassword) return undefined;
 
     const socket = socketService.getSocket();
 
@@ -203,6 +206,42 @@ export function useSocket() {
       refreshGameState();
     };
 
+    // An admin cancelled the game: back to the hall, with the balance the server says
+    const handleGameCancelled = ({ gameId, gettoni, refund }) => {
+      if (typeof gettoni === "number") {
+        dispatch(updateCredits(gettoni));
+      }
+      if (gameId !== currentGameId) {
+        return;
+      }
+      dispatch(clearGame());
+      dispatch(setScreen("hall"));
+      dispatch(addToast({
+        message: refund > 0
+          ? `La partita è stata annullata dall'amministrazione: ti sono stati restituiti ${refund} crediti`
+          : "La partita è stata annullata dall'amministrazione",
+        type: "warning",
+        duration: 8000,
+      }));
+    };
+
+    // An admin suspended the account or closed its sessions: the server drops the connection and the
+    // tokens no longer work, so the player goes back to the start
+    const handleSessionEnded = ({ reason }) => {
+      setAccessToken(null);
+      dispatch(clearPlayer());
+      dispatch(clearGame());
+      dispatch(setScreen("home"));
+      dispatch(addToast({
+        message: {
+          suspended: "Il tuo account è stato sospeso",
+          deleted: "Il tuo account è stato eliminato",
+        }[reason] ?? "L'amministrazione ha chiuso la tua sessione: accedi di nuovo",
+        type: "warning",
+        duration: 8000,
+      }));
+    };
+
     // Register event listeners
     socket.on("playerJoined", handlePlayerJoined);
     socket.on("playerLeft", handlePlayerLeft);
@@ -216,6 +255,8 @@ export function useSocket() {
     socket.on("jollyAnnullato", handleJollyAnnullato);
     socket.on("jollyUsato", handleJollyUsato);
     socket.on("gameFinished", handleGameFinished);
+    socket.on("gameCancelled", handleGameCancelled);
+    socket.on("sessionEnded", handleSessionEnded);
 
     // Cleanup
     return () => {
@@ -231,8 +272,10 @@ export function useSocket() {
       socket.off("jollyAnnullato", handleJollyAnnullato);
       socket.off("jollyUsato", handleJollyUsato);
       socket.off("gameFinished", handleGameFinished);
+      socket.off("gameCancelled", handleGameCancelled);
+      socket.off("sessionEnded", handleSessionEnded);
     };
-  }, [currentGameId, playerId, game, dispatch, refreshGameState]);
+  }, [currentGameId, playerId, mustChangePassword, game, dispatch, refreshGameState]);
 
   return {
     refreshGameState,

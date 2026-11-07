@@ -14,6 +14,11 @@ import {
   startJollySchema,
   adminAdjustCreditsSchema,
   adminAuditQuerySchema,
+  adminCancelGameSchema,
+  adminUserActionSchema,
+  changePasswordSchema,
+  deleteAccountSchema,
+  adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
 } from '../../src/validation/schemas.js';
@@ -224,6 +229,75 @@ describe('admin schemas', () => {
 
     test('rejects a limit over 100', () => {
       expect(adminAuditQuerySchema.validate({ limit: '500' }).error).toBeDefined();
+    });
+  });
+  describe('adminListGamesQuerySchema', () => {
+    test('takes the defaults, a status and the page', () => {
+      expect(adminListGamesQuerySchema.validate({}).value).toEqual({ page: 1, limit: 20 });
+      expect(adminListGamesQuerySchema.validate({ status: 'playing', page: '2' }).value).toEqual({ status: 'playing', page: 2, limit: 20 });
+    });
+
+    test.each([['finished'], ['cancelled'], ['x']])('rejects the status %s', (status) => {
+      expect(adminListGamesQuerySchema.validate({ status }).error).toBeDefined();
+    });
+  });
+
+  describe('adminCancelGameSchema', () => {
+    test('takes a reason, trimmed', () => {
+      expect(adminCancelGameSchema.validate({ reason: ' bloccata ' }).value).toEqual({ reason: 'bloccata' });
+    });
+
+    test.each([
+      ['no reason', {}],
+      ['an empty reason', { reason: '  ' }],
+      ['a reason that is too long', { reason: 'x'.repeat(201) }],
+    ])('rejects %s', (_name, body) => {
+      expect(adminCancelGameSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('adminUserActionSchema', () => {
+    test('takes a reason, trimmed', () => {
+      expect(adminUserActionSchema.validate({ reason: ' abuso ' }).value).toEqual({ reason: 'abuso' });
+    });
+
+    test.each([
+      ['no reason', {}],
+      ['an empty reason', { reason: '  ' }],
+      ['a reason that is too long', { reason: 'x'.repeat(201) }],
+      ['a field that is not allowed', { reason: 'x', playerId: 'p2' }],
+    ])('rejects %s', (_name, body) => {
+      expect(adminUserActionSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('changePasswordSchema', () => {
+    test('takes the current and the new password', () => {
+      expect(isValid(changePasswordSchema, { currentPassword: 'temporary-1', newPassword: 'long enough' })).toBe(true);
+    });
+
+    test.each([
+      ['no current password', { newPassword: 'long enough' }],
+      ['no new password', { currentPassword: 'x' }],
+      ['a new password that is too short', { currentPassword: 'x', newPassword: 'short' }],
+      ['a new password that is too long', { currentPassword: 'x', newPassword: 'x'.repeat(129) }],
+      ['a field that is not allowed', { currentPassword: 'x', newPassword: 'long enough', playerId: 'p2' }],
+    ])('rejects %s', (_name, body) => {
+      expect(changePasswordSchema.validate(body).error).toBeDefined();
+    });
+  });
+
+  describe('deleteAccountSchema', () => {
+    test('takes the password', () => {
+      expect(isValid(deleteAccountSchema, { password: 'whatever it is' })).toBe(true);
+    });
+
+    test.each([
+      ['no password', {}],
+      ['a password that is too long', { password: 'x'.repeat(129) }],
+      ['a field that is not allowed', { password: 'x', playerId: 'p2' }],
+    ])('rejects %s', (_name, body) => {
+      expect(deleteAccountSchema.validate(body).error).toBeDefined();
     });
   });
 });

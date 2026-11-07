@@ -52,6 +52,34 @@ describe('AppContent: the rules come first', () => {
   });
 });
 
+describe('AppContent: a temporary password', () => {
+  beforeEach(() => {
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+  });
+
+  test('an account that must change the password sees only that, even with the rules not read', async () => {
+    const state = preloaded(null);
+    state.player.mustChangePassword = true;
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    expect(await screen.findByRole('heading', { name: 'Scegli una nuova password' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Hall' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Prima di giocare: le regole' })).not.toBeInTheDocument();
+  });
+
+  test('a restored session that must change the password does not go to the hall', async () => {
+    authService.restoreSession.mockResolvedValue({ id: 'p1', name: 'Anna', credits: 0, currentGameId: 'g1', role: 'player', mustChangePassword: true });
+    const state = preloaded(null, 'home');
+    state.player = { ...state.player, id: null, sessionChecked: false };
+
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    expect(await screen.findByRole('heading', { name: 'Scegli una nuova password' })).toBeInTheDocument();
+    expect(gameService.getGame).not.toHaveBeenCalled();
+  });
+});
+
 describe('AppContent: the admin screen', () => {
   beforeEach(() => {
     authService.restoreSession.mockResolvedValue(null);

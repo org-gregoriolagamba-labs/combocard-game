@@ -69,6 +69,98 @@ export const adjustCredits = asyncHandler(async (req, res) => {
   sendSuccess(res, result, "Credits adjusted");
 });
 
+// The user is told that the session is over, then their connections are closed: they cannot reconnect
+// without a valid token
+function endSessionsOf(req, playerId, reason) {
+  req.io.to(playerRoom(playerId)).emit("sessionEnded", { reason });
+  req.io.in(playerRoom(playerId)).disconnectSockets(true);
+}
+
+/**
+ * Suspend a user, close their sessions and connections
+ * POST /api/admin/users/:playerId/suspend
+ */
+export const suspendUser = asyncHandler(async (req, res) => {
+  const user = await adminService.suspendUser(req.store, req.gameState, req.params.playerId, req.body, actorOf(req));
+  endSessionsOf(req, user.playerId, "suspended");
+  sendSuccess(res, user, "User suspended");
+});
+
+/**
+ * Reinstate a suspended user
+ * POST /api/admin/users/:playerId/unsuspend
+ */
+export const unsuspendUser = asyncHandler(async (req, res) => {
+  sendSuccess(
+    res,
+    await adminService.unsuspendUser(req.store, req.gameState, req.params.playerId, req.body, actorOf(req)),
+    "User reinstated",
+  );
+});
+
+/**
+ * Close every session of a user, without suspending them
+ * POST /api/admin/users/:playerId/sessions/revoke
+ */
+export const revokeSessions = asyncHandler(async (req, res) => {
+  const user = await adminService.revokeUserSessions(req.store, req.gameState, req.params.playerId, req.body, actorOf(req));
+  endSessionsOf(req, user.playerId, "revoked");
+  sendSuccess(res, user, "Sessions closed");
+});
+
+/**
+ * Reset the password of a user and give the temporary one to the admin, once. The answer must not be
+ * kept by anybody on the way. The sessions of the user close.
+ * POST /api/admin/users/:playerId/password/reset
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const result = await adminService.resetUserPassword(req.store, req.gameState, req.params.playerId, req.body, actorOf(req));
+  endSessionsOf(req, result.user.playerId, "revoked");
+  res.set("Cache-Control", "no-store");
+  sendSuccess(res, result, "Password reset");
+});
+
+/**
+ * Delete the account of a user, who is told and loses the connections
+ * DELETE /api/admin/users/:playerId
+ */
+export const deleteUser = asyncHandler(async (req, res) => {
+  const result = await adminService.deleteUser(req.store, req.gameState, req.params.playerId, req.body, actorOf(req));
+  endSessionsOf(req, result.playerId, "deleted");
+  sendSuccess(res, result, "Account deleted");
+});
+
+/**
+ * The games waiting or in progress, a page at a time
+ * GET /api/admin/games
+ */
+export const listGames = (req, res) => {
+  sendSuccess(res, adminService.listGames(req.gameState, req.query));
+};
+
+/**
+ * Cancel a game. Each player who was in it is told, with the balance they have now, and leaves its room.
+ * POST /api/admin/games/:gameId/cancel
+ */
+export const cancelGame = asyncHandler(async (req, res) => {
+  const result = await adminService.cancelGame(req.store, req.gameState, req.params.gameId, req.body, actorOf(req));
+
+  for (const { playerId, credits, refund } of result.players) {
+    req.io.to(playerRoom(playerId)).emit("gameCancelled", { gameId: result.gameId, gettoni: credits, refund });
+    req.io.in(playerRoom(playerId)).socketsLeave(result.gameId);
+  }
+
+  sendSuccess(res, result, "Game cancelled");
+});
+
+/**
+ * The numbers of the platform
+ * GET /api/admin/stats
+ */
+export const getStats = asyncHandler(async (req, res) => {
+  sendSuccess(res, await adminService.getStats(req.store, req.gameState));
+});
+
 /**
  * The audit log, the latest first
  * GET /api/admin/audit

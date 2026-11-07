@@ -152,8 +152,11 @@ describeWithDb('PostgreSQL store', () => {
         playerId: 'p1',
         passwordHash: 'hash',
         role: 'player',
+        suspended: false,
+        sessionVersion: 0,
+        mustChangePassword: false,
       });
-      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'player' });
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'player' });
       const { players } = await createPostgresStore(pool).loadState();
       expect(players.p1.name).toBe('Anna');
     });
@@ -192,7 +195,7 @@ describeWithDb('PostgreSQL store', () => {
 
     test('getAccount gives the account as the admin area shows it, without the password hash, or null', async () => {
       await expect(store.getAccount('p2')).resolves.toEqual({
-        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date),
+        playerId: 'p2', username: 'Carlo Rossi', role: 'player', createdAt: expect.any(Date), suspended: false,
       });
       await expect(store.getAccount('ghost')).resolves.toBeNull();
     });
@@ -203,7 +206,7 @@ describeWithDb('PostgreSQL store', () => {
 
         expect(total).toBe(4);
         expect(items.map((a) => a.username)).toEqual(['Anna', 'Anna Maria', 'Carlo Rossi', 'Dario']);
-        expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date) });
+        expect(items[0]).toEqual({ playerId: 'p1', username: 'Anna', role: 'player', createdAt: expect.any(Date), suspended: false });
         expect(JSON.stringify(items)).not.toMatch(/hash/);
       });
 
@@ -313,6 +316,64 @@ describeWithDb('PostgreSQL store', () => {
       });
     });
 
+    describe('cancelGame and gameStats', () => {
+      const playing = (overrides = {}) =>
+        game({ id: 'g1', status: 'playing', requiredCredits: 100, montepremi: 100, players: [{ id: 'p1', name: 'Anna', gettoni: 0 }], ...overrides });
+
+      beforeEach(async () => {
+        // p1 has 100: the entry fee of the game takes them to zero
+        await store.saveGame(playing(), [{ playerId: 'p1', gameId: 'g1', type: 'game_entry', amount: -100 }]);
+      });
+
+      test('removes the game, gives the fee back and writes the audit row, in one transaction', async () => {
+        await store.cancelGame(playing(), [{ playerId: 'p1', amount: 100 }], { actor: { type: 'player', id: 'p3' }, reason: 'bloccata' });
+
+        await expect(balance('p1')).resolves.toEqual({ credits: 100, ledger: 100 });
+        const { rows } = await pool.query("SELECT type, amount, game_id FROM credit_transactions WHERE type = 'game_refund'");
+        expect(rows.map((r) => [r.type, Number(r.amount)])).toEqual([['game_refund', 100]]);
+        await expect(store.findGame('g1')).resolves.toBeNull();
+        const [event] = await store.listAuditEvents({ targetId: 'g1' });
+        expect(event).toMatchObject({
+          action: 'game_cancelled',
+          actorId: 'p3',
+          details: { reason: 'bloccata', previousStatus: 'playing', refunds: [{ playerId: 'p1', amount: 100 }] },
+        });
+      });
+
+      test('a refund that cannot be applied changes nothing: the game stays, no audit row', async () => {
+        await expect(store.cancelGame(playing(), [{ playerId: 'ghost', amount: 100 }], { actor: system, reason: 'x' })).rejects.toThrow();
+
+        await expect(store.findGame('g1')).resolves.not.toBeNull();
+        await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+        await expect(store.listAuditEvents({ targetId: 'g1' })).resolves.toEqual([]);
+      });
+
+      test('the actor and the reason are needed', async () => {
+        await expect(store.cancelGame(playing(), [], { reason: 'x' })).rejects.toThrow();
+        await expect(store.cancelGame(playing(), [], { actor: system })).rejects.toThrow();
+        await expect(store.findGame('g1')).resolves.not.toBeNull();
+      });
+
+      test('the type of movement is allowed by the database', async () => {
+        await expect(pool.query("INSERT INTO credit_transactions (player_id, type, amount, balance_after) VALUES ('p1', 'game_refund', 1, 1)"))
+          .resolves.toBeDefined();
+      });
+
+      test('gameStats counts the finished games and their prizes, from the database', async () => {
+        await store.saveGame(game({ id: 'f1', status: 'finished', montepremi: 300 }));
+        await store.saveGame(game({ id: 'f2', status: 'finished', montepremi: 500 }));
+
+        await expect(store.gameStats()).resolves.toEqual({ finished: 2, prizesDistributed: 800 });
+      });
+
+      test('countAuditEvents can count one action', async () => {
+        await store.cancelGame(playing(), [{ playerId: 'p1', amount: 100 }], { actor: system, reason: 'x' });
+
+        await expect(store.countAuditEvents({ action: 'game_cancelled' })).resolves.toBe(1);
+        await expect(store.countAuditEvents({ action: 'role_changed' })).resolves.toBe(1); // the promotion of p3
+      });
+    });
+
     test('the audit log by target and by page, with the total', async () => {
       await store.adjustCredits('p1', 10, { actor: system, reason: 'uno' });
       await store.adjustCredits('p2', 20, { actor: system, reason: 'due' });
@@ -419,12 +480,12 @@ describeWithDb('PostgreSQL store', () => {
     test('promotes and demotes, and the new role is the one found at the next request', async () => {
       await expect(store.setAccountRole('p1', 'admin', { actor: system }))
         .resolves.toEqual({ playerId: 'p1', role: 'admin', previousRole: 'player', changed: true });
-      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'admin' });
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'admin' });
       await expect(store.findAccountByUsernameKey('p1')).resolves.toMatchObject({ role: 'admin' });
 
       await store.setAccountRole('p2', 'admin', { actor: system });
       await expect(store.setAccountRole('p1', 'player', { actor: system })).resolves.toMatchObject({ changed: true });
-      await expect(store.findAccountById('p1')).resolves.toEqual({ playerId: 'p1', role: 'player' });
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ playerId: 'p1', role: 'player' });
     });
 
     test('an unknown player gives null, a role that does not exist is refused before the database', async () => {
@@ -480,6 +541,287 @@ describeWithDb('PostgreSQL store', () => {
     test('the audit log refuses an actor type that does not exist', async () => {
       await expect(pool.query("INSERT INTO audit_log (actor_type, action) VALUES ('robot', 'x')"))
         .rejects.toMatchObject({ code: '23514' });
+    });
+  });
+
+  describe('suspension and sessions', () => {
+    const system = { type: 'system' };
+    const admin = { type: 'player', id: 'p9' };
+    const makeAccount = (id) =>
+      store.createAccount({ ...player, id, name: id }, { username: id, usernameKey: id, passwordHash: 'hash' });
+    const token = (playerId, tokenHash, familyId = `f-${tokenHash}`) =>
+      store.createRefreshToken({ tokenHash, familyId, playerId, expiresAt: new Date(Date.now() + 60000) });
+    const next = (tokenHash) => ({ tokenHash, expiresAt: new Date(Date.now() + 60000), graceSeconds: 10 });
+
+    beforeEach(async () => {
+      for (const id of ['p1', 'p2', 'p9']) {
+        await makeAccount(id);
+      }
+      await store.setAccountRole('p9', 'admin', { actor: system });
+    });
+
+    test('the existing accounts are active, with the first version of the session', async () => {
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false, sessionVersion: 0 });
+      await expect(store.findAccountByUsernameKey('p1')).resolves.toMatchObject({ suspended: false, sessionVersion: 0 });
+      await expect(store.getAccount('p1')).resolves.toMatchObject({ suspended: false });
+    });
+
+    test('suspends, closes the sessions and writes the audit row, in one transaction', async () => {
+      await token('p1', 'h1');
+      await token('p2', 'h-other');
+
+      await expect(store.setAccountSuspended('p1', true, { actor: admin, reason: '  abuso ' }))
+        .resolves.toEqual({ playerId: 'p1', suspended: true, previousSuspended: false, changed: true });
+
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: true, sessionVersion: 1 });
+      await expect(store.rotateRefreshToken('h1', next('h2'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('h-other', next('h3'))).resolves.toBe('p2');
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'user_suspended', actorId: 'p9', details: { reason: 'abuso' } });
+    });
+
+    test('reinstates, and doing it twice changes and writes nothing', async () => {
+      await store.setAccountSuspended('p1', true, { actor: admin, reason: 'abuso' });
+      await expect(store.setAccountSuspended('p1', true, { actor: admin, reason: 'ancora' })).resolves.toMatchObject({ changed: false });
+
+      await expect(store.setAccountSuspended('p1', false, { actor: admin, reason: 'chiarito' })).resolves.toMatchObject({ changed: true });
+
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false });
+      await expect(store.countAuditEvents({ targetId: 'p1' })).resolves.toBe(2);
+    });
+
+    test('an unknown account gives null; without a reason or an actor nothing happens', async () => {
+      await expect(store.setAccountSuspended('ghost', true, { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.setAccountSuspended('p1', true, { actor: admin })).rejects.toThrow(TypeError);
+      await expect(store.setAccountSuspended('p1', true, { reason: 'x' })).rejects.toThrow(TypeError);
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false });
+    });
+
+    test('the last active admin cannot be suspended or demoted, and the refusal leaves no trace', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await store.setAccountSuspended('p2', true, { actor: system, reason: 'x' });
+      const events = await store.countAuditEvents({});
+
+      await expect(store.setAccountSuspended('p9', true, { actor: system, reason: 'x' })).rejects.toMatchObject({ code: LAST_ADMIN });
+      await expect(store.setAccountRole('p9', 'player', { actor: system })).rejects.toMatchObject({ code: LAST_ADMIN });
+
+      await expect(store.countAuditEvents({})).resolves.toBe(events);
+    });
+
+    test('a suspended admin can be demoted', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await store.setAccountSuspended('p2', true, { actor: system, reason: 'x' });
+
+      await expect(store.setAccountRole('p2', 'player', { actor: system })).resolves.toMatchObject({ changed: true });
+    });
+
+    test('two suspensions at the same time of the only two admins leave one active', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+
+      const results = await Promise.allSettled([
+        store.setAccountSuspended('p9', true, { actor: system, reason: 'x' }),
+        store.setAccountSuspended('p2', true, { actor: system, reason: 'x' }),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected').map((r) => r.reason.code)).toEqual([LAST_ADMIN]);
+    });
+
+    test('revoking the sessions moves the version on, revokes the tokens of the account only, and is traced', async () => {
+      await token('p1', 'a1');
+      await token('p1', 'a2');
+      await token('p2', 'b1');
+
+      await expect(store.revokeAccountSessions('p1', { actor: admin, reason: 'furto' })).resolves.toEqual({ playerId: 'p1' });
+
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ suspended: false, sessionVersion: 1 });
+      await expect(store.rotateRefreshToken('a1', next('n1'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('a2', next('n2'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('b1', next('n3'))).resolves.toBe('p2');
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'sessions_revoked', details: { reason: 'furto' } });
+      await expect(store.revokeAccountSessions('ghost', { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.revokeAccountSessions('p1', { actor: admin })).rejects.toThrow(TypeError);
+    });
+  });
+
+  describe('password reset and change', () => {
+    const admin = { type: 'player', id: 'p9' };
+    const makeAccount = (id) =>
+      store.createAccount({ ...player, id, name: id }, { username: id, usernameKey: id, passwordHash: `hash-${id}` });
+    const next = (tokenHash) => ({ tokenHash, expiresAt: new Date(Date.now() + 60000), graceSeconds: 10 });
+
+    beforeEach(async () => {
+      await makeAccount('p1');
+      await makeAccount('p2');
+    });
+
+    test('an existing account does not have to change the password; the hash is read only by its own method', async () => {
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ mustChangePassword: false });
+      expect(await store.findAccountById('p1')).not.toHaveProperty('passwordHash');
+      await expect(store.getPasswordHash('p1')).resolves.toBe('hash-p1');
+      await expect(store.getPasswordHash('ghost')).resolves.toBeNull();
+    });
+
+    test('a reset replaces the hash, asks for a change, closes the sessions and is traced without the password', async () => {
+      await store.createRefreshToken({ tokenHash: 'h1', familyId: 'f1', playerId: 'p1', expiresAt: new Date(Date.now() + 60000) });
+      await store.createRefreshToken({ tokenHash: 'h-other', familyId: 'f2', playerId: 'p2', expiresAt: new Date(Date.now() + 60000) });
+
+      await expect(store.resetAccountPassword('p1', 'secret-new-hash', { actor: admin, reason: ' dimenticata ' })).resolves.toEqual({ playerId: 'p1' });
+
+      await expect(store.getPasswordHash('p1')).resolves.toBe('secret-new-hash');
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ mustChangePassword: true, sessionVersion: 1 });
+      await expect(store.rotateRefreshToken('h1', next('n1'))).resolves.toBeNull();
+      await expect(store.rotateRefreshToken('h-other', next('n2'))).resolves.toBe('p2');
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'password_reset', actorId: 'p9', details: { reason: 'dimenticata' } });
+      expect(JSON.stringify(event)).not.toMatch(/secret-new-hash/);
+    });
+
+    test('a change clears the obligation, closes the other sessions and gives the new version, traced', async () => {
+      await store.resetAccountPassword('p1', 'temp-hash', { actor: admin, reason: 'x' });
+      await store.createRefreshToken({ tokenHash: 'h2', familyId: 'f3', playerId: 'p1', expiresAt: new Date(Date.now() + 60000) });
+
+      await expect(store.changeAccountPassword('p1', 'mine-hash', { actor: { type: 'player', id: 'p1' } }))
+        .resolves.toEqual({ playerId: 'p1', sessionVersion: 2 });
+
+      await expect(store.getPasswordHash('p1')).resolves.toBe('mine-hash');
+      await expect(store.findAccountById('p1')).resolves.toMatchObject({ mustChangePassword: false, sessionVersion: 2 });
+      await expect(store.rotateRefreshToken('h2', next('n3'))).resolves.toBeNull();
+      const [event] = await store.listAuditEvents({ targetId: 'p1' });
+      expect(event).toMatchObject({ action: 'password_changed', actorId: 'p1' });
+      expect(JSON.stringify(event)).not.toMatch(/mine-hash/);
+    });
+
+    test('an unknown account gives null; a reason and an actor are needed and nothing changes without them', async () => {
+      await expect(store.resetAccountPassword('ghost', 'h', { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.changeAccountPassword('ghost', 'h', { actor: admin })).resolves.toBeNull();
+      await expect(store.resetAccountPassword('p1', 'h', { actor: admin })).rejects.toThrow(TypeError);
+      await expect(store.changeAccountPassword('p1', 'h')).rejects.toThrow(TypeError);
+      await expect(store.getPasswordHash('p1')).resolves.toBe('hash-p1');
+    });
+  });
+
+  describe('deleteAccount', () => {
+    const system = { type: 'system' };
+    const admin = { type: 'player', id: 'p9' };
+    const makeAccount = (id, name = id) =>
+      store.createAccount({ ...player, id, name }, { username: name, usernameKey: name.toLowerCase(), passwordHash: `hash-${id}` });
+    const finished = (overrides = {}) =>
+      game({
+        id: 'g9', status: 'finished', montepremi: 200,
+        players: [{ id: 'p1', name: 'Anna', gettoni: 0 }, { id: 'p2', name: 'Carlo', gettoni: 0 }],
+        collezioni: { tris: { vincitore: { id: 'p1', name: 'Anna' }, vincitori: [{ id: 'p1', name: 'Anna' }] } },
+        ...overrides,
+      });
+
+    beforeEach(async () => {
+      await makeAccount('p1', 'Anna');
+      await makeAccount('p2', 'Carlo');
+      await makeAccount('p9', 'Admin');
+      await store.setAccountRole('p9', 'admin', { actor: system });
+      await store.recordPurchase('p1', 300);
+    });
+
+    test('closes the balance with a movement, anonymizes the player, removes the account and keeps the ledger whole', async () => {
+      await expect(store.deleteAccount('p1', { actor: admin, reason: 'abuso' })).resolves.toEqual({ playerId: 'p1' });
+
+      await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+      const { rows: movements } = await pool.query("SELECT type, amount FROM credit_transactions WHERE player_id = 'p1' ORDER BY id");
+      expect(movements.map((m) => [m.type, Number(m.amount)])).toEqual([['purchase', 300], ['account_closed', -300]]);
+      const { rows: [row] } = await pool.query("SELECT name, deleted_at FROM players WHERE id = 'p1'");
+      expect(row.name).toBe('Utente eliminato');
+      expect(row.deleted_at).toBeInstanceOf(Date);
+      await expect(store.findAccountById('p1')).resolves.toBeNull();
+      await expect(store.findAccountByUsernameKey('anna')).resolves.toBeNull();
+    });
+
+    test('a player with no credits gets no closing movement', async () => {
+      await store.deleteAccount('p2', { actor: admin, reason: 'x' });
+
+      const { rows } = await pool.query("SELECT 1 FROM credit_transactions WHERE player_id = 'p2'");
+      expect(rows).toHaveLength(0);
+    });
+
+    test('the name is free again, and the deleted player is not loaded into the game', async () => {
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      await expect(makeAccount('p5', 'Anna')).resolves.toBeUndefined();
+      const { players } = await createPostgresStore(pool).loadState();
+      expect(players.p1).toBeUndefined();
+      expect(players.p2).toBeDefined();
+    });
+
+    test('the tokens are removed', async () => {
+      await store.createRefreshToken({ tokenHash: 'h1', familyId: 'f1', playerId: 'p1', expiresAt: new Date(Date.now() + 60000) });
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      await expect(store.rotateRefreshToken('h1', { tokenHash: 'n', expiresAt: new Date(Date.now() + 60000), graceSeconds: 10 })).resolves.toBeNull();
+      const { rows } = await pool.query("SELECT 1 FROM refresh_tokens WHERE player_id = 'p1'");
+      expect(rows).toHaveLength(0);
+    });
+
+    test('the name in the finished games becomes "Utente eliminato" everywhere, the id stays; other games are untouched', async () => {
+      await store.saveGame(finished());
+      await store.saveGame(finished({ id: 'g8', players: [{ id: 'p2', name: 'Carlo', gettoni: 0 }], collezioni: {} }));
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      const state = await store.findGame('g9');
+      expect(state.players).toEqual([{ id: 'p1', name: 'Utente eliminato', gettoni: 0 }, { id: 'p2', name: 'Carlo', gettoni: 0 }]);
+      expect(state.collezioni.tris.vincitore).toEqual({ id: 'p1', name: 'Utente eliminato' });
+      expect(JSON.stringify(state)).not.toContain('Anna');
+      expect((await store.findGame('g8')).players[0].name).toBe('Carlo');
+    });
+
+    test('the audit log: the names of that user are rewritten, user_deleted has no username', async () => {
+      await store.setAccountUsername('p1', { username: 'Anna Rossi', usernameKey: 'anna rossi' }, { actor: admin });
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'abuso' });
+
+      const events = await store.listAuditEvents({ targetId: 'p1' });
+      expect(events[0]).toMatchObject({ action: 'user_deleted', details: { role: 'player', reason: 'abuso', self: false } });
+      expect(events[1].details).toEqual({ from: 'Utente eliminato', to: 'Utente eliminato' });
+      expect(JSON.stringify(events)).not.toMatch(/Anna/);
+    });
+
+    test('a player who is in a game that is waiting or in progress cannot be deleted, and nothing changes', async () => {
+      await store.saveGame(game({ id: 'g1', status: 'playing', players: [{ id: 'p1', name: 'Anna', gettoni: 0 }] }));
+
+      await expect(store.deleteAccount('p1', { actor: admin, reason: 'x' })).rejects.toMatchObject({ code: 'PLAYER_IN_GAME' });
+
+      await expect(store.findAccountById('p1')).resolves.not.toBeNull();
+      await expect(balance('p1')).resolves.toEqual({ credits: 300, ledger: 300 });
+    });
+
+    test('what is still waiting to be written for a game is written first: nothing arrives after the closing', async () => {
+      const slow = createPostgresStore(pool, { retryDelayMs: 60000 });
+      await slow.saveGame(finished({ id: 'g7' }), [{ playerId: 'p1', gameId: 'g7', type: 'game_payout', amount: 50 }]);
+
+      await slow.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
+    });
+
+    test('the last active admin cannot be deleted, even by two requests at the same time', async () => {
+      await store.setAccountRole('p2', 'admin', { actor: system });
+
+      const results = await Promise.allSettled([
+        store.deleteAccount('p9', { actor: system, reason: 'x' }),
+        store.deleteAccount('p2', { actor: system, reason: 'x' }),
+      ]);
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected').map((r) => r.reason.code)).toEqual([LAST_ADMIN]);
+    });
+
+    test('an unknown account gives null, an actor is needed, and a suspended admin can go', async () => {
+      await expect(store.deleteAccount('ghost', { actor: admin, reason: 'x' })).resolves.toBeNull();
+      await expect(store.deleteAccount('p1', { reason: 'x' })).rejects.toThrow(TypeError);
+      await store.setAccountRole('p2', 'admin', { actor: system });
+      await store.setAccountSuspended('p2', true, { actor: system, reason: 'x' });
+      await expect(store.deleteAccount('p2', { actor: system, reason: 'x' })).resolves.toEqual({ playerId: 'p2' });
     });
   });
 

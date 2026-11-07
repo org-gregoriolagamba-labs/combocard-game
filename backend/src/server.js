@@ -147,7 +147,7 @@ app.use(errorHandler);
 // ========================
 // Socket.IO Handlers
 // ========================
-initializeSocketHandlers(io, gameState);
+initializeSocketHandlers(io, gameState, () => store);
 
 // ========================
 // Server Startup

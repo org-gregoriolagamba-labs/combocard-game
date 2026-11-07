@@ -4,7 +4,7 @@
  * Password hashing, access tokens (JWT) and refresh tokens (opaque).
  */
 
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import config from "../config/index.js";
@@ -49,14 +49,29 @@ export async function verifyPassword(hash, password) {
   return false;
 }
 
+// Letters and digits that cannot be confused when read aloud or copied: no 0, O, 1, I, L
+const TEMPORARY_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/**
+ * A temporary password for an account whose password an admin reset: three groups of four, easy to
+ * read to someone. About 59 bits, drawn with a secure generator.
+ * @returns {string} For example "K7QM-X2PD-9WJT"
+ */
+export function generateTemporaryPassword() {
+  const group = () => Array.from({ length: 4 }, () => TEMPORARY_ALPHABET[randomInt(TEMPORARY_ALPHABET.length)]).join("");
+  return `${group()}-${group()}-${group()}`;
+}
+
 /**
  * Sign an access token
  * @param {string} playerId - Player the token belongs to
  * @param {string} role - Account role
+ * @param {number} [sessionVersion] - Version of the sessions of the account: when an admin closes them
+ *   the version moves on, and the tokens signed before stop working
  * @returns {string} Signed JWT
  */
-export function signAccessToken(playerId, role) {
-  return jwt.sign({ role }, config.jwtSecret, {
+export function signAccessToken(playerId, role, sessionVersion = 0) {
+  return jwt.sign({ role, sv: sessionVersion }, config.jwtSecret, {
     algorithm: JWT_ALGORITHM,
     expiresIn: config.accessTokenTtlSeconds,
     issuer: JWT_ISSUER,
@@ -68,7 +83,7 @@ export function signAccessToken(playerId, role) {
 /**
  * Verify an access token
  * @param {string} token - JWT
- * @returns {Object|null} { playerId, role }, or null if the token is not valid
+ * @returns {Object|null} { playerId, role, sessionVersion }, or null if the token is not valid
  */
 export function verifyAccessToken(token) {
   try {
@@ -77,7 +92,7 @@ export function verifyAccessToken(token) {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     });
-    return { playerId: payload.sub, role: payload.role };
+    return { playerId: payload.sub, role: payload.role, sessionVersion: payload.sv ?? 0 };
   } catch {
     return null;
   }

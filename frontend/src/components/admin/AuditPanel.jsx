@@ -37,6 +37,33 @@ export function frase(e) {
   if (e.action === "username_changed") {
     return `${chi} ha cambiato il nome di ${e.details.from} in ${e.details.to}`;
   }
+  if (e.action === "game_cancelled") {
+    const { reason, previousStatus, refunds = [] } = e.details;
+    const rimborsati = refunds.reduce((total, r) => total + r.amount, 0);
+    const stato = previousStatus === "playing" ? "in corso" : "in attesa";
+    return `${chi} ha annullato una partita ${stato}: «${reason}»${rimborsati > 0 ? `, rimborsati ${crediti(rimborsati)}` : ""}`;
+  }
+  if (e.action === "user_suspended") {
+    return `${chi} ha sospeso ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "user_unsuspended") {
+    return `${chi} ha riabilitato ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "sessions_revoked") {
+    return `${chi} ha chiuso le sessioni di ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "password_reset") {
+    return `${chi} ha reimpostato la password di ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "password_changed") {
+    return suSeStesso ? `${chi} ha cambiato la propria password` : `${chi} ha cambiato la password di ${bersaglio}`;
+  }
+  if (e.action === "user_deleted") {
+    if (e.details.self) {
+      return `${chi} ha eliminato il proprio account`;
+    }
+    return `${chi} ha eliminato un account: «${e.details.reason}»`;
+  }
   return `${chi}: ${e.action}`;
 }
 

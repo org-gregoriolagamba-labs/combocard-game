@@ -47,6 +47,14 @@ describe('the routes of the admin area', () => {
     ['/users/:playerId', 'patch', 2], // validation of the body, then the handler
     ['/users/:playerId/credits', 'post', 2],
     ['/audit', 'get', 2],
+    ['/games', 'get', 2],
+    ['/games/:gameId/cancel', 'post', 2],
+    ['/stats', 'get', 1],
+    ['/users/:playerId/suspend', 'post', 2],
+    ['/users/:playerId/unsuspend', 'post', 2],
+    ['/users/:playerId/sessions/revoke', 'post', 2],
+    ['/users/:playerId/password/reset', 'post', 2],
+    ['/users/:playerId', 'delete', 2],
   ])('%s %s exists and has its validation', (path, method, handlers) => {
     expect(routeOf(path, method)?.stack.length).toBeGreaterThanOrEqual(handlers);
   });

@@ -19,6 +19,8 @@ import {
   generateTokenFamilyId,
   refreshTokenExpiry,
 } from "../services/auth.service.js";
+import { deleteAccount } from "../services/account.service.js";
+import { playerRoom } from "../sockets/index.js";
 import { USERNAME_TAKEN } from "../db/store.js";
 
 const REFRESH_COOKIE = "combocard_refresh";
@@ -43,7 +45,7 @@ function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, cookieOptions());
 }
 
-async function startSession(req, res, player, role) {
+async function startSession(req, res, player, { role, sessionVersion, mustChangePassword = false }) {
   const refreshToken = generateRefreshToken();
   await req.store.createRefreshToken({
     tokenHash: hashRefreshToken(refreshToken),
@@ -54,7 +56,7 @@ async function startSession(req, res, player, role) {
   setRefreshCookie(res, refreshToken);
   // The role is beside the player, not inside it: the player is what the game shows, the role is
   // only for whoever logs in (the screen of the admin needs it)
-  return { accessToken: signAccessToken(player.id, role), player, role };
+  return { accessToken: signAccessToken(player.id, role, sessionVersion), player, role, mustChangePassword };
 }
 
 /**
@@ -81,7 +83,7 @@ export const register = asyncHandler(async (req, res) => {
     throw new AppError(STORAGE_UNAVAILABLE, 503);
   }
 
-  sendCreated(res, await startSession(req, res, player, "player"), "Account created successfully");
+  sendCreated(res, await startSession(req, res, player, { role: "player", sessionVersion: 0 }), "Account created successfully");
 });
 
 /**
@@ -99,7 +101,12 @@ export const login = asyncHandler(async (req, res) => {
     throw new AppError("Invalid username or password", 401);
   }
 
-  sendSuccess(res, await startSession(req, res, player, account.role), "Logged in successfully");
+  // The password is right, so saying that the account is suspended reveals nothing to a stranger
+  if (account.suspended) {
+    throw new AppError("This account is suspended", 403);
+  }
+
+  sendSuccess(res, await startSession(req, res, player, account), "Logged in successfully");
 });
 
 /**
@@ -121,7 +128,7 @@ export const refresh = asyncHandler(async (req, res) => {
   });
 
   const account = playerId ? await req.store.findAccountById(playerId) : null;
-  const player = account ? req.gameState.players[playerId] : null;
+  const player = account && !account.suspended ? req.gameState.players[playerId] : null;
 
   if (!player) {
     clearRefreshCookie(res);
@@ -129,7 +136,72 @@ export const refresh = asyncHandler(async (req, res) => {
   }
 
   setRefreshCookie(res, nextToken);
-  sendSuccess(res, { accessToken: signAccessToken(playerId, account.role), player, role: account.role });
+  sendSuccess(res, {
+    accessToken: signAccessToken(playerId, account.role, account.sessionVersion),
+    player,
+    role: account.role,
+    mustChangePassword: account.mustChangePassword,
+  });
+});
+
+/**
+ * Choose a new password. The current one is checked again (a stolen token is not enough), every
+ * session closes and the caller gets a new one.
+ * POST /api/auth/password
+ */
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const { playerId } = req.auth;
+
+  const valid = await verifyPassword(await req.store.getPasswordHash(playerId), currentPassword);
+  if (!valid) {
+    // Not a 401: the client would take it for an expired session
+    throw new AppError("Current password is incorrect", 400);
+  }
+  if (newPassword === currentPassword) {
+    throw new AppError("The new password must be different", 400);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  let changed;
+  try {
+    changed = await req.store.changeAccountPassword(playerId, passwordHash, { actor: { type: "player", id: playerId } });
+  } catch (err) {
+    console.error(`❌ Could not save the new password of player ${playerId}: ${err.message}`);
+    throw new AppError(STORAGE_UNAVAILABLE, 503);
+  }
+  const player = req.gameState.players[playerId];
+  if (!changed || !player) {
+    throw new AppError("Authentication required", 401);
+  }
+
+  const session = await startSession(req, res, player, {
+    role: req.auth.role,
+    sessionVersion: changed.sessionVersion,
+  });
+  sendSuccess(res, session, "Password changed successfully");
+});
+
+/**
+ * Delete the own account, for good. The password is asked again (a stolen token is not enough); nobody who
+ * is in a game, and not the last active admin, can. The sessions of every device end.
+ * DELETE /api/auth/account
+ */
+export const deleteOwnAccount = asyncHandler(async (req, res) => {
+  const { playerId } = req.auth;
+
+  const valid = await verifyPassword(await req.store.getPasswordHash(playerId), req.body.password);
+  if (!valid) {
+    // Not a 401: the client would take it for an expired session
+    throw new AppError("Current password is incorrect", 400);
+  }
+
+  const result = await deleteAccount(req.store, req.gameState, playerId, {}, { type: "player", id: playerId });
+
+  req.io.to(playerRoom(playerId)).emit("sessionEnded", { reason: "deleted" });
+  req.io.in(playerRoom(playerId)).disconnectSockets(true);
+  clearRefreshCookie(res);
+  sendSuccess(res, result, "Account deleted");
 });
 
 /**

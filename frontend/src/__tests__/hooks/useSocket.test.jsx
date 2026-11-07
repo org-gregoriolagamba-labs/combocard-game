@@ -92,3 +92,71 @@ describe('the events of the jolly pause', () => {
     }
   });
 });
+
+describe('the temporary password', () => {
+  test('the socket does not connect while the password must change: the server would refuse it and the retries would renew the session', () => {
+    const connect = vi.spyOn(socketService, 'connect');
+    const disconnect = vi.spyOn(socketService, 'disconnect');
+
+    renderWithProviders(<Probe />, {
+      preloadedState: { player: { id: 'carlo', name: 'Carlo', mustChangePassword: true }, game: mockGameState },
+    });
+
+    expect(connect).not.toHaveBeenCalled();
+    expect(disconnect).toHaveBeenCalled();
+    connect.mockRestore();
+    disconnect.mockRestore();
+  });
+});
+
+describe('sessionEnded', () => {
+  test.each([
+    ['suspended', 'Il tuo account è stato sospeso'],
+    ['revoked', "L'amministrazione ha chiuso la tua sessione: accedi di nuovo"],
+    ['deleted', 'Il tuo account è stato eliminato'],
+  ])('%s: the player is out, back at the start, and is told why', (reason, message) => {
+    const { store, emit } = arrange('carlo');
+
+    emit('sessionEnded', { reason });
+
+    const state = store.getState();
+    expect(state.player.id).toBeNull();
+    expect(state.game.currentGameId).toBeNull();
+    expect(state.ui.currentScreen).toBe('home');
+    expect(state.ui.toasts.map((t) => t.message)).toContain(message);
+  });
+});
+
+describe('gameCancelled', () => {
+  test('the player of the game goes back to the hall, with the balance the server says, and is told', () => {
+    const { store, emit } = arrange('carlo');
+    const gameId = store.getState().game.currentGameId;
+
+    emit('gameCancelled', { gameId, gettoni: 450, refund: 100 });
+
+    const state = store.getState();
+    expect(state.game.currentGameId).toBeNull();
+    expect(state.game.game).toBeNull();
+    expect(state.ui.currentScreen).toBe('hall');
+    expect(state.player.credits).toBe(450);
+    expect(state.ui.toasts.map((t) => t.message)).toContain(
+      "La partita è stata annullata dall'amministrazione: ti sono stati restituiti 100 crediti",
+    );
+  });
+
+  test('with no refund the notice does not mention credits', () => {
+    const { store, emit } = arrange('carlo');
+
+    emit('gameCancelled', { gameId: store.getState().game.currentGameId, gettoni: 450, refund: 0 });
+
+    expect(store.getState().ui.toasts.map((t) => t.message)).toContain("La partita è stata annullata dall'amministrazione");
+  });
+
+  test('a cancellation of another game leaves the game on screen', () => {
+    const { store, emit } = arrange('carlo');
+
+    emit('gameCancelled', { gameId: 'another-game', gettoni: 450, refund: 100 });
+
+    expect(store.getState().game.currentGameId).not.toBeNull();
+  });
+});

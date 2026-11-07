@@ -12,7 +12,9 @@ import { Button, Input } from "../common";
 import { adminService } from "../../services";
 import { setPlayer, setRole, updateCredits } from "../../store/slices/playerSlice";
 import { addToast, setScreen } from "../../store/slices/uiSlice";
+import AccessDialog from "./AccessDialog";
 import CreditsDialog from "./CreditsDialog";
+import DeleteUserDialog from "./DeleteUserDialog";
 import EditUserDialog from "./EditUserDialog";
 import Pager from "./Pager";
 
@@ -106,6 +108,31 @@ function UsersPanel({ onForbidden }) {
     setDialog(null);
   };
 
+  const accessDone = (user, updated, kind, { keepOpen = false } = {}) => {
+    changeUser(updated);
+    const message = {
+      suspend: `Accesso sospeso: ${user.username}`,
+      unsuspend: `Accesso riabilitato: ${user.username}`,
+      revoke: `Sessioni chiuse: ${user.username}`,
+      reset: `Password reimpostata: ${user.username}`,
+    }[kind];
+    dispatch(addToast({ message, type: "success" }));
+    // After a reset the dialog shows the temporary password: it closes when the admin closes it
+    if (!keepOpen) {
+      setDialog(null);
+    }
+  };
+
+  const deleteDone = (user) => {
+    setData((current) => ({
+      ...current,
+      items: current.items.filter((u) => u.playerId !== user.playerId),
+      total: current.total - 1,
+    }));
+    dispatch(addToast({ message: `Account eliminato: ${user.username}`, type: "success" }));
+    setDialog(null);
+  };
+
   const select =
     "min-h-[44px] w-full rounded-xl border border-linea-forte bg-notte-950 px-4 py-3 text-testo focus:outline-none focus:ring-2 focus:ring-oro";
 
@@ -158,6 +185,7 @@ function UsersPanel({ onForbidden }) {
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-bold text-testo [overflow-wrap:anywhere]">
                           {user.username}
                           {user.role === "admin" && <span className={`${tag} bg-oro text-inchiostro-900`}>Admin</span>}
+                          {user.suspended && <span className={`${tag} bg-coppe text-testo`}>Sospeso</span>}
                           {user.inGame && <span className={`${tag} bg-notte-600 text-testo`}>In partita</span>}
                         </p>
                         <p className="text-sm tabular-nums text-testo-2">{`${user.credits} crediti`}</p>
@@ -179,6 +207,17 @@ function UsersPanel({ onForbidden }) {
                         >
                           Crediti
                         </button>
+                        {/* An admin cannot suspend themselves: the server refuses it, so the button is not there */}
+                        {user.playerId !== ownId && (
+                          <button
+                            type="button"
+                            className={action}
+                            aria-label={`Accesso di ${user.username}`}
+                            onClick={() => setDialog({ type: "access", user })}
+                          >
+                            Accesso
+                          </button>
+                        )}
                       </div>
                     </div>
                   </li>
@@ -197,6 +236,17 @@ function UsersPanel({ onForbidden }) {
           onClose={() => setDialog(null)}
           onDone={(result) => creditsDone(dialog.user, result)}
         />
+      )}
+      {dialog?.type === "access" && (
+        <AccessDialog
+          user={dialog.user}
+          onClose={() => setDialog(null)}
+          onDone={(updated, kind, options) => accessDone(dialog.user, updated, kind, options)}
+          onDelete={() => setDialog({ type: "delete", user: dialog.user })}
+        />
+      )}
+      {dialog?.type === "delete" && (
+        <DeleteUserDialog user={dialog.user} onClose={() => setDialog(null)} onDone={() => deleteDone(dialog.user)} />
       )}
       {dialog?.type === "edit" && (
         <EditUserDialog
