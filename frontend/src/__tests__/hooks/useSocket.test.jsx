@@ -113,6 +113,7 @@ describe('sessionEnded', () => {
   test.each([
     ['suspended', 'Il tuo account è stato sospeso'],
     ['revoked', "L'amministrazione ha chiuso la tua sessione: accedi di nuovo"],
+    ['deleted', 'Il tuo account è stato eliminato'],
   ])('%s: the player is out, back at the start, and is told why', (reason, message) => {
     const { store, emit } = arrange('carlo');
 

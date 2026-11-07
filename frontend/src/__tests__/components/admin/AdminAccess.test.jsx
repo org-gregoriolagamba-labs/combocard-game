@@ -136,6 +136,105 @@ describe('AdminScreen: suspension and sessions', () => {
     expect(adminService.suspendUser).not.toHaveBeenCalled();
   });
 
+  describe('the deletion of the account', () => {
+    const openDelete = async (name = 'Anna') => {
+      const view = await open(name);
+      fireEvent.click(within(view.dialog).getByRole('button', { name: "Elimina l'account" }));
+      view.dialog = await screen.findByRole('dialog', { name: `Elimina l'account di ${name}` });
+      return view;
+    };
+    const typeName = (value) => fireEvent.change(screen.getByLabelText('Scrivi il nome utente per confermare'), { target: { value } });
+    const confirm = () => fireEvent.click(screen.getByRole('button', { name: 'Elimina definitivamente' }));
+
+    test('is offered for an active user and for a suspended one, and says it cannot be undone', async () => {
+      const { dialog } = await openDelete();
+      expect(dialog).toHaveTextContent('Non si può annullare');
+
+      adminService.listUsers.mockResolvedValue(pageOf([suspendedAnna, carlo, dario]));
+    });
+
+    test('is offered also for a suspended user', async () => {
+      adminService.listUsers.mockResolvedValue(pageOf([suspendedAnna, carlo, dario]));
+      await openDelete();
+
+      expect(screen.getByRole('button', { name: 'Elimina definitivamente' })).toBeInTheDocument();
+    });
+
+    test('the button stays off until the username is written exactly', async () => {
+      await openDelete();
+      const button = screen.getByRole('button', { name: 'Elimina definitivamente' });
+      expect(button).toBeDisabled();
+
+      typeName('anna');
+      expect(button).toBeDisabled();
+      typeName('Ann');
+      expect(button).toBeDisabled();
+      typeName('Anna');
+      expect(button).toBeEnabled();
+    });
+
+    test('needs a reason, and sends nothing without it', async () => {
+      await openDelete();
+
+      typeName('Anna');
+      confirm();
+
+      expect(document.getElementById(screen.getByLabelText('Motivo').getAttribute('aria-describedby'))).toHaveTextContent('Scrivi il motivo');
+      expect(adminService.deleteUser).not.toHaveBeenCalled();
+    });
+
+    test('deletes: sends the reason, closes, takes the user out of the list and says it', async () => {
+      adminService.deleteUser.mockResolvedValue({ playerId: 'p1', credits: 100 });
+      const { store } = await openDelete();
+
+      typeName('Anna');
+      reason('  richiesta di cancellazione ');
+      confirm();
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(adminService.deleteUser).toHaveBeenCalledWith('p1', { reason: 'richiesta di cancellazione' });
+      expect(within(screen.getByRole('list', { name: 'Utenti' })).getAllByRole('listitem')).toHaveLength(2);
+      expect(screen.queryByText('Anna')).not.toBeInTheDocument();
+      expect(screen.getByText('2 utenti')).toBeInTheDocument();
+      expect(store.getState().ui.toasts.map((t) => t.message)).toContain('Account eliminato: Anna');
+    });
+
+    test('an error of the server is explained in the dialog, which stays open, and the user stays in the list', async () => {
+      adminService.deleteUser.mockRejectedValue(failure('Il giocatore sta giocando una partita: annullala o aspetta che finisca', 409));
+      await openDelete();
+
+      typeName('Anna');
+      reason('x');
+      confirm();
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('sta giocando una partita');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(row(0)).toHaveTextContent('Anna');
+    });
+
+    test('a double tap sends it once', async () => {
+      adminService.deleteUser.mockImplementation(() => new Promise(() => {}));
+      await openDelete();
+
+      typeName('Anna');
+      reason('x');
+      const button = screen.getByRole('button', { name: 'Elimina definitivamente' });
+      fireEvent.click(button);
+      fireEvent.click(button);
+
+      expect(adminService.deleteUser).toHaveBeenCalledTimes(1);
+    });
+
+    test('"Indietro" closes the dialog and sends nothing', async () => {
+      await openDelete();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Indietro' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(adminService.deleteUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe('the reset of the password', () => {
     const temporary = 'K7QM-X2PD-9WJT';
 
