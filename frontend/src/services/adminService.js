@@ -96,6 +96,17 @@ export const revokeSessions = async (playerId, { reason }) => {
 };
 
 /**
+ * Reset the password of a user: the server makes a temporary one, shown to the admin once
+ * @param {string} playerId - Player ID
+ * @param {Object} action - { reason }
+ * @returns {Promise<Object>} { user, temporaryPassword }
+ */
+export const resetPassword = async (playerId, { reason }) => {
+  const response = await api.post(`/admin/users/${encodeURIComponent(playerId)}/password/reset`, { reason });
+  return response.data;
+};
+
+/**
  * One page of the audit log, the latest first
  * @param {Object} filters - { targetId, page, limit }
  * @returns {Promise<Object>} { items, total, page, limit }

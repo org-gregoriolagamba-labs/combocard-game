@@ -17,7 +17,7 @@ import { addToast, setScreen } from "./store/slices/uiSlice";
 import { HomePage } from "./pages";
 
 // Game screens
-import { HallScreen, LobbyScreen, GameScreen, RegoleScreen } from "./components/game";
+import { HallScreen, LobbyScreen, GameScreen, RegoleScreen, ChangePasswordScreen } from "./components/game";
 import { AdminScreen } from "./components/admin";
 import { LoadingSpinner } from "./components/common";
 
@@ -28,6 +28,7 @@ function AppContent() {
   const playerId = useSelector((state) => state.player.id);
   const regoleAccettateIl = useSelector((state) => state.player.regoleAccettateIl);
   const role = useSelector((state) => state.player.role);
+  const mustChangePassword = useSelector((state) => state.player.mustChangePassword);
 
   // Initialize socket connection
   useSocket();
@@ -42,7 +43,8 @@ function AppContent() {
 
     const restore = async () => {
       const player = await dispatch(restoreSession()).unwrap().catch(() => null);
-      if (player) {
+      // With a temporary password the server refuses the game: the player chooses a password first
+      if (player && !player.mustChangePassword) {
         await dispatch(enterGameOrHall(player));
       }
     };
@@ -57,6 +59,11 @@ function AppContent() {
         <LoadingSpinner size="xl" />
       </div>
     );
+  }
+
+  // A temporary password comes before everything, the rules included
+  if (playerId && mustChangePassword) {
+    return <ChangePasswordScreen />;
   }
 
   // A player who never confirmed the rules reads them before anything else

@@ -176,7 +176,7 @@ describe('AdminScreen: suspension and sessions', () => {
       expect(within(dialog).queryByRole('button', { name: "Sospendi l'accesso" })).not.toBeInTheDocument();
       expect(store.getState().ui.toasts.map((t) => t.message)).toContain('Password reimpostata: Anna');
 
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Chiudi' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Fatto' }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(screen.queryByText(temporary)).not.toBeInTheDocument();
     });
@@ -186,7 +186,7 @@ describe('AdminScreen: suspension and sessions', () => {
       const { store } = await open();
       reason('x');
       fireEvent.click(screen.getByRole('button', { name: 'Reimposta la password' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Chiudi' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Fatto' }));
 
       expect(document.body).not.toHaveTextContent(temporary);
       expect(JSON.stringify(store.getState())).not.toContain(temporary);

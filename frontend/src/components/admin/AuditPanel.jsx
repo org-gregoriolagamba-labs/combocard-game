@@ -52,6 +52,12 @@ export function frase(e) {
   if (e.action === "sessions_revoked") {
     return `${chi} ha chiuso le sessioni di ${bersaglio}: «${e.details.reason}»`;
   }
+  if (e.action === "password_reset") {
+    return `${chi} ha reimpostato la password di ${bersaglio}: «${e.details.reason}»`;
+  }
+  if (e.action === "password_changed") {
+    return suSeStesso ? `${chi} ha cambiato la propria password` : `${chi} ha cambiato la password di ${bersaglio}`;
+  }
   return `${chi}: ${e.action}`;
 }
 

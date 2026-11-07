@@ -74,15 +74,16 @@ describe('ChangePasswordScreen', () => {
     expect(store.getState().player.mustChangePassword).toBe(true);
   });
 
-  test('a double tap sends it once', () => {
+  test('a double tap sends it once', async () => {
     authService.changePassword.mockImplementation(() => new Promise(() => {}));
     renderWithProviders(<ChangePasswordScreen />, { preloadedState: state() });
 
     fill('K7QM-X2PD-9WJT', 'una password mia');
-    send();
-    send();
+    const button = screen.getByRole('button', { name: 'Salva la nuova password' });
+    fireEvent.click(button);
+    fireEvent.click(button);
 
-    expect(authService.changePassword).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(authService.changePassword).toHaveBeenCalledTimes(1));
   });
 
   test('"Esci" logs out without choosing', async () => {

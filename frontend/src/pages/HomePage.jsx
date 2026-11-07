@@ -58,8 +58,11 @@ function HomePage() {
 
     try {
       const action = isRegistering ? registerAccount : login;
-      const { player } = await dispatch(action({ username, password })).unwrap();
-      await dispatch(enterGameOrHall(player));
+      const { player, mustChangePassword } = await dispatch(action({ username, password })).unwrap();
+      // With a temporary password the server refuses the game: the app asks for a new password first
+      if (!mustChangePassword) {
+        await dispatch(enterGameOrHall(player));
+      }
     } catch {
       // The reason is in the state of the player and is shown in the form
     }
