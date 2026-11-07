@@ -17,6 +17,15 @@ I giocatori accedono con nome utente e password. L'identità di ogni richiesta a
 3. Quando il token scade il server risponde `401`: il frontend lo rinnova e ripete la richiesta, senza che l'utente veda nulla.
 4. Ricaricando la pagina il token in memoria si perde: il frontend ne ottiene uno nuovo dal cookie e riporta il giocatore nella partita in corso.
 
+### Password provvisoria
+
+Quando un admin reimposta una password (`POST /api/admin/users/:playerId/password/reset`, con motivo) il server genera una password provvisoria casuale (tre gruppi di quattro caratteri senza lettere ambigue, circa 59 bit, con un generatore sicuro) e la risponde **una sola volta** all'admin, con `Cache-Control: no-store`. Non finisce mai nel registro, nei log né in nessuna risposta successiva: del registro resta chi, per chi e perché (`password_reset`); del cambio resta chi e quando (`password_changed`), mai la password né l'hash. Un admin non può reimpostare la propria password (`409`).
+
+- L'account ha `must_change_password`: la vecchia password non vale più, le sue sessioni si chiudono (versione delle sessioni e refresh token, come nella sospensione) e le sue connessioni vengono chiuse.
+- Con la password provvisoria il login riesce e risponde `mustChangePassword: true` (come il rinnovo della sessione), ma **ogni altra route risponde `403 You must change your password first`** e il tempo reale rifiuta la connessione: l'unica route aperta è `POST /api/auth/password`, con `requireAuthToChangePassword`.
+- Il frontend mostra solo la schermata "Scegli una nuova password" (prima anche delle regole) e non apre il socket: i tentativi rifiutati rinnoverebbero la sessione e si scontrerebbero con il cambio.
+- Cambiata la password, l'obbligo cade e la sessione nuova è quella normale. Lo stesso percorso serve a chi vuole cambiare la propria password senza reset (il frontend non ha ancora una schermata per questo) e potrà servire al recupero della #44.
+
 ### Sospensione e chiusura delle sessioni
 
 L'access token porta la **versione delle sessioni** dell'account (`sv`, 0 per i token emessi prima della migrazione 008). A **ogni richiesta** e a ogni connessione Socket.IO il server rilegge l'account dal database e rifiuta il token con `401` se l'account è sospeso, se non esiste più o se la versione è cambiata. Una lettura per chiave primaria a richiesta: il ruolo che arriva in `req.auth.role` è quello dell'account adesso, non quello scritto nel token.
@@ -40,6 +49,7 @@ Se arriva un token già sostituito da più di 10 secondi, forse è stato rubato:
 | `POST /api/auth/login` | Pubblico | `{ username, password }`. Stesso `401` per password errata e utente inesistente |
 | `POST /api/auth/refresh` | Cookie | Nuovo access token. Senza cookie risponde `200` con valori `null` |
 | `POST /api/auth/logout` | Cookie | Chiude la sessione su questo dispositivo |
+| `POST /api/auth/password` | Token (anche con password provvisoria) | `{ currentPassword, newPassword }` (8–128 caratteri, diversa dalla attuale). Controlla di nuovo la password attuale (`400` se è sbagliata: non `401`, che il frontend prenderebbe per una sessione scaduta), chiude **tutte** le sessioni e ne apre una nuova per questo dispositivo: risponde come il login. Limite di tentativi come il login |
 
 - **Nome utente:** da 3 a 30 caratteri tra lettere, numeri, spazi e `_ . -`. Maiuscole e minuscole contano come lo stesso nome.
 - **Password:** da 8 a 128 caratteri, salvata con argon2id.
@@ -84,6 +94,7 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 | `POST /api/admin/users/:playerId/suspend` | `{ reason }` (obbligatorio, fino a 200 caratteri): sospende l'utente e chiude le sue sessioni e connessioni (`404` se non esiste, `409` se sei tu o l'ultimo admin attivo). Risponde con l'utente (`suspended: true`) |
 | `POST /api/admin/users/:playerId/unsuspend` | `{ reason }`: riabilita l'utente, che rientra con la sua password |
 | `POST /api/admin/users/:playerId/sessions/revoke` | `{ reason }`: chiude tutte le sessioni dell'utente senza sospenderlo |
+| `POST /api/admin/users/:playerId/password/reset` | `{ reason }`: reimposta la password (vedi "Password provvisoria"). Risponde `{ user, temporaryPassword }` (`404` se non esiste, `409` se sei tu) |
 | `GET /api/admin/games?status=&page=&limit=` | Le partite in attesa o in corso, dalla più vecchia, **solo metadati**: id, stato, quota, massimo di giocatori, montepremi, data e nomi dei giocatori. Mai `mazzo`, cartelle, carte estratte né saldi. L'id di una partita privata è il suo codice: l'admin lo vede |
 | `POST /api/admin/games/:gameId/cancel` | `{ reason }` (obbligatorio, fino a 200 caratteri): annulla una partita in attesa o in corso (`404` se non esiste, `409` se è già finita). Se era in corso, ogni giocatore **ancora presente** riceve la quota d'ingresso (`game_refund`); i premi già assegnati ma non ancora accreditati si perdono, perché la partita conta come mai giocata. Chi l'aveva lasciata ha già perso la quota e non è rimborsato. I giocatori ricevono `gameCancelled` `{ gameId, gettoni, refund }` |
 | `GET /api/admin/stats` | Numeri della piattaforma, senza nomi: utenti registrati, in partita ora e admin; partite in attesa, in corso, finite e annullate; crediti in circolazione e nel montepremi delle partite in corso; montepremi distribuiti |
