@@ -4,9 +4,10 @@
  * What to show once the player is known.
  */
 
-import { gameService } from "../services";
-import { resumeGame, setUltimaCartaEstratta } from "./slices/gameSlice";
-import { setScreen } from "./slices/uiSlice";
+import { authService, gameService } from "../services";
+import { clearGame, resumeGame, setUltimaCartaEstratta } from "./slices/gameSlice";
+import { clearPlayer } from "./slices/playerSlice";
+import { addToast, setScreen } from "./slices/uiSlice";
 
 /**
  * Go back to the game in progress, if there is one, otherwise to the hall
@@ -30,4 +31,22 @@ export const enterGameOrHall = (player) => async (dispatch) => {
   }
 
   dispatch(setScreen("hall"));
+};
+
+/**
+ * Delete the own account with the password. When it is done the player is out and back at the start.
+ * The server also tells every device with "sessionEnded", and that may arrive first: then the player is
+ * already out and the notice has already been shown, so nothing is done twice.
+ * @param {string} password - Current password
+ * @throws The error of the server, to be shown to whoever asked
+ */
+export const deleteOwnAccount = (password) => async (dispatch, getState) => {
+  await authService.deleteAccount(password);
+
+  if (getState().player.id !== null) {
+    dispatch(clearPlayer());
+    dispatch(clearGame());
+    dispatch(setScreen("home"));
+    dispatch(addToast({ message: "Il tuo account è stato eliminato", type: "warning", duration: 8000 }));
+  }
 };

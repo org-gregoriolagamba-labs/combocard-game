@@ -58,6 +58,17 @@ export const changePassword = async (currentPassword, newPassword) => {
 };
 
 /**
+ * Delete the own account, for good, with the password. The token is forgotten: it is no longer worth anything.
+ * @param {string} password - Current password
+ * @returns {Promise<Object>} { playerId, credits }
+ */
+export const deleteAccount = async (password) => {
+  const response = await api.delete("/auth/account", { password });
+  setAccessToken(null);
+  return response.data;
+};
+
+/**
  * Log out from this device. The token is forgotten even if the server cannot be reached.
  */
 export const logout = async () => {
