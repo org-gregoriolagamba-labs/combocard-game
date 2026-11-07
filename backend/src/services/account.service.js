@@ -25,8 +25,12 @@ export async function deleteAccount(store, gameState, playerId, { reason } = {},
   if (!player) {
     throw new AppError("User not found", 404);
   }
+  // The user deleting themselves reads the refusals as being about them
+  const itself = actor.type === "player" && actor.id === playerId;
+  const inGame = () =>
+    new AppError(itself ? "You cannot delete your account while you are in a game" : "Cannot delete a player who is in a game", 409);
   if (activeGameOf(gameState, playerId)) {
-    throw new AppError("Cannot delete a player who is in a game", 409);
+    throw inGame();
   }
 
   // From here the token of the player is not accepted, so no game can be joined while the store writes
@@ -38,10 +42,10 @@ export async function deleteAccount(store, gameState, playerId, { reason } = {},
   } catch (err) {
     delete player.deleting;
     if (err.code === LAST_ADMIN) {
-      throw new AppError("Cannot delete the last admin", 409);
+      throw new AppError(itself ? "You are the last active admin: make another admin first" : "Cannot delete the last admin", 409);
     }
     if (err.code === PLAYER_IN_GAME) {
-      throw new AppError("Cannot delete a player who is in a game", 409);
+      throw inGame();
     }
     console.error(`❌ Could not delete the account of player ${playerId}: ${err.message}`);
     throw new AppError(STORAGE_UNAVAILABLE, 503);
