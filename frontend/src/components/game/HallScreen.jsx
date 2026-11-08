@@ -11,7 +11,7 @@ import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
-import { Modal, Button, Input } from "../common";
+import { Modal, Button, Input, Footer } from "../common";
 import Credito from "./Credito";
 import DeleteAccountDialog from "./DeleteAccountDialog";
 
@@ -298,6 +298,8 @@ function HallScreen() {
             </ul>
           )}
         </section>
+
+        <Footer />
       </div>
 
       {/* Cash Register Modal */}

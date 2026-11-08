@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
 import Seme from "../components/game/Seme";
+import { Footer } from "../components/common";
 import { INCHIOSTRO_SEME } from "../utils";
 
 const MIN_USERNAME_LENGTH = 3;
@@ -166,6 +167,8 @@ function HomePage() {
         <p className="mt-4 text-center text-xs text-testo-2 [text-wrap:balance]">
           Si gioca con crediti di gioco, senza pagamenti e senza valore reale.
         </p>
+
+        <Footer />
       </div>
     </div>
   );
