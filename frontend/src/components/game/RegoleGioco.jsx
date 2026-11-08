@@ -74,7 +74,7 @@ function RegoleGioco({ game = null }) {
       <Sezione titolo="La cartella">
         <p>
           I valori stanno nelle righe (Asso, Due, Tre, Quattro, Cinque, Sei, Sette, Fante, Cavallo, Re), i semi nelle
-          colonne (Denari, Coppe, Spade, Bastoni). I posti vuoti sono le carte che non hai. La posizione serve solo a
+          colonne (Denari, Coppe, Spade, Bastoni). I posti vuoti sono le carte che non hai: se una di queste esce, il posto mostra un pallino con l&apos;anello. La posizione serve solo a
           leggere meglio: per vincere conta quali carte sono coperte, non dove stanno.
         </p>
       </Sezione>

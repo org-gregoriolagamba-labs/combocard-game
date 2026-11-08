@@ -12,7 +12,8 @@
  * number (the same number as the row), so no tile has to be read through the row
  * label. Every card is a button named by its value and suit; it can be activated
  * only while choosing the card for the jolly. A drawn card is sealed with a badge
- * in the ink of its suit.
+ * in the ink of its suit. A card drawn that is not in the sheet leaves its empty place with a solid
+ * border and a ringed dot, and is named for screen readers: it is not told by colour alone.
  */
 
 import React, { useState } from "react";
@@ -207,16 +208,28 @@ function Cartella({
                   <td key={posto.seme} className="p-0">
                     <span
                       aria-hidden="true"
-                      className={`flex h-11 items-center justify-center rounded-lg border border-dashed ${
-                        arrivo ? "border-oro bg-oro/20" : "border-linea"
+                      className={`flex h-11 items-center justify-center rounded-lg border ${
+                        arrivo
+                          ? "border-dashed border-oro bg-oro/20"
+                          : posto.estratta
+                          ? "border-solid border-testo-3 bg-notte-800"
+                          : "border-dashed border-linea-forte"
                       }`}
                     >
                       {arrivo ? (
                         <Sparkles size={20} className="text-oro" />
                       ) : (
-                        posto.estratta && <span className="h-1.5 w-1.5 rounded-full bg-testo-3/70" />
+                        posto.estratta && (
+                          <span
+                            data-testid="uscita-senza-te"
+                            className="h-3 w-3 rounded-full bg-testo-2 ring-2 ring-testo-3/60"
+                          />
+                        )
                       )}
                     </span>
+                    {posto.estratta && !arrivo && (
+                      <span className="sr-only">{`${posto.valore} di ${posto.seme}: uscita, non è nella tua cartella`}</span>
+                    )}
                   </td>
                 );
               }
