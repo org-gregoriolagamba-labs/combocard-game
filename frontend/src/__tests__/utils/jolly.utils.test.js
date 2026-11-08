@@ -88,6 +88,44 @@ describe('anteprimaJolly: what the jolly turns a card into', () => {
   });
 });
 
+describe('anteprimaJolly: never the card the jolly already is', () => {
+  test('sequenza: the uncovered Quattro of Spade cannot become the Quattro of Spade', () => {
+    const { cartella, coperte } = sheet(
+      [k('Due', 'Spade'), k('Tre', 'Coppe'), k('Cinque', 'Denari'), k('Quattro', 'Spade')],
+      ['Due|Spade', 'Tre|Coppe', 'Cinque|Denari']
+    );
+
+    expect(anteprimaJolly(cartella, coperte, 0, 3, 'sequenza')).toBeNull();
+  });
+
+  test('tris: the Sei of Denari cannot become the Sei of Denari', () => {
+    const { cartella, coperte } = sheet(
+      [k('Sei', 'Spade'), k('Sei', 'Coppe'), k('Sei', 'Denari')],
+      ['Sei|Spade', 'Sei|Coppe']
+    );
+
+    expect(anteprimaJolly(cartella, coperte, 0, 2, 'tris')).toBeNull();
+  });
+
+  test('scopa: a card of the suit with four covered cannot become itself', () => {
+    const { cartella, coperte } = sheet(
+      [k('Asso', 'Spade'), k('Due', 'Spade'), k('Tre', 'Spade'), k('Quattro', 'Spade'), k('Cinque', 'Spade')],
+      ['Asso|Spade', 'Due|Spade', 'Tre|Spade', 'Quattro|Spade']
+    );
+
+    expect(anteprimaJolly(cartella, coperte, 0, 4, 'scopa')).toBeNull();
+  });
+
+  test('carteConJolly does not offer such a card', () => {
+    const { cartella, coperte } = sheet(
+      [k('Due', 'Spade'), k('Tre', 'Coppe'), k('Cinque', 'Denari'), k('Quattro', 'Spade')],
+      ['Due|Spade', 'Tre|Coppe', 'Cinque|Denari']
+    );
+
+    expect(carteConJolly(cartella, coperte, 'sequenza')).toEqual([]);
+  });
+});
+
 describe('carteConJolly: which uncovered cards could be turned', () => {
   test('lists each uncovered card with what it would become, and never a covered one', () => {
     const { cartella, coperte } = sheet(

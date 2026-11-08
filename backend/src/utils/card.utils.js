@@ -82,7 +82,7 @@ function generaCartellaCasuale() {
 /**
  * Check if a card exists in the player's grid
  * @param {Array} cartella - Player's card grid
- * @param {Object} jollyPos - Position to exclude (jolly position)
+ * @param {Object|null} jollyPos - Position to leave out of the search; the jolly passes null, its own card counts
  * @param {string} valore - Card value to search
  * @param {string} seme - Card suit to search
  * @returns {boolean} True if card exists

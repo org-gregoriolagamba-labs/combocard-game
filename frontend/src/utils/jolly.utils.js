@@ -7,7 +7,7 @@
  * - tris, sequenza, napola: the card changes value and keeps its suit
  * - scopa: the card changes suit and keeps its value
  * - combocard reale: the card changes value and suit
- * - it never becomes a card that is already in the sheet
+ * - it never becomes a card that is already in the sheet, its own card included
  */
 
 import { VALORI_IN_ORDINE } from "./mazzo.utils";
@@ -16,10 +16,9 @@ const NUMERO = Object.fromEntries(VALORI_IN_ORDINE.map((v, i) => [v, i + 1]));
 const NOME = (numero) => VALORI_IN_ORDINE[numero - 1];
 const LUNGHEZZA = 4;
 
-const giaInCartella = (cartella, row, col, valore, seme) =>
-  cartella.some((riga, r) =>
-    riga.some((carta, c) => !(r === row && c === col) && carta.valore === valore && carta.seme === seme)
-  );
+// Every place counts, the one of the jolly too: a card cannot become itself
+const giaInCartella = (cartella, valore, seme) =>
+  cartella.some((riga) => riga.some((carta) => carta.valore === valore && carta.seme === seme));
 
 /**
  * The card the jolly would make of the card at (row, col) for a collection,
@@ -35,7 +34,7 @@ export function anteprimaJolly(cartella, coperte, row, col, tipo) {
       if (coperte[r]?.[i] && !(r === row && i === col)) coperti.push(c);
     })
   );
-  const libera = (valore, seme) => !giaInCartella(cartella, row, col, valore, seme);
+  const libera = (valore, seme) => !giaInCartella(cartella, valore, seme);
   const numeroDi = (c) => c.valoreNum ?? NUMERO[c.valore];
 
   if (tipo === "tris") {

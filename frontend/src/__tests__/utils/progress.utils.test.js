@@ -20,6 +20,7 @@ describe('calcolaProgresso e Jolly', () => {
     cartella[0][1] = carta(uno[1], 1);
     cartella[0][2] = carta(uno[2], 3);
     cartella[1][0] = carta('Spade', 7); // a card the jolly can turn
+    cartella[4][2] = carta('Coppe', 9); // the Tre of Spade must not be in the sheet already
     [[0, 0], [0, 1], [0, 2]].forEach(([r, c]) => { coperte[r][c] = true; });
 
     const { count, total } = calcolaProgresso({ cartella, coperte }, tipo);
