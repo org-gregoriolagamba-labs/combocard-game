@@ -345,7 +345,7 @@ function GameScreen() {
             ) : (
               <span
                 aria-hidden="true"
-                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-linea"
+                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-linea-forte"
               />
             )}
             <div className="min-w-0">

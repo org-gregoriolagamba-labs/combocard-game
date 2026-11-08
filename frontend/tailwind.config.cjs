@@ -10,8 +10,8 @@ module.exports = {
       colors: {
         // The table (page ground) and the surfaces that sit on it
         notte: { 950: '#070b1f', 900: '#0b1130', 800: '#0f1737', 700: '#18224d', 600: '#232f66' },
-        // Hairlines
-        linea: { DEFAULT: '#2a356b', forte: '#4a5aa6' },
+        // Hairlines: `DEFAULT` for dividers, `forte` (3:1 on the grounds) for the border that is the only sign of a control
+        linea: { DEFAULT: '#2a356b', forte: '#6070c0' },
         // Text on the table
         testo: { DEFAULT: '#f4f1ea', 2: '#b7bfdc', 3: '#8b94bb' },
         // The card: the only light object
