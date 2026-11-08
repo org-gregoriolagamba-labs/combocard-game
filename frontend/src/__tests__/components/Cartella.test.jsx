@@ -62,6 +62,36 @@ describe('Cartella', () => {
     });
   });
 
+  describe('a card drawn that is not in the sheet', () => {
+    const uscita = { valore: 'Re', seme: 'Coppe' };
+
+    test('is named for screen readers: drawn, and not in your sheet', () => {
+      render(<Cartella cartella={griglia} coperte={[[false]]} estratte={[uscita]} />);
+
+      expect(screen.getByText('Re di Coppe: uscita, non è nella tua cartella')).toBeInTheDocument();
+    });
+
+    test('has a visible mark of its own, not only a colour', () => {
+      render(<Cartella cartella={griglia} coperte={[[false]]} estratte={[uscita]} />);
+
+      expect(screen.getByTestId('uscita-senza-te')).toBeInTheDocument();
+      expect(screen.getAllByTestId('uscita-senza-te')).toHaveLength(1);
+    });
+
+    test('an empty place whose card has not come out has neither the mark nor the name', () => {
+      render(<Cartella cartella={griglia} coperte={[[false]]} />);
+
+      expect(screen.queryByTestId('uscita-senza-te')).not.toBeInTheDocument();
+      expect(screen.queryByText(/non è nella tua cartella/)).not.toBeInTheDocument();
+    });
+
+    test('a card of the sheet that came out gets no such mark', () => {
+      render(<Cartella cartella={griglia} coperte={[[true]]} estratte={[carta]} />);
+
+      expect(screen.queryByTestId('uscita-senza-te')).not.toBeInTheDocument();
+    });
+  });
+
   describe('each card is a button with its name', () => {
     test('named by value and suit', () => {
       render(<Cartella cartella={griglia} coperte={[[false]]} />);
