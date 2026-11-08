@@ -87,7 +87,9 @@ test.describe('Info e contatti @mobile', () => {
           return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
         };
         const dialog = document.querySelector('[role=dialog]');
-        const controls = [...dialog.querySelectorAll('button, a')].filter(visible);
+        // A link inside a sentence (the credits) takes the height of its lines, as in any text;
+        // buttons and links of the lists are the targets that must be at least 44px
+        const controls = [...dialog.querySelectorAll('button, a')].filter((el) => visible(el) && !el.closest('p'));
         return {
           overflow: Math.max(document.documentElement.scrollWidth - document.documentElement.clientWidth, dialog.scrollWidth - dialog.clientWidth),
           small: controls.filter((el) => el.getBoundingClientRect().height < 44).map((el) => el.getAttribute('aria-label') || el.textContent),
