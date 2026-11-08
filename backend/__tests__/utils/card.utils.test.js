@@ -5,7 +5,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { generaMazzo, generaCartella, generateId, shuffleArray } from '../../src/utils/card.utils.js';
+import { generaMazzo, generaCartella, generateId, shuffleArray, collezioniPossibili } from '../../src/utils/card.utils.js';
 import { SEMI, VALORI, SEMI_EMOJI } from '../../src/config/constants.js';
 
 describe('Card Utils', () => {
@@ -123,6 +123,47 @@ describe('Card Utils', () => {
       expect(SEMI_EMOJI).toHaveProperty('Denari');
       expect(SEMI_EMOJI).toHaveProperty('Bastoni');
     });
+  });
+});
+
+describe('collezioniPossibili', () => {
+  const mazzo = generaMazzo();
+  const griglia = (carte) => {
+    const righe = [];
+    for (let r = 0; r < 5; r++) righe.push(carte.slice(r * 5, r * 5 + 5));
+    return righe;
+  };
+  const con = (...nomi) => nomi.map((n) => mazzo.find((c) => `${c.valore}|${c.seme}` === n));
+  // Una cartella che contiene tutto: Asso, Due, Tre, Quattro di Denari (Reale e Sequenza),
+  // tre Assi (Tris), due Due (Napola), cinque Denari (Scopa)
+  const completa = [
+    ...con('Asso|Denari', 'Due|Denari', 'Tre|Denari', 'Quattro|Denari', 'Cinque|Denari',
+      'Asso|Coppe', 'Asso|Spade', 'Due|Coppe'),
+  ];
+  const riempi = (base) => {
+    const usate = new Set(base.map((c) => `${c.valore}|${c.seme}`));
+    const altre = mazzo.filter((c) => !usate.has(`${c.valore}|${c.seme}`));
+    return [...base, ...altre].slice(0, 25);
+  };
+
+  test('riconosce una cartella che le permette tutte', () => {
+    expect(collezioniPossibili(griglia(riempi(completa)))).toEqual({
+      tris: true, sequenza: true, scopa: true, napola: true, combocard_reale: true,
+    });
+  });
+
+  test('segnala la Combocard Reale impossibile: nessun seme ha quattro valori di fila', () => {
+    // Senza il Quattro e l'Otto di ogni seme restano file di tre al massimo (1-3, 5-7, 9-10)
+    const carte = mazzo.filter((c) => c.valoreNum % 4 !== 0).slice(0, 25);
+    const r = collezioniPossibili(griglia(carte));
+    expect(r.combocard_reale).toBe(false);
+  });
+
+  test('la generazione non produce mai una cartella con una collezione impossibile', () => {
+    for (let i = 0; i < 3000; i++) {
+      const r = collezioniPossibili(generaCartella());
+      expect(Object.values(r).every(Boolean)).toBe(true);
+    }
   });
 });
 
