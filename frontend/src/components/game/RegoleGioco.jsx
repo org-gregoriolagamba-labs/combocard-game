@@ -75,7 +75,7 @@ function RegoleGioco({ game = null }) {
         <p>
           I valori stanno nelle righe (Asso, Due, Tre, Quattro, Cinque, Sei, Sette, Fante, Cavallo, Re), i semi nelle
           colonne (Denari, Coppe, Spade, Bastoni). I posti vuoti sono le carte che non hai: se una di queste esce, il posto mostra un pallino con l&apos;anello. La posizione serve solo a
-          leggere meglio: per vincere conta quali carte sono coperte, non dove stanno.
+          leggere meglio: per vincere conta quali carte sono coperte, non dove stanno. Tocca una carta, della cartella o tra quelle uscite, per ingrandirla; durante il Jolly la ingrandisci tenendola premuta.
         </p>
       </Sezione>
 

@@ -55,4 +55,48 @@ describe('StoricoCarte', () => {
     expect(document.querySelectorAll('img')).toHaveLength(2);
     expect(within(screen.getByRole('list')).getAllByRole('listitem')[0]).toHaveTextContent('Re di Coppe');
   });
+
+  describe('zoom on request', () => {
+    const apri = () => {
+      render(<StoricoCarte estratte={USCITE} />);
+      fireEvent.click(screen.getByRole('button', { name: /Carte uscite/ }));
+    };
+
+    it('a card of the list is a button that opens it big', () => {
+      apri();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sei di Spade' }));
+
+      expect(screen.getByRole('dialog', { name: 'Sei di Spade' })).toBeInTheDocument();
+    });
+
+    it('the arrows go to the next card, older or newer, and stop at the ends', () => {
+      apri();
+      fireEvent.click(screen.getByRole('button', { name: 'Re di Coppe' }));
+
+      expect(screen.queryByRole('button', { name: 'Più recente' })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Meno recente' }));
+      expect(screen.getByRole('dialog', { name: 'Sei di Spade' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Meno recente' }));
+      expect(screen.getByRole('dialog', { name: 'Asso di Denari' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Meno recente' })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Più recente' }));
+      expect(screen.getByRole('dialog', { name: 'Sei di Spade' })).toBeInTheDocument();
+    });
+
+    it('closing gives the focus back to the card that was opened', () => {
+      apri();
+      const miniatura = screen.getByRole('button', { name: 'Sei di Spade' });
+      miniatura.focus();
+      fireEvent.click(miniatura);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(miniatura).toHaveFocus();
+    });
+  });
 });
