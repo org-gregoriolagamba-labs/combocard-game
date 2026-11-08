@@ -147,7 +147,7 @@ function Cartella({
                   <li key={tipo}>
                     <span
                       aria-hidden="true"
-                      className={`block whitespace-nowrap rounded-sm px-1 text-[11px] font-bold leading-[14px] ${
+                      className={`block whitespace-nowrap rounded-sm px-0.5 text-xs font-bold leading-4 tracking-tighter ${
                         total - count <= 1 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
                       }`}
                     >
@@ -166,13 +166,13 @@ function Cartella({
               className={`relative rounded-lg border border-linea-forte px-0.5 py-1 text-center max-[379px]:px-0 ${INCHIOSTRO_SEME[seme].soft}`}
             >
               <Seme seme={seme} className="mx-auto h-6 w-6" />
-              <span className={`block text-[13px] font-bold leading-tight tracking-tight max-[379px]:text-[11px] ${INCHIOSTRO_SEME[seme].text}`}>
+              <span className={`block text-[13px] font-bold leading-tight tracking-tight max-[379px]:text-xs max-[359px]:text-[11px] ${INCHIOSTRO_SEME[seme].text}`}>
                 {seme}
               </span>
               {perColonna[indiceSeme] >= 3 && (
                 <span
                   aria-hidden="true"
-                  className={`absolute right-0.5 top-0.5 rounded-sm px-1 text-[11px] font-bold leading-4 ${
+                  className={`absolute right-0.5 top-0.5 rounded-sm px-1 text-xs font-bold leading-4 ${
                     perColonna[indiceSeme] >= 5 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
                   }`}
                 >
@@ -196,7 +196,7 @@ function Cartella({
                   {perRiga[indiceRiga] >= 2 && (
                     <span
                       aria-hidden="true"
-                      className={`rounded-sm px-1 text-[11px] font-bold leading-4 ${
+                      className={`rounded-sm px-1 text-xs font-bold leading-4 ${
                         perRiga[indiceRiga] >= 3 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
                       }`}
                     >
@@ -269,7 +269,7 @@ function Cartella({
                     <FaccioCarta carta={carta} numero={indiceRiga + 1} coperta={coperta} />
 
                     {isJolly && (
-                      <span className="absolute left-0 top-0 rounded-br-md bg-oro px-1 text-[10px] font-bold leading-4 text-inchiostro-900">
+                      <span className="absolute left-0 top-0 rounded-br-md bg-oro px-1 text-xs font-bold leading-4 text-inchiostro-900">
                         {carta.wasJolly ? "USATO" : "JOLLY"}
                       </span>
                     )}
