@@ -171,6 +171,45 @@ describe('Cartella', () => {
     });
   });
 
+  describe('the counts of rows and columns stop at the goal and go away once the figure is won', () => {
+    const sei = ['Spade', 'Coppe', 'Denari', 'Bastoni'].map((seme) => ({ valore: 'Sei', seme, valoreNum: 6 }));
+    const sei_coppe = ['Asso', 'Due', 'Tre', 'Quattro', 'Cinque', 'Sei'].map((valore, i) => ({ valore, seme: 'Coppe', valoreNum: i + 1 }));
+
+    test('six covered cards of one suit show 5/5, never 6/5', () => {
+      render(<Cartella cartella={[sei_coppe]} coperte={[sei_coppe.map(() => true)]} />);
+
+      const colonna = screen.getByRole('columnheader', { name: /Coppe/ });
+      expect(colonna).toHaveTextContent('5/5');
+      expect(colonna).not.toHaveTextContent('6/5');
+    });
+
+    test('once the scopa is won the columns show no count', () => {
+      render(<Cartella cartella={[sei_coppe]} coperte={[sei_coppe.map(() => true)]} vinte={['scopa']} />);
+
+      expect(screen.getByRole('columnheader', { name: /Coppe/ })).not.toHaveTextContent('/5');
+    });
+
+    test('four covered cards of one value show 3/3, never 4/3', () => {
+      render(<Cartella cartella={[sei]} coperte={[[true, true, true, true]]} />);
+
+      const riga = screen.getByRole('rowheader', { name: /Sei/ });
+      expect(riga).toHaveTextContent('3/3');
+      expect(riga).not.toHaveTextContent('4/3');
+    });
+
+    test('once the tris is won the rows show no count', () => {
+      render(<Cartella cartella={[sei]} coperte={[[true, true, true, true]]} vinte={['tris']} />);
+
+      expect(screen.getByRole('rowheader', { name: /Sei/ })).not.toHaveTextContent('/3');
+    });
+
+    test('a count of a figure not yet won is still shown', () => {
+      render(<Cartella cartella={[sei]} coperte={[[true, true, false, false]]} vinte={['scopa']} />);
+
+      expect(screen.getByRole('rowheader', { name: /Sei/ })).toHaveTextContent('2/3');
+    });
+  });
+
   describe('the corner of the sheet shows how near the figures across the rows are', () => {
     const spade = (valore, valoreNum) => ({ valore, seme: 'Spade', valoreNum });
     const sequenza3 = [spade('Asso', 1), spade('Due', 2), spade('Tre', 3), spade('Re', 10)];

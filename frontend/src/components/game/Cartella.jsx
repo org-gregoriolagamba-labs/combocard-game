@@ -112,8 +112,14 @@ function Cartella({
   const choosing = Boolean(jollyMode) && !jollyUsato;
   const righe = mappaCartella(cartella, coperte, estratte);
   // How near each row (a tris) and each column (a scopa) is: shown on the sheet itself
-  const perRiga = righe.map((riga) => riga.filter((p) => p.coperta).length);
-  const perColonna = SEMI_IN_ORDINE.map((_, c) => righe.filter((riga) => riga[c].coperta).length);
+  // The count stops at the goal and goes away once the figure is won (by anyone): a tris is a row of
+  // three and a scopa a column of five, so 6/5 or 4/3 would say nothing and a won figure has no "near"
+  const perRiga = righe.map((riga) =>
+    vinte.includes("tris") ? 0 : Math.min(riga.filter((p) => p.coperta).length, 3)
+  );
+  const perColonna = SEMI_IN_ORDINE.map((_, c) =>
+    vinte.includes("scopa") ? 0 : Math.min(righe.filter((riga) => riga[c].coperta).length, 5)
+  );
   // The same count as the collections panel; a figure appears when at most two cards are missing
   const vicine = FIGURE_TRASVERSALI.filter(({ tipo }) => !vinte.includes(tipo))
     .map((figura) => ({ ...figura, ...calcolaProgresso({ cartella, coperte }, figura.tipo) }))
