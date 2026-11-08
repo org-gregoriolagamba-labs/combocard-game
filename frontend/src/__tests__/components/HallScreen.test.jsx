@@ -221,6 +221,27 @@ describe('HallScreen', () => {
       expect(screen.getByLabelText('Numero massimo giocatori')).toHaveDisplayValue('4');
     });
 
+    test('the sounds are on by default and the choice is sent with the game', () => {
+      gameService.createGame.mockResolvedValue({ gameId: 'g1' });
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      expect(screen.getByLabelText('Suoni di gioco')).toBeChecked();
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+      expect(gameService.createGame).toHaveBeenLastCalledWith(expect.objectContaining({ soundsEnabled: true }));
+    });
+
+    test('a game without sounds is sent as such', () => {
+      gameService.createGame.mockResolvedValue({ gameId: 'g1' });
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      fireEvent.click(screen.getByLabelText('Suoni di gioco'));
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(gameService.createGame).toHaveBeenLastCalledWith(expect.objectContaining({ soundsEnabled: false }));
+    });
+
     test('a game made with retyped values is sent with numbers, not text', () => {
       gameService.createGame.mockResolvedValue({ gameId: 'g1' });
       renderWithProviders(<HallScreen />, { preloadedState: state() });

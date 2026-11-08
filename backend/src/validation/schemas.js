@@ -54,6 +54,8 @@ export const createGameSchema = Joi.object({
   requiredCredits: integer.min(0),
   isPrivate: Joi.boolean().strict(),
   maxPlayers: integer.min(GAME_DEFAULTS.MIN_PLAYERS).max(GAME_DEFAULTS.MAX_PLAYERS),
+  // Whether the game has sounds; the creator chooses, and without a choice it has them
+  soundsEnabled: Joi.boolean().strict(),
 });
 
 export const claimCollectionSchema = Joi.object({

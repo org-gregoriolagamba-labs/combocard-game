@@ -72,7 +72,7 @@ function everyoneCanPay(game, gameState) {
  */
 export const createGame = asyncHandler(async (req, res) => {
   const { playerId } = req.auth;
-  const { requiredCredits, isPrivate, maxPlayers } = req.body;
+  const { requiredCredits, isPrivate, maxPlayers, soundsEnabled } = req.body;
 
   const player = req.gameState.players[playerId];
   if (!player) {
@@ -96,6 +96,7 @@ export const createGame = asyncHandler(async (req, res) => {
     players: [],
     requiredCredits: credits,
     isPrivate: isPrivate || false,
+    soundsEnabled: soundsEnabled ?? true,
     maxPlayers: maxPlayers || GAME_DEFAULTS.MAX_PLAYERS,
     status: GAME_STATUS.WAITING,
     mazzo: [],

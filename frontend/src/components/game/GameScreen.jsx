@@ -40,6 +40,7 @@ import GuidaPrimaPartita from "./GuidaPrimaPartita";
 import Credito from "./Credito";
 import RivelazioneCarta from "./RivelazioneCarta";
 import StoricoCarte from "./StoricoCarte";
+import PulsanteSuoni from "./PulsanteSuoni";
 import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
@@ -406,8 +407,10 @@ function GameScreen() {
 
         {/* The player's sheet, laid out like a tombola sheet */}
         <section ref={gridRef} className="superficie scroll-mt-20 p-2.5 max-[359px]:p-1.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
-          <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
+          <div className="mb-1 flex items-center justify-between gap-2 px-1">
             <h2 className="titolo text-lg text-testo">La tua cartella</h2>
+            {/* The negative margin keeps the row as high as the title: the button is 44 px and does not push the sheet down */}
+            {game?.soundsEnabled !== false && <PulsanteSuoni className="-my-2" />}
           </div>
 
           {/* Under 320 px the sheet is wider than the screen: it scrolls in its own box, not the page */}

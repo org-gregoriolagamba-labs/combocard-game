@@ -20,11 +20,12 @@ export const getLobby = async () => {
  * @param {Object} options - Game options
  * @returns {Promise} Game data
  */
-export const createGame = async ({ requiredCredits, isPrivate, maxPlayers }) => {
+export const createGame = async ({ requiredCredits, isPrivate, maxPlayers, soundsEnabled }) => {
   const response = await api.post("/games", {
     requiredCredits,
     isPrivate,
     maxPlayers,
+    soundsEnabled,
   });
   return response.data;
 };
