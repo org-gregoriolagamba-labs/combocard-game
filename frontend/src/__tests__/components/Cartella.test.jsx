@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Cartella } from '../../components/game';
 import { calcolaProgresso } from '../../utils';
@@ -106,8 +106,59 @@ describe('Cartella', () => {
       expect(screen.queryByText(/Estratta/)).not.toBeInTheDocument();
     });
 
-    test('outside the jolly mode no card can be activated', () => {
-      render(<Cartella cartella={griglia} coperte={[[false]]} />);
+    test('outside the jolly mode a card opens big, and never calls the jolly handler', () => {
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} onCardClick={onCardClick} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+
+      expect(screen.getByRole('dialog', { name: 'Asso di Spade' })).toBeInTheDocument();
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+
+    test('the big card says whether it is covered, still to come, or the jolly', () => {
+      const due = [[carta, { ...carta, valore: 'Re', valoreNum: 10 }]];
+      render(<Cartella cartella={due} coperte={[[false, true]]} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+      expect(screen.getByRole('dialog')).toHaveTextContent('Non ancora uscita');
+      fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Re di Spade, coperta' }));
+      expect(screen.getByRole('dialog')).toHaveTextContent('Coperta');
+    });
+
+    test('in jolly mode a short tap still chooses the card, and does not open it', () => {
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" onCardClick={onCardClick} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+
+      expect(onCardClick).toHaveBeenCalledWith(0, 0);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test('in jolly mode a long press opens the card big, and the tap that ends it does not choose it', () => {
+      vi.useFakeTimers();
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" onCardClick={onCardClick} />);
+      const bottone = screen.getByRole('button', { name: 'Asso di Spade' });
+
+      fireEvent.pointerDown(bottone);
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      fireEvent.pointerUp(bottone);
+      fireEvent.click(bottone);
+      vi.useRealTimers();
+
+      expect(screen.getByRole('dialog', { name: 'Asso di Spade' })).toBeInTheDocument();
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+
+    test('in jolly mode a card that cannot be chosen stays disabled', () => {
+      const due = [[carta, { ...carta, valore: 'Re', valoreNum: 10 }]];
+      render(<Cartella cartella={due} coperte={[[false, false]]} jollyMode="tris" possibili={[{ row: 0, col: 1 }]} />);
 
       expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
     });
@@ -130,10 +181,14 @@ describe('Cartella', () => {
       expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
     });
 
-    test('once the jolly is used no card can be activated', () => {
-      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" jollyUsato />);
+    test('once the jolly is used no card can be chosen: a tap opens it big', () => {
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" jollyUsato onCardClick={onCardClick} />);
 
-      expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+
+      expect(onCardClick).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     test('the chosen card is marked as pressed', () => {

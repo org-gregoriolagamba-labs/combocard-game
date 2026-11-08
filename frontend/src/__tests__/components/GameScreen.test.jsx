@@ -418,10 +418,12 @@ describe('GameScreen', () => {
       expect(screen.getAllByText(/Jolly per TRIS: tocca una carta evidenziata/).length).toBeGreaterThan(0);
     });
 
-    test('before choosing a collection no card can be tapped', () => {
+    test('before choosing a collection a card cannot be chosen for the jolly: a tap opens it big', () => {
       renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
-      expect(firstCard()).toBeDisabled();
+      expect(firstCard()).not.toHaveAttribute('aria-pressed');
+      fireEvent.click(firstCard());
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     test('a covered card cannot be chosen', () => {
@@ -505,7 +507,7 @@ describe('GameScreen', () => {
       fireEvent.click(screen.getAllByRole('button', { name: 'Annulla' })[0]);
 
       expect(store.getState().game.jollyMode).toBeNull();
-      expect(firstCard()).toBeDisabled();
+      expect(firstCard()).not.toHaveAttribute('aria-pressed');
     });
 
     test('activating the mode no longer repeats its instruction in a notice', () => {

@@ -12,15 +12,19 @@
  * number (the same number as the row), so no tile has to be read through the row
  * label. Every card is a button named by its value and suit; it can be activated
  * only while choosing the card for the jolly. A drawn card is sealed with a badge
- * in the ink of its suit. A card drawn that is not in the sheet leaves its empty place with a solid
+ * in the ink of its suit. A tap opens the card big (a long press while choosing the jolly). A card drawn that is not in the sheet leaves its empty place with a solid
  * border and a ringed dot, and is named for screen readers: it is not told by colour alone.
  */
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { Check, Sparkles } from "lucide-react";
 import Seme from "./Seme";
+import ZoomCarta from "./ZoomCarta";
 import { INCHIOSTRO_SEME, SEMI_IN_ORDINE, calcolaProgresso, mappaCartella } from "../../utils";
+
+// How long a press lasts to open the card big while the jolly is being chosen (a tap chooses it)
+const PRESSIONE_LUNGA_MS = 500;
 
 // The figures that cross rows and columns: their progress is shown in the corner of the sheet
 const FIGURE_TRASVERSALI = [
@@ -110,6 +114,22 @@ function Cartella({
   onCardClick = () => {},
 }) {
   const choosing = Boolean(jollyMode) && !jollyUsato;
+  // The card shown big: outside the jolly a tap opens it, while choosing the jolly a long press does
+  const [ingrandita, setIngrandita] = useState(null);
+  const timerPressione = useRef(null);
+  const pressioneLunga = useRef(false);
+  const fermaPressione = () => {
+    clearTimeout(timerPressione.current);
+    timerPressione.current = null;
+  };
+  const iniziaPressione = (row, col) => {
+    pressioneLunga.current = false;
+    fermaPressione();
+    timerPressione.current = setTimeout(() => {
+      pressioneLunga.current = true;
+      setIngrandita({ row, col });
+    }, PRESSIONE_LUNGA_MS);
+  };
   const righe = mappaCartella(cartella, coperte, estratte);
   // How near each row (a tris) and each column (a scopa) is: shown on the sheet itself
   // The count stops at the goal and goes away once the figure is won (by anyone): a tris is a row of
@@ -133,156 +153,189 @@ function Cartella({
     () => new Set(righe.flat().filter((p) => p.coperta).map((p) => `${p.seme}|${p.valore}`))
   );
 
+  // What the big card says about the card in that place of the sheet
+  const statoCarta = (row, col) => {
+    const carta = cartella[row][col];
+    const coperta = Boolean(coperte[row]?.[col]);
+    const isJolly = Boolean(jollyPos) && jollyPos.row === row && jollyPos.col === col;
+    const stati = [coperta ? "Coperta" : "Non ancora uscita"];
+    if (isJolly) stati.push(carta.wasJolly ? "Jolly usato" : "Jolly");
+    return stati.join(" · ");
+  };
+
   return (
-    <table className="w-full table-fixed border-separate [border-spacing:3px] max-[359px]:[border-spacing:2px] max-[319px]:min-w-[18.25rem]">
-      <caption className="sr-only">
-        La tua cartella: i valori in riga da Asso a Re, i semi in colonna
-      </caption>
-      <thead>
-        <tr>
-          <td className="w-[5.6rem] p-0 align-middle max-[359px]:w-[5.4rem]">
-            {vicine.length > 0 && (
-              <ul className="flex flex-col items-start gap-px pl-0.5">
-                {vicine.map(({ tipo, sigla, nome, count, total }) => (
-                  <li key={tipo}>
-                    <span
-                      aria-hidden="true"
-                      className={`block whitespace-nowrap rounded-sm px-0.5 text-xs font-bold leading-4 tracking-tighter ${
-                        total - count <= 1 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
-                      }`}
-                    >
-                      {`${sigla} ${count}/${total}`}
-                    </span>
-                    <span className="sr-only">{`${nome}: ${count} carte su ${total}`}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </td>
-          {SEMI_IN_ORDINE.map((seme, indiceSeme) => (
-            <th
-              key={seme}
-              scope="col"
-              className={`relative rounded-lg border border-linea-forte px-0.5 py-1 text-center max-[379px]:px-0 ${INCHIOSTRO_SEME[seme].soft}`}
-            >
-              <Seme seme={seme} className="mx-auto h-6 w-6" />
-              <span className={`block text-[13px] font-bold leading-tight tracking-tight max-[379px]:text-xs max-[359px]:text-[11px] ${INCHIOSTRO_SEME[seme].text}`}>
-                {seme}
-              </span>
-              {perColonna[indiceSeme] >= 3 && (
-                <span
-                  aria-hidden="true"
-                  className={`absolute right-0.5 top-0.5 rounded-sm px-1 text-xs font-bold leading-4 ${
-                    perColonna[indiceSeme] >= 5 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
-                  }`}
-                >
-                  {perColonna[indiceSeme]}/5
-                </span>
+    <>
+      <table className="w-full table-fixed border-separate [border-spacing:3px] max-[359px]:[border-spacing:2px] max-[319px]:min-w-[18.25rem]">
+        <caption className="sr-only">
+          La tua cartella: i valori in riga da Asso a Re, i semi in colonna
+        </caption>
+        <thead>
+          <tr>
+            <td className="w-[5.6rem] p-0 align-middle max-[359px]:w-[5.4rem]">
+              {vicine.length > 0 && (
+                <ul className="flex flex-col items-start gap-px pl-0.5">
+                  {vicine.map(({ tipo, sigla, nome, count, total }) => (
+                    <li key={tipo}>
+                      <span
+                        aria-hidden="true"
+                        className={`block whitespace-nowrap rounded-sm px-0.5 text-xs font-bold leading-4 tracking-tighter ${
+                          total - count <= 1 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
+                        }`}
+                      >
+                        {`${sigla} ${count}/${total}`}
+                      </span>
+                      <span className="sr-only">{`${nome}: ${count} carte su ${total}`}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {righe.map((riga, indiceRiga) => (
-          <tr key={riga[0].valore}>
-            <th scope="row" className="p-0 text-left font-normal">
-              <span className="flex h-11 items-center gap-1 pl-0.5">
-                <span className="titolo flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-linea-forte bg-notte-700 text-[12px] leading-none text-testo">
-                  {indiceRiga + 1}
+            </td>
+            {SEMI_IN_ORDINE.map((seme, indiceSeme) => (
+              <th
+                key={seme}
+                scope="col"
+                className={`relative rounded-lg border border-linea-forte px-0.5 py-1 text-center max-[379px]:px-0 ${INCHIOSTRO_SEME[seme].soft}`}
+              >
+                <Seme seme={seme} className="mx-auto h-6 w-6" />
+                <span className={`block text-[13px] font-bold leading-tight tracking-tight max-[379px]:text-xs max-[359px]:text-[11px] ${INCHIOSTRO_SEME[seme].text}`}>
+                  {seme}
                 </span>
-                <span className="flex min-w-0 flex-col items-start">
-                  <span className="text-[13px] font-bold leading-tight text-testo">{riga[0].valore}</span>
-                  {perRiga[indiceRiga] >= 2 && (
-                    <span
-                      aria-hidden="true"
-                      className={`rounded-sm px-1 text-xs font-bold leading-4 ${
-                        perRiga[indiceRiga] >= 3 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
-                      }`}
-                    >
-                      {perRiga[indiceRiga]}/3
-                    </span>
-                  )}
-                </span>
-              </span>
-            </th>
-            {riga.map((posto) => {
-              if (!posto.carta) {
-                const arrivo =
-                  destinazione && destinazione.valore === posto.valore && destinazione.seme === posto.seme;
-                return (
-                  <td key={posto.seme} className="p-0">
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-11 items-center justify-center rounded-lg border ${
-                        arrivo
-                          ? "border-dashed border-oro bg-oro/20"
-                          : posto.estratta
-                          ? "border-solid border-testo-3 bg-notte-800"
-                          : "border-dashed border-linea-forte"
-                      }`}
-                    >
-                      {arrivo ? (
-                        <Sparkles size={20} className="text-oro" />
-                      ) : (
-                        posto.estratta && (
-                          <span
-                            data-testid="uscita-senza-te"
-                            className="h-3 w-3 rounded-full bg-testo-2 ring-2 ring-testo-3/60"
-                          />
-                        )
-                      )}
-                    </span>
-                    {posto.estratta && !arrivo && (
-                      <span className="sr-only">{`${posto.valore} di ${posto.seme}: uscita, non è nella tua cartella`}</span>
-                    )}
-                  </td>
-                );
-              }
-
-              const { carta, row, col, coperta } = posto;
-              const isJolly = Boolean(jollyPos) && jollyPos.row === row && jollyPos.col === col;
-              const isClickable = choosing && !coperta && (!attive || attive.has(`${row}-${col}`));
-              const isSelected = Boolean(selected) && selected.row === row && selected.col === col;
-              const nuovo = coperta && !giaCoperte.has(`${posto.seme}|${posto.valore}`);
-
-              return (
-                <td key={posto.seme} className="p-0">
-                  <button
-                    type="button"
-                    onClick={() => isClickable && onCardClick(row, col)}
-                    disabled={!isClickable}
-                    aria-label={nomeCarta(carta, coperta)}
-                    aria-pressed={choosing ? isSelected : undefined}
-                    className={`relative flex h-11 w-full items-center justify-center overflow-hidden rounded-lg bg-carta shadow-carta transition motion-reduce:transition-none disabled:cursor-default ${
-                      luci.has(`${row}-${col}`)
-                        ? "z-10 scale-105 ring-4 ring-oro shadow-[0_0_24px_rgba(255,207,74,0.8)]"
-                        : isSelected
-                        ? "z-10 scale-110 ring-4 ring-white"
-                        : isClickable
-                        ? "cursor-pointer ring-2 ring-oro hover:scale-105"
-                        : choosing && !coperta
-                        ? "opacity-35"
-                        : ""
+                {perColonna[indiceSeme] >= 3 && (
+                  <span
+                    aria-hidden="true"
+                    className={`absolute right-0.5 top-0.5 rounded-sm px-1 text-xs font-bold leading-4 ${
+                      perColonna[indiceSeme] >= 5 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
                     }`}
                   >
-                    <FaccioCarta carta={carta} numero={indiceRiga + 1} coperta={coperta} />
-
-                    {isJolly && (
-                      <span className="absolute left-0 top-0 rounded-br-md bg-oro px-1 text-xs font-bold leading-4 text-inchiostro-900">
-                        {carta.wasJolly ? "USATO" : "JOLLY"}
+                    {perColonna[indiceSeme]}/5
+                  </span>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {righe.map((riga, indiceRiga) => (
+            <tr key={riga[0].valore}>
+              <th scope="row" className="p-0 text-left font-normal">
+                <span className="flex h-11 items-center gap-1 pl-0.5">
+                  <span className="titolo flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-linea-forte bg-notte-700 text-[12px] leading-none text-testo">
+                    {indiceRiga + 1}
+                  </span>
+                  <span className="flex min-w-0 flex-col items-start">
+                    <span className="text-[13px] font-bold leading-tight text-testo">{riga[0].valore}</span>
+                    {perRiga[indiceRiga] >= 2 && (
+                      <span
+                        aria-hidden="true"
+                        className={`rounded-sm px-1 text-xs font-bold leading-4 ${
+                          perRiga[indiceRiga] >= 3 ? "bg-oro text-inchiostro-900" : "bg-notte-600 text-testo"
+                        }`}
+                      >
+                        {perRiga[indiceRiga]}/3
                       </span>
                     )}
+                  </span>
+                </span>
+              </th>
+              {riga.map((posto) => {
+                if (!posto.carta) {
+                  const arrivo =
+                    destinazione && destinazione.valore === posto.valore && destinazione.seme === posto.seme;
+                  return (
+                    <td key={posto.seme} className="p-0">
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-11 items-center justify-center rounded-lg border ${
+                          arrivo
+                            ? "border-dashed border-oro bg-oro/20"
+                            : posto.estratta
+                            ? "border-solid border-testo-3 bg-notte-800"
+                            : "border-dashed border-linea-forte"
+                        }`}
+                      >
+                        {arrivo ? (
+                          <Sparkles size={20} className="text-oro" />
+                        ) : (
+                          posto.estratta && (
+                            <span
+                              data-testid="uscita-senza-te"
+                              className="h-3 w-3 rounded-full bg-testo-2 ring-2 ring-testo-3/60"
+                            />
+                          )
+                        )}
+                      </span>
+                      {posto.estratta && !arrivo && (
+                        <span className="sr-only">{`${posto.valore} di ${posto.seme}: uscita, non è nella tua cartella`}</span>
+                      )}
+                    </td>
+                  );
+                }
 
-                    {coperta && <Sigillo seme={carta.seme} nuovo={nuovo} />}
-                  </button>
-                </td>
-              );
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                const { carta, row, col, coperta } = posto;
+                const isJolly = Boolean(jollyPos) && jollyPos.row === row && jollyPos.col === col;
+                const isClickable = choosing && !coperta && (!attive || attive.has(`${row}-${col}`));
+                const isSelected = Boolean(selected) && selected.row === row && selected.col === col;
+                const nuovo = coperta && !giaCoperte.has(`${posto.seme}|${posto.valore}`);
+
+                return (
+                  <td key={posto.seme} className="p-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!choosing) {
+                          setIngrandita({ row, col });
+                        } else if (pressioneLunga.current) {
+                          // The press that opened the card big must not also choose it
+                          pressioneLunga.current = false;
+                        } else if (isClickable) {
+                          onCardClick(row, col);
+                        }
+                      }}
+                      onPointerDown={choosing && isClickable ? () => iniziaPressione(row, col) : undefined}
+                      onPointerUp={choosing ? fermaPressione : undefined}
+                      onPointerLeave={choosing ? fermaPressione : undefined}
+                      onPointerCancel={choosing ? fermaPressione : undefined}
+                      onContextMenu={choosing ? (event) => event.preventDefault() : undefined}
+                      disabled={choosing && !isClickable}
+                      aria-label={nomeCarta(carta, coperta)}
+                      aria-pressed={choosing ? isSelected : undefined}
+                      className={`relative flex h-11 w-full items-center justify-center overflow-hidden rounded-lg bg-carta shadow-carta transition motion-reduce:transition-none disabled:cursor-default ${
+                        luci.has(`${row}-${col}`)
+                          ? "z-10 scale-105 ring-4 ring-oro shadow-[0_0_24px_rgba(255,207,74,0.8)]"
+                          : isSelected
+                          ? "z-10 scale-110 ring-4 ring-white"
+                          : isClickable
+                          ? "cursor-pointer ring-2 ring-oro hover:scale-105"
+                          : choosing && !coperta
+                          ? "opacity-35"
+                          : ""
+                      }`}
+                    >
+                      <FaccioCarta carta={carta} numero={indiceRiga + 1} coperta={coperta} />
+
+                      {isJolly && (
+                        <span className="absolute left-0 top-0 rounded-br-md bg-oro px-1 text-xs font-bold leading-4 text-inchiostro-900">
+                          {carta.wasJolly ? "USATO" : "JOLLY"}
+                        </span>
+                      )}
+
+                      {coperta && <Sigillo seme={carta.seme} nuovo={nuovo} />}
+                    </button>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {ingrandita && (
+        <ZoomCarta
+          carta={cartella[ingrandita.row][ingrandita.col]}
+          stato={statoCarta(ingrandita.row, ingrandita.col)}
+          onClose={() => setIngrandita(null)}
+        />
+      )}
+    </>
   );
 }
 
