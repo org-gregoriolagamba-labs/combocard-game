@@ -314,6 +314,18 @@ describe('jolly hold: no draws while a player chooses the jolly card', () => {
       expect(game.players.find((p) => p.id === anna.id).jollyUsato).toBe(false);
     });
 
+    test('the jolly cannot be used on a card that is already covered', async () => {
+      const { gameId, game } = await startedGame();
+      prepareTrisFor(game, carlo.id);
+      const carlosGame = game.players.find((p) => p.id === carlo.id);
+      carlosGame.coperte[0][2] = true;
+
+      await expect(
+        call(useJolly, carlo.id, { params: { gameId }, body: { row: 0, col: 2, tipo: 'tris' } }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(carlosGame.jollyUsato).toBe(false);
+    });
+
     test('the jolly can still be used without declaring it first, when nobody else is choosing', async () => {
       const { gameId, game } = await startedGame();
       prepareTrisFor(game, carlo.id);

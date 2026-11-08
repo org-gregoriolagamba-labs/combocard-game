@@ -566,6 +566,10 @@ export const useJolly = asyncHandler(async (req, res) => {
     throw new AppError("Collection already won", 400);
   }
 
+  if (player.coperte[row]?.[col]) {
+    throw new AppError("The jolly cannot be used on a card that is already covered", 400);
+  }
+
   const creditMovements = trackCredits(req.gameState, game);
 
   const jollyPosTemp = { row, col };
