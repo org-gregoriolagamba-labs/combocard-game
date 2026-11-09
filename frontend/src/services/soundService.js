@@ -22,6 +22,9 @@ const MELODIE = {
   collezioneAltrui: [[392, 0, 0.22, "triangle"]],
   jollyDichiarato: [[600, 0, 0.14, "square"], [450, 0.14, 0.2, "square"]],
   jollyUsato: [[784, 0, 0.1, "sine"], [988, 0.09, 0.1, "sine"], [1319, 0.18, 0.3, "sine"]],
+  // The last seconds of a turn of the draws: a short beep for each second, a siren at the end
+  bip: [[880, 0, 0.09, "sine"]],
+  sirena: [[960, 0, 0.25, "square"], [770, 0.25, 0.25, "square"], [960, 0.5, 0.25, "square"], [770, 0.75, 0.25, "square"], [960, 1, 0.45, "square"]],
   // The whistle: two short high tones
   ammonizione: [[1400, 0, 0.12, "square"], [1400, 0.16, 0.22, "square"]],
   fine: [[523.25, 0, 0.2, "triangle"], [659.25, 0.2, 0.2, "triangle"], [783.99, 0.4, 0.2, "triangle"], [1046.5, 0.6, 0.7, "triangle"]],

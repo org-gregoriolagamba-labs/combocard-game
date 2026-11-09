@@ -45,6 +45,7 @@ import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
+import { useSegnaliTurno } from "../../hooks/useSegnaliTurno";
 import { SECONDI_PAUSA_JOLLY } from "./ConteggioJolly";
 
 const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
@@ -104,6 +105,8 @@ function GameScreen() {
   const attesaTurno = turno
     ? Math.max(0, Math.ceil(((turno.sospeso ? turno.attesaIn : turno.ricevutoA + turno.attesaIn - ora)) / 1000))
     : 0;
+  // The beeps of the last five seconds and the siren: not while the turn is stopped
+  useSegnaliTurno(turnoAttivo ? turno.ricevutoA + turno.scadenzaIn : null);
   const puoEstrarre = tutti ? Boolean(turno) && turno.playerId === playerId && !espulso : isCreator;
   const chiEstrae = tutti
     ? game?.players?.find((p) => p.id === turno?.playerId)?.name ?? "il sistema, in automatico"
