@@ -36,6 +36,7 @@ function HallScreen() {
   );
   const creditiRichiesti = numero(creditiRichiestiTesto);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [soundsEnabled, setSoundsEnabled] = useState(true);
   const [maxPlayersTesto, setMaxPlayersTesto] = useState("6");
   const maxPlayers = numero(maxPlayersTesto);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
@@ -115,10 +116,12 @@ function HallScreen() {
         requiredCredits: creditiRichiesti,
         isPrivate,
         maxPlayers,
+        soundsEnabled,
       })).unwrap();
 
       setShowCreaPartita(false);
       setIsPrivate(false);
+      setSoundsEnabled(true);
       setMaxPlayersTesto("6");
 
       // Automatically join the created game
@@ -396,6 +399,22 @@ function HallScreen() {
               Partita Privata
             </label>
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="soundsEnabled"
+              checked={soundsEnabled}
+              onChange={(e) => setSoundsEnabled(e.target.checked)}
+              aria-describedby="soundsEnabled-hint"
+              className="h-5 w-5"
+            />
+            <label htmlFor="soundsEnabled" className="text-testo">
+              Suoni di gioco
+            </label>
+          </div>
+          <p id="soundsEnabled-hint" className="-mt-2 text-xs text-testo-2">
+            Un suono a ogni carta, collezione e Jolly. Ognuno può comunque silenziarli per sé.
+          </p>
           <Button onClick={handleCreaPartita} className="w-full">
             Crea Partita
           </Button>

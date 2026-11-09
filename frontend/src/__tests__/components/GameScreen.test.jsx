@@ -40,6 +40,46 @@ const stateFor = (playerId, overrides = {}) => {
 };
 
 describe('GameScreen', () => {
+  describe('the sound button', () => {
+    beforeEach(() => window.localStorage.clear());
+    afterAll(() => window.localStorage.clear());
+
+    const withSounds = (soundsEnabled) => {
+      const base = stateFor('carlo');
+      return { ...base, game: { ...base.game, game: { ...base.game.game, soundsEnabled } } };
+    };
+
+    test('a game with sounds has a button to turn them off for oneself, and back on', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withSounds(true) });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Disattiva i suoni' }));
+      expect(window.localStorage.getItem('combocard.audio-muto')).toBe('1');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Attiva i suoni' }));
+      expect(window.localStorage.getItem('combocard.audio-muto')).toBeNull();
+    });
+
+    test('a game made before the choice existed has sounds too', () => {
+      const base = stateFor('carlo');
+      renderWithProviders(<GameScreen />, { preloadedState: base });
+
+      expect(screen.getByRole('button', { name: 'Disattiva i suoni' })).toBeInTheDocument();
+    });
+
+    test('a game without sounds has no button', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withSounds(false) });
+
+      expect(screen.queryByRole('button', { name: /i suoni/ })).not.toBeInTheDocument();
+    });
+
+    test('the button remembers a muted player', () => {
+      window.localStorage.setItem('combocard.audio-muto', '1');
+      renderWithProviders(<GameScreen />, { preloadedState: withSounds(true) });
+
+      expect(screen.getByRole('button', { name: 'Attiva i suoni' })).toBeInTheDocument();
+    });
+  });
+
   describe('the guide for a first game', () => {
     beforeEach(() => window.localStorage.clear());
     afterAll(() => window.localStorage.clear());

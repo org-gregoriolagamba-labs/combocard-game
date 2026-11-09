@@ -2,9 +2,11 @@ import React from 'react';
 import { act } from '@testing-library/react';
 import { useSocket } from '../../hooks/useSocket';
 import socketService from '../../services/socketService';
+import { suona, setPartitaConSuoni } from '../../services/soundService';
 import { renderWithProviders, mockGameState } from '../test-utils';
 
 vi.mock('../../services/gameService');
+vi.mock('../../services/soundService');
 
 function Probe() {
   useSocket();
@@ -158,5 +160,87 @@ describe('gameCancelled', () => {
     emit('gameCancelled', { gameId: 'another-game', gettoni: 450, refund: 100 });
 
     expect(store.getState().game.currentGameId).not.toBeNull();
+  });
+});
+
+describe('the sounds of the events', () => {
+  const carta = (valore, seme) => ({ valore, seme, valoreNum: 1 });
+  // A game where carlo has the Asso di Coppe in his sheet
+  const arrangeWithSheet = (soundsEnabled) => {
+    const { store, unmount } = renderWithProviders(<Probe />, {
+      preloadedState: {
+        player: { id: 'carlo', name: 'Carlo' },
+        game: {
+          ...mockGameState,
+          game: {
+            ...mockGameState.game,
+            soundsEnabled,
+            players: [{ id: 'carlo', name: 'Carlo', gettoni: 0, cartella: [[carta('Asso', 'Coppe')]], coperte: [[false]], collezioni: [] }],
+          },
+        },
+      },
+    });
+    const socket = socketService.getSocket();
+    const emit = (event, payload) => {
+      const call = socket.on.mock.calls.filter(([name]) => name === event).at(-1);
+      act(() => call[1](payload));
+    };
+    return { store, emit, unmount };
+  };
+
+  beforeEach(() => vi.mocked(suona).mockClear());
+
+  test('a card drawn sounds with the tone of its suit', () => {
+    const { emit } = arrangeWithSheet(true);
+
+    emit('cardDrawn', { carta: carta('Re', 'Spade') });
+
+    expect(suona).toHaveBeenCalledWith('estratta', { seme: 'Spade' });
+    expect(suona).not.toHaveBeenCalledWith('miaCarta', expect.anything());
+  });
+
+  test('a card drawn that is in the own sheet also gets its own chime, a moment later', () => {
+    const { emit } = arrangeWithSheet(true);
+
+    emit('cardDrawn', { carta: carta('Asso', 'Coppe') });
+
+    expect(suona).toHaveBeenCalledWith('estratta', { seme: 'Coppe' });
+    expect(suona).toHaveBeenCalledWith('miaCarta', expect.objectContaining({ ritardo: expect.any(Number) }));
+  });
+
+  test('a collection won by the player sounds as a fanfare, one won by another softly', () => {
+    const { emit } = arrangeWithSheet(true);
+
+    emit('collezioneVinta', { tipo: 'tris', vincitore: { id: 'carlo', name: 'Carlo' }, vincitori: [{ id: 'carlo', name: 'Carlo' }], ammontare: 20, divided: false });
+    emit('collezioneVinta', { tipo: 'scopa', vincitore: { id: 'anna', name: 'Anna' }, vincitori: [{ id: 'anna', name: 'Anna' }], ammontare: 25, divided: false });
+
+    expect(suona).toHaveBeenNthCalledWith(1, 'collezioneMia');
+    expect(suona).toHaveBeenNthCalledWith(2, 'collezioneAltrui');
+  });
+
+  test('the combocard reale is left to the sound of the end of the game', () => {
+    const { emit } = arrangeWithSheet(true);
+
+    emit('collezioneVinta', { tipo: 'combocard_reale', vincitore: { id: 'carlo', name: 'Carlo' }, vincitori: [{ id: 'carlo', name: 'Carlo' }], ammontare: 100, divided: false });
+    emit('gameFinished', { vincitori: [{ id: 'carlo', name: 'Carlo' }] });
+
+    expect(suona).toHaveBeenCalledTimes(1);
+    expect(suona).toHaveBeenCalledWith('fine');
+  });
+
+  test('the jolly declared and used have their sounds', () => {
+    const { emit } = arrangeWithSheet(true);
+
+    emit('jollyInCorso', { playerId: 'anna', name: 'Anna', tipo: 'tris', scadenza: Date.now() + 20_000 });
+    emit('jollyUsato', { playerId: 'anna', tipo: 'tris' });
+
+    expect(suona).toHaveBeenNthCalledWith(1, 'jollyDichiarato');
+    expect(suona).toHaveBeenNthCalledWith(2, 'jollyUsato');
+  });
+
+  test('the game says whether it has sounds, and the service is told', () => {
+    arrangeWithSheet(false);
+
+    expect(setPartitaConSuoni).toHaveBeenLastCalledWith(false);
   });
 });

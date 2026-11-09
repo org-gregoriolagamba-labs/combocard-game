@@ -83,6 +83,14 @@ Choosing the card takes time, and a card drawn meanwhile could change what the J
 - The pause is not saved with the game: a restart of the server never leaves a game paused. Events: `jollyInCorso` (a player declared), `jollyAnnullato` (the pause ended without the Jolly being used), `jollyUsato` (it was used).
 - For compatibility the server still accepts a Jolly that was never declared, when nobody else is choosing.
 
+## 🔊 Sounds
+
+- The creator chooses when creating the game (`soundsEnabled` in `POST /api/games`, a boolean; without it the game has sounds). The choice is saved with the game and every player reads it in `GET /api/games/:gameId`. A game made before the field existed has sounds.
+- Sounds are short tones made in the browser with the Web Audio API (`frontend/src/services/soundService.js`): no file to load, no licence. They play on: a card drawn (a tone for each suit), a card drawn that is in the player's sheet (a second chime), a collection won (a fanfare for the player, a soft tone for the others), the Jolly declared and used, and the end of the game (the Combocard Reale has the sound of the end only).
+- Every player can turn the sounds off **for themselves** with the button on the sheet; the choice stays in the browser (`combocard.audio-muto`). A game created without sounds has no button.
+- Browsers keep audio locked until the page is touched: the first tap or key unlocks it.
+- Sound never carries information alone: every sound goes with something that is also seen on the screen.
+
 ## 🧾 The sheet (cartella)
 
 The server gives each player 25 different cards in a 5x5 array. **The position in that array never matters:** every collection looks only at the values and suits of the covered cards.

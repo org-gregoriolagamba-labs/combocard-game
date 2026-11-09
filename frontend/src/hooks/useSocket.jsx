@@ -21,6 +21,7 @@ import {
 import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
 import { updateCredits, clearPlayer } from "../store/slices/playerSlice";
 import { setAccessToken } from "../services/api";
+import { suona, setPartitaConSuoni } from "../services/soundService";
 
 /**
  * Hook to manage socket connections and game events
@@ -48,6 +49,12 @@ export function useSocket() {
       console.error("Error refreshing game state:", error);
     }
   }, [currentGameId, playerId, dispatch]);
+
+  // The game the player is in has sounds or not (the creator's choice); a game with no such field has them
+  const soundsEnabled = game?.soundsEnabled;
+  useEffect(() => {
+    setPartitaConSuoni(soundsEnabled);
+  }, [soundsEnabled]);
 
   // The server accepts only authenticated connections: connect after the login,
   // disconnect after the logout. Not with a temporary password: the server refuses it, and every
@@ -117,6 +124,12 @@ export function useSocket() {
     const handleCardDrawn = ({ carta }) => {
       if (!carta) return;
       dispatch(setUltimaCartaEstratta(carta));
+      suona("estratta", { seme: carta.seme });
+      // The card is in the own sheet: a second chime, just after the tone of the draw
+      const mioFoglio = game?.players?.find((p) => p.id === playerId)?.cartella ?? [];
+      if (mioFoglio.some((riga) => riga.some((c) => c.valore === carta.valore && c.seme === carta.seme))) {
+        suona("miaCarta", { ritardo: 0.2 });
+      }
       refreshGameState();
     };
 
@@ -142,6 +155,10 @@ export function useSocket() {
           : `${vincitore.name} ha vinto ${nome}: ${ammontare} crediti`;
       }
 
+      // The combocard reale ends the game, and the sound of the end says it
+      if (tipo !== "combocard_reale") {
+        suona(iHaveWon ? "collezioneMia" : "collezioneAltrui");
+      }
       dispatch(addToast({ message, type: iHaveWon ? "win" : "success", duration: iHaveWon ? 6000 : 4000 }));
       if (iHaveWon) {
         dispatch(setVittoriaRecente({ tipo }));
@@ -169,6 +186,7 @@ export function useSocket() {
     // A player declares the jolly: the draws are paused until the card is chosen
     const handleJollyInCorso = (hold) => {
       if (hold?.scadenza) {
+        suona("jollyDichiarato");
         dispatch(setJollyInCorso(hold));
       }
     };
@@ -183,6 +201,7 @@ export function useSocket() {
 
     // Jolly used
     const handleJollyUsato = ({ playerId: jollyPlayerId, tipo }) => {
+      suona("jollyUsato");
       dispatch(clearJollyInCorso(jollyPlayerId));
       if (jollyPlayerId !== playerId) {
         dispatch(addToast({
@@ -202,6 +221,7 @@ export function useSocket() {
         message = "Partita terminata";
       }
       
+      suona("fine");
       dispatch(addToast({ message, type: "success", duration: 10000 }));
       refreshGameState();
     };
