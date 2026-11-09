@@ -281,6 +281,16 @@ describe('HallScreen', () => {
     });
   });
 
+  describe('the history and the statistics', () => {
+    test('a button opens them', () => {
+      const { store } = renderWithProviders(<HallScreen />, { preloadedState: state() });
+
+      fireEvent.click(screen.getByRole('button', { name: /Storico e statistiche/ }));
+
+      expect(store.getState().ui.currentScreen).toBe('storico');
+    });
+  });
+
   describe('joining', () => {
     const lobby = { id: 'g1', creatorName: 'Carla', playerCount: 1, maxPlayers: 6, requiredCredits: 50 };
     const withLobby = (credits) => ({ ...state(credits), game: { ...state(credits).game, lobbies: [lobby] } });

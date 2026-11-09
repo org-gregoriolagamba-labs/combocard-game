@@ -1,9 +1,8 @@
 import React from 'react';
-import { screen, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GameScreen } from '../../components/game';
 import { renderWithProviders, mockGameState } from '../test-utils';
-import * as gameService from '../../services/gameService';
 import { suona } from '../../services/soundService';
 
 vi.mock('../../services/gameService');
