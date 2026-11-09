@@ -56,6 +56,8 @@ export const createGameSchema = Joi.object({
   maxPlayers: integer.min(GAME_DEFAULTS.MIN_PLAYERS).max(GAME_DEFAULTS.MAX_PLAYERS),
   // Whether the game has sounds; the creator chooses, and without a choice it has them
   soundsEnabled: Joi.boolean().strict(),
+  // Who draws: the creator (classic, the default) or every player in turn
+  estrazione: Joi.string().valid("creatore", "tutti"),
 });
 
 export const claimCollectionSchema = Joi.object({

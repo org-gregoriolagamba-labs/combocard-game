@@ -1,8 +1,9 @@
 /**
  * BarraAzione Component
  *
- * The main action of the game screen. The creator draws, the other players
- * see who draws, the jolly mode shows its instruction or asks for the
+ * The main action of the game screen. The player who draws (the creator, or the
+ * one on turn when everybody draws in turn) has the button, the others
+ * see who draws and the time left (a player with a red card is told he no longer draws), the jolly mode shows its instruction or asks for the
  * confirmation (saying which card becomes which), and a finished game offers
  * the way back to the hall. While a player chooses the card for the jolly the
  * draws are paused: everybody is told who it is and for how long, and the draw
@@ -14,15 +15,21 @@ import React from "react";
 import PropTypes from "prop-types";
 import { Clock, Dices, Pause, Sparkles } from "lucide-react";
 import ConteggioJolly from "./ConteggioJolly";
+import ConteggioTurno from "./ConteggioTurno";
 
 const COOLDOWN_SECONDS = 8;
+
+// What the countdown needs from the turn
+const contoProps = ({ scadenza, sospeso, restanteMs }) => ({ scadenza, sospeso, restanteMs });
 
 const PULSANTE =
   "min-h-[52px] w-full rounded-xl px-4 font-bold transition focus-visible:outline-offset-2";
 
 function BarraAzione({
-  isCreator,
-  creatorName = "",
+  puoEstrarre,
+  chiEstrae = "",
+  turno = null,
+  espulso = false,
   status,
   drawCooldown = 0,
   jollyMode = null,
@@ -140,7 +147,17 @@ function BarraAzione({
         </p>
       )}
 
-      {isCreator ? (
+      {espulso && (
+        <p
+          role="status"
+          className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-coppe bg-notte-700 px-3 py-2 text-center text-sm font-bold text-testo"
+        >
+          <span aria-hidden="true" className="h-5 w-3.5 shrink-0 rounded-[2px] bg-coppe" />
+          Cartellino rosso: non puoi più estrarre in questa partita
+        </p>
+      )}
+
+      {puoEstrarre ? (
         <button
           type="button"
           onClick={onDraw}
@@ -172,6 +189,7 @@ function BarraAzione({
               </>
             )}
           </span>
+          {turno && <ConteggioTurno {...contoProps(turno)} className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" />}
         </button>
       ) : (
         <p
@@ -179,7 +197,8 @@ function BarraAzione({
           className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 border-linea-forte bg-notte-700 px-4 text-center font-bold text-testo [overflow-wrap:anywhere]"
         >
           <Clock size={20} aria-hidden="true" />
-          Estrae {creatorName}
+          <span>Estrae {chiEstrae}</span>
+          {turno && <ConteggioTurno {...contoProps(turno)} className="ml-auto text-sm" />}
         </p>
       )}
 
@@ -193,8 +212,14 @@ function BarraAzione({
 }
 
 BarraAzione.propTypes = {
-  isCreator: PropTypes.bool.isRequired,
-  creatorName: PropTypes.string,
+  puoEstrarre: PropTypes.bool.isRequired,
+  chiEstrae: PropTypes.string,
+  turno: PropTypes.shape({
+    scadenza: PropTypes.number,
+    sospeso: PropTypes.bool,
+    restanteMs: PropTypes.number,
+  }),
+  espulso: PropTypes.bool,
   status: PropTypes.string,
   drawCooldown: PropTypes.number,
   jollyMode: PropTypes.string,

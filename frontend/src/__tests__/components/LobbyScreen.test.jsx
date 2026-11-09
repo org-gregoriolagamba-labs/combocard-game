@@ -143,4 +143,15 @@ describe('LobbyScreen', () => {
     expect(screen.getByText('Creatore')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/👑|⏳|🔒|🌐|🎴/u);
   });
+
+  test('says who draws: every player in turn, or only the creator', () => {
+    const turni = state();
+    turni.game.game.estrazione = 'tutti';
+    const { unmount } = renderWithProviders(<LobbyScreen />, { preloadedState: turni });
+    expect(screen.getByText(/Le carte le estraggono a turno tutti i giocatori/)).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<LobbyScreen />, { preloadedState: state() });
+    expect(screen.getByText(/Le carte le estrae il creatore/)).toBeInTheDocument();
+  });
 });

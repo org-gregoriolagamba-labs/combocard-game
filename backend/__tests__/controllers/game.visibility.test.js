@@ -19,7 +19,8 @@ import { registerPlayer, buyCredits, acceptRules } from '../../src/services/play
 import { createMemoryStore } from '../../src/db/store.js';
 import { playerRoom } from '../../src/sockets/index.js';
 
-const PUBLIC_PLAYER_FIELDS = ['collezioni', 'gettoni', 'id', 'jollyUsato', 'name', 'regoleLette'];
+// The cards of discipline (yellow count and red card) are public: the others see who is warned
+const PUBLIC_PLAYER_FIELDS = ['ammonizioni', 'collezioni', 'espulso', 'gettoni', 'id', 'jollyUsato', 'name', 'regoleLette'];
 
 const card = (valore, seme) => ({ valore, seme, emoji: '', valoreNum: 0 });
 

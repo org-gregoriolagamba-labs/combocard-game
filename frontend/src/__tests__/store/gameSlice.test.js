@@ -2,7 +2,9 @@ import gameReducer, {
   clearJollyInCorso,
   declareJolly,
   playJolly,
+  setGame,
   setJollyInCorso,
+  setTurno,
 } from '../../store/slices/gameSlice';
 import * as gameService from '../../services/gameService';
 import { createTestStore, mockGameState } from '../test-utils';
@@ -67,5 +69,36 @@ describe('the pause for the jolly choice in the game state', () => {
     await store.dispatch(playJolly({ gameId: 'game-456', row: 0, col: 0, tipo: 'tris' }));
 
     expect(store.getState().game.game.jollyInCorso).toBeNull();
+  });
+});
+
+describe('the turn of the draws in the game state', () => {
+  const turno = { playerId: 'anna', attesaIn: 8_000, scadenzaIn: 60_000, sospeso: false };
+
+  beforeEach(() => vi.useFakeTimers({ now: new Date('2026-01-01T10:00:00Z') }));
+  afterEach(() => vi.useRealTimers());
+
+  test('a game that arrives with a turn remembers when it arrived, to count the time left', () => {
+    const state = gameReducer(withGame(), setGame({ ...mockGameState.game, turno }));
+
+    expect(state.game.turno).toMatchObject({ ...turno, ricevutoA: Date.now() });
+  });
+
+  test('a game with no turn (the classic mode) keeps none', () => {
+    const state = gameReducer(withGame(), setGame({ ...mockGameState.game, turno: null }));
+
+    expect(state.game.turno).toBeNull();
+  });
+
+  test('setTurno puts the new turn in the game, with the moment it arrived', () => {
+    const state = gameReducer(withGame(), setTurno(turno));
+
+    expect(state.game.turno).toMatchObject({ ...turno, ricevutoA: Date.now() });
+  });
+
+  test('without a game there is nothing to change and nothing breaks', () => {
+    const state = gameReducer({ ...mockGameState, game: null }, setTurno(turno));
+
+    expect(state.game).toBeNull();
   });
 });
