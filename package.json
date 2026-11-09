@@ -1,6 +1,6 @@
 {
   "name": "combocard-game",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "ComboCard - Italian Card Game with Real-time Multiplayer",
   "private": true,
   "scripts": {
