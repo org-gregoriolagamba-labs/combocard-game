@@ -231,6 +231,28 @@ describe('HallScreen', () => {
       expect(gameService.createGame).toHaveBeenLastCalledWith(expect.objectContaining({ soundsEnabled: true }));
     });
 
+    test('everybody draws in turn by default, and the choice is sent with the game', () => {
+      gameService.createGame.mockResolvedValue({ gameId: 'g1' });
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      expect(screen.getByRole('radio', { name: /A turno, tutti i giocatori/ })).toBeChecked();
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(gameService.createGame).toHaveBeenLastCalledWith(expect.objectContaining({ estrazione: 'tutti' }));
+    });
+
+    test('the creator can keep the draws for himself, as in the classic game', () => {
+      gameService.createGame.mockResolvedValue({ gameId: 'g1' });
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+      openCreate();
+
+      fireEvent.click(screen.getByRole('radio', { name: /Solo il creatore/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(gameService.createGame).toHaveBeenLastCalledWith(expect.objectContaining({ estrazione: 'creatore' }));
+    });
+
     test('a game without sounds is sent as such', () => {
       gameService.createGame.mockResolvedValue({ gameId: 'g1' });
       renderWithProviders(<HallScreen />, { preloadedState: state() });

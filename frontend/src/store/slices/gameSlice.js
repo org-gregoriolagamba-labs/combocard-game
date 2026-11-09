@@ -138,12 +138,22 @@ const initialState = {
   drawCooldown: 0,
 };
 
+// The turn of the draws comes with the times left; the moment it arrives lets the screen count them down
+const conRicevuto = (game) =>
+  game?.turno ? { ...game, turno: { ...game.turno, ricevutoA: Date.now() } } : game;
+
 const gameSlice = createSlice({
   name: "game",
   initialState,
   reducers: {
     setGame: (state, action) => {
-      state.game = action.payload;
+      state.game = conRicevuto(action.payload);
+    },
+    // A new turn of the draws (the event of the server)
+    setTurno: (state, action) => {
+      if (state.game) {
+        state.game.turno = { ...action.payload, ricevutoA: Date.now() };
+      }
     },
     setCurrentPlayer: (state, action) => {
       state.currentPlayer = action.payload;
@@ -151,7 +161,7 @@ const gameSlice = createSlice({
     resumeGame: (state, action) => {
       const { game, currentPlayer } = action.payload;
       state.currentGameId = game.id;
-      state.game = game;
+      state.game = conRicevuto(game);
       state.currentPlayer = currentPlayer;
     },
     setUltimaCartaEstratta: (state, action) => {
@@ -226,7 +236,7 @@ const gameSlice = createSlice({
       .addCase(createGame.fulfilled, (state, action) => {
         state.isLoading = false;
         state.currentGameId = action.payload.gameId;
-        state.game = action.payload.game;
+        state.game = conRicevuto(action.payload.game);
       })
       .addCase(createGame.rejected, (state, action) => {
         state.isLoading = false;
@@ -247,7 +257,7 @@ const gameSlice = createSlice({
       })
       // Start game
       .addCase(startGame.fulfilled, (state, action) => {
-        state.game = action.payload.game;
+        state.game = conRicevuto(action.payload.game);
       })
       // Draw card
       .addCase(drawCard.fulfilled, (state, action) => {
@@ -279,6 +289,7 @@ const gameSlice = createSlice({
 
 export const {
   setGame,
+  setTurno,
   setCurrentPlayer,
   resumeGame,
   setUltimaCartaEstratta,

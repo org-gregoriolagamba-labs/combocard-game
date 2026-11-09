@@ -26,6 +26,7 @@ import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes } from 
 
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
+import { riarmaTurni } from "./services/estrazione.service.js";
 
 // Import persistence
 import { initializePersistence } from "./db/index.js";
@@ -166,6 +167,9 @@ const startServer = async () => {
     console.error(`❌ Could not initialize the database: ${err.message}`);
     process.exit(1);
   }
+
+  // The games drawn by turns that were in progress get their timers back
+  riarmaTurni(gameState, io, () => store);
 
   server.listen(config.port, () => {
     console.log(`🎴 COMBOCARD Server running in ${config.nodeEnv} mode on port ${config.port}`);

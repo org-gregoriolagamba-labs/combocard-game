@@ -40,6 +40,59 @@ const stateFor = (playerId, overrides = {}) => {
 };
 
 describe('GameScreen', () => {
+  describe('drawing by turns', () => {
+    beforeEach(() => window.localStorage.setItem('combocard.guida-letta', '1'));
+    afterAll(() => window.localStorage.clear());
+
+    const withTurn = (playerId, turno, estrazione = 'tutti') => {
+      const base = stateFor(playerId);
+      return {
+        ...base,
+        game: {
+          ...base.game,
+          game: { ...base.game.game, estrazione, turno: turno && { attesaIn: 0, scadenzaIn: 40_000, sospeso: false, ricevutoA: Date.now(), ...turno } },
+        },
+      };
+    };
+
+    test('the player on turn draws, and sees the time left', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('carlo', { playerId: 'carlo' }) });
+
+      expect(screen.getAllByRole('button', { name: /Estrai Carta/ })[0]).toBeEnabled();
+      expect(screen.getAllByTestId('conto-turno')[0]).toHaveTextContent(/0:(39|40)/);
+    });
+
+    test('the creator who is not on turn does not draw: he sees who does', () => {
+      // anna is the first player of the game, so she is the creator
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('anna', { playerId: 'carlo' }) });
+
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Estrae Carlo/)[0]).toBeInTheDocument();
+    });
+
+    test('a player with a red card never gets the button, even on turn', () => {
+      const base = withTurn('carlo', { playerId: 'carlo' });
+      base.game.game.players = base.game.game.players.map((p) => (p.id === 'carlo' ? { ...p, espulso: true, ammonizioni: 2 } : p));
+      renderWithProviders(<GameScreen />, { preloadedState: base });
+
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Cartellino rosso/)[0]).toBeInTheDocument();
+    });
+
+    test('in the classic mode the creator draws and nobody else does', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('anna', null, 'creatore') });
+
+      expect(screen.getAllByRole('button', { name: /Estrai Carta/ })[0]).toBeEnabled();
+      expect(screen.queryByTestId('conto-turno')).not.toBeInTheDocument();
+    });
+
+    test('the draw waits for the wait the server asked', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('carlo', { playerId: 'carlo', attesaIn: 5_000 }) });
+
+      expect(screen.getAllByRole('button', { name: /Attendi [45]s/ })[0]).toBeDisabled();
+    });
+  });
+
   describe('the sound button', () => {
     beforeEach(() => window.localStorage.clear());
     afterAll(() => window.localStorage.clear());

@@ -37,6 +37,8 @@ function HallScreen() {
   const creditiRichiesti = numero(creditiRichiestiTesto);
   const [isPrivate, setIsPrivate] = useState(false);
   const [soundsEnabled, setSoundsEnabled] = useState(true);
+  // Who draws the cards: every player in turn (default) or only the creator, as in the classic game
+  const [estrazione, setEstrazione] = useState("tutti");
   const [maxPlayersTesto, setMaxPlayersTesto] = useState("6");
   const maxPlayers = numero(maxPlayersTesto);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
@@ -117,11 +119,13 @@ function HallScreen() {
         isPrivate,
         maxPlayers,
         soundsEnabled,
+        estrazione,
       })).unwrap();
 
       setShowCreaPartita(false);
       setIsPrivate(false);
       setSoundsEnabled(true);
+      setEstrazione("tutti");
       setMaxPlayersTesto("6");
 
       // Automatically join the created game
@@ -399,6 +403,28 @@ function HallScreen() {
               Partita Privata
             </label>
           </div>
+          <fieldset className="space-y-1">
+            <legend className="mb-1 text-testo">Chi estrae le carte</legend>
+            {[
+              ["tutti", "A turno, tutti i giocatori", "A ogni carta il sistema sceglie chi estrae, a giro. Chi non estrae entro il tempo limite riceve un cartellino giallo, e uno rosso la seconda volta."],
+              ["creatore", "Solo il creatore", "Estrae sempre chi ha creato la partita."],
+            ].map(([valore, etichetta, spiegazione]) => (
+              <label key={valore} className="flex min-h-[44px] cursor-pointer items-start gap-2 py-1 text-testo">
+                <input
+                  type="radio"
+                  name="estrazione"
+                  value={valore}
+                  checked={estrazione === valore}
+                  onChange={() => setEstrazione(valore)}
+                  className="mt-1 h-5 w-5"
+                />
+                <span>
+                  {etichetta}
+                  <span className="block text-xs text-testo-2">{spiegazione}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <div className="flex items-center gap-2">
             <input
               type="checkbox"

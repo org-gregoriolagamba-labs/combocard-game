@@ -218,19 +218,33 @@ export function verificaCollezione(cartella, coperte, tipo) {
  * @returns {Object} Game as that player can see it
  */
 export function gameViewFor(game, playerId) {
-  const { mazzo, jollyInCorso, ...visible } = game;
+  // The round of the turns and the timers stay on the server: the view tells who is on turn and the times left
+  const { mazzo, jollyInCorso, turno } = game;
+  const visible = { ...game };
+  for (const campo of ["mazzo", "jollyInCorso", "codaEstrattori", "ultimoEstrattore", "turno"]) {
+    delete visible[campo];
+  }
+  const riferimento = turno?.sospesoDa ?? Date.now();
 
   return {
     ...visible,
     // A choice that has run out of time is already over, whoever reads the game
     jollyInCorso: jollyInCorso && jollyInCorso.scadenza > Date.now() ? jollyInCorso : null,
     carteRimaste: mazzo.length,
+    turno: turno
+      ? {
+          playerId: turno.playerId,
+          attesaIn: Math.max(0, turno.attesaFino - riferimento),
+          scadenzaIn: Math.max(0, turno.scadenza - riferimento),
+          sospeso: typeof turno.sospesoDa === "number",
+        }
+      : null,
     players: game.players.map((player) => {
       if (player.id === playerId) {
         return player;
       }
-      const { id, name, gettoni, collezioni, jollyUsato, regoleLette } = player;
-      return { id, name, gettoni, collezioni, jollyUsato, regoleLette };
+      const { id, name, gettoni, collezioni, jollyUsato, regoleLette, ammonizioni, espulso } = player;
+      return { id, name, gettoni, collezioni, jollyUsato, regoleLette, ammonizioni, espulso };
     }),
   };
 }

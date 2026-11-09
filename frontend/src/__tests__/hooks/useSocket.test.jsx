@@ -244,3 +244,58 @@ describe('the sounds of the events', () => {
     expect(setPartitaConSuoni).toHaveBeenLastCalledWith(false);
   });
 });
+
+describe('the events of the draws by turns', () => {
+  const arrangeTurns = (playerId = 'carlo') => {
+    const { store } = renderWithProviders(<Probe />, {
+      preloadedState: {
+        player: { id: playerId, name: 'Carlo' },
+        game: { ...mockGameState, game: { ...mockGameState.game, estrazione: 'tutti', turno: null } },
+      },
+    });
+    const socket = socketService.getSocket();
+    const emit = (event, payload) => {
+      const call = socket.on.mock.calls.filter(([name]) => name === event).at(-1);
+      act(() => call[1](payload));
+    };
+    return { store, emit };
+  };
+
+  beforeEach(() => vi.mocked(suona).mockClear());
+
+  test('turnoEstrazione puts the turn in the game, with the times left', () => {
+    const { store, emit } = arrangeTurns();
+
+    emit('turnoEstrazione', { playerId: 'anna', name: 'Anna', attesaIn: 8_000, scadenzaIn: 60_000, sospeso: false });
+
+    expect(store.getState().game.game.turno).toMatchObject({ playerId: 'anna', attesaIn: 8_000, scadenzaIn: 60_000 });
+  });
+
+  test('a yellow card is told to everybody, and sounds', () => {
+    const { store, emit } = arrangeTurns();
+
+    emit('ammonizione', { playerId: 'anna', name: 'Anna', colore: 'gialla', ammonizioni: 1 });
+
+    expect(store.getState().ui.toasts.map((t) => t.message)).toContain('Anna non ha estratto in tempo: cartellino giallo');
+    expect(suona).toHaveBeenCalledWith('ammonizione');
+  });
+
+  test('a red card says that the player no longer draws', () => {
+    const { store, emit } = arrangeTurns();
+
+    emit('ammonizione', { playerId: 'anna', name: 'Anna', colore: 'rossa', ammonizioni: 2 });
+
+    expect(store.getState().ui.toasts.map((t) => t.message)).toContain('Anna non ha estratto in tempo: cartellino rosso, non estrae più');
+  });
+
+  test('the own card is told in the second person', () => {
+    const { store, emit } = arrangeTurns('carlo');
+
+    emit('ammonizione', { playerId: 'carlo', name: 'Carlo', colore: 'gialla', ammonizioni: 1 });
+    emit('ammonizione', { playerId: 'carlo', name: 'Carlo', colore: 'rossa', ammonizioni: 2 });
+
+    const messaggi = store.getState().ui.toasts.map((t) => t.message);
+    expect(messaggi).toContain('Non hai estratto in tempo: cartellino giallo. Al prossimo ritardo sarà rosso');
+    expect(messaggi).toContain('Non hai estratto in tempo: cartellino rosso. Non estrai più in questa partita');
+  });
+});

@@ -90,6 +90,26 @@ function GameScreen() {
   const creatorName = game?.players?.[0]?.name || "";
   const isGameFinished = game?.status === "finished";
 
+  // Drawing by turns: the server says who draws and the times left; the creator has no privilege
+  const tutti = game?.estrazione === "tutti";
+  const turno = tutti ? game?.turno ?? null : null;
+  const espulso = Boolean(game?.players?.find((p) => p.id === playerId)?.espulso);
+  const [ora, setOra] = useState(() => Date.now());
+  const turnoAttivo = Boolean(turno) && !turno.sospeso && game?.status === "playing";
+  useEffect(() => {
+    if (!turnoAttivo) return undefined;
+    const timer = setInterval(() => setOra(Date.now()), 500);
+    return () => clearInterval(timer);
+  }, [turnoAttivo]);
+  const attesaTurno = turno
+    ? Math.max(0, Math.ceil(((turno.sospeso ? turno.attesaIn : turno.ricevutoA + turno.attesaIn - ora)) / 1000))
+    : 0;
+  const puoEstrarre = tutti ? Boolean(turno) && turno.playerId === playerId && !espulso : isCreator;
+  const chiEstrae = tutti
+    ? game?.players?.find((p) => p.id === turno?.playerId)?.name ?? "il sistema, in automatico"
+    : creatorName;
+  const attesaEstrazione = tutti ? attesaTurno : drawCooldown;
+
   // The player who is choosing the jolly card now (the server holds the draws meanwhile)
   const pausa = game?.status === "playing" ? game.jollyInCorso ?? null : null;
   const pausaDi = pausa?.playerId;
@@ -185,9 +205,9 @@ function GameScreen() {
   };
 
   const handleEstraiCarta = async () => {
-    if (drawCooldown > 0) {
+    if (attesaEstrazione > 0) {
       dispatch(addToast({
-        message: `Attendi ${drawCooldown} secondi prima di estrarre un'altra carta`,
+        message: `Attendi ${attesaEstrazione} secondi prima di estrarre un'altra carta`,
         type: "warning",
       }));
       return;
@@ -308,10 +328,12 @@ function GameScreen() {
   const azione = (variant) => (
     <BarraAzione
       variant={variant}
-      isCreator={isCreator}
-      creatorName={creatorName}
+      puoEstrarre={puoEstrarre}
+      chiEstrae={chiEstrae}
+      espulso={espulso}
+      turno={turno ? { scadenza: turno.ricevutoA + turno.scadenzaIn, sospeso: turno.sospeso, restanteMs: turno.scadenzaIn } : null}
       status={game?.status}
-      drawCooldown={drawCooldown}
+      drawCooldown={attesaEstrazione}
       jollyMode={isGameFinished ? null : jollyMode}
       jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
       jollyConversione={conversione}

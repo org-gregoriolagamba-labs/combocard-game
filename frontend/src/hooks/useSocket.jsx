@@ -13,6 +13,7 @@ import {
   setCurrentPlayer,
   setUltimaCartaEstratta,
   setJollyInCorso,
+  setTurno,
   clearJollyInCorso,
   updatePlayerCards,
   updatePlayerGettoni,
@@ -199,6 +200,32 @@ export function useSocket() {
       }
     };
 
+    // A new turn of the draws: who draws and the times left
+    const handleTurnoEstrazione = (turno) => {
+      if (turno) {
+        dispatch(setTurno(turno));
+      }
+    };
+
+    // A player did not draw in time: yellow card, red the second time
+    const handleAmmonizione = ({ playerId: ammonitoId, name, colore }) => {
+      suona("ammonizione");
+      const rossa = colore === "rossa";
+      const mio = ammonitoId === playerId;
+      let message;
+      if (mio) {
+        message = rossa
+          ? "Non hai estratto in tempo: cartellino rosso. Non estrai più in questa partita"
+          : "Non hai estratto in tempo: cartellino giallo. Al prossimo ritardo sarà rosso";
+      } else {
+        message = rossa
+          ? `${name} non ha estratto in tempo: cartellino rosso, non estrae più`
+          : `${name} non ha estratto in tempo: cartellino giallo`;
+      }
+      dispatch(addToast({ message, type: "warning", duration: mio ? 8000 : 5000 }));
+      refreshGameState();
+    };
+
     // Jolly used
     const handleJollyUsato = ({ playerId: jollyPlayerId, tipo }) => {
       suona("jollyUsato");
@@ -274,6 +301,8 @@ export function useSocket() {
     socket.on("jollyInCorso", handleJollyInCorso);
     socket.on("jollyAnnullato", handleJollyAnnullato);
     socket.on("jollyUsato", handleJollyUsato);
+    socket.on("turnoEstrazione", handleTurnoEstrazione);
+    socket.on("ammonizione", handleAmmonizione);
     socket.on("gameFinished", handleGameFinished);
     socket.on("gameCancelled", handleGameCancelled);
     socket.on("sessionEnded", handleSessionEnded);
@@ -291,6 +320,8 @@ export function useSocket() {
       socket.off("jollyInCorso", handleJollyInCorso);
       socket.off("jollyAnnullato", handleJollyAnnullato);
       socket.off("jollyUsato", handleJollyUsato);
+      socket.off("turnoEstrazione", handleTurnoEstrazione);
+      socket.off("ammonizione", handleAmmonizione);
       socket.off("gameFinished", handleGameFinished);
       socket.off("gameCancelled", handleGameCancelled);
       socket.off("sessionEnded", handleSessionEnded);

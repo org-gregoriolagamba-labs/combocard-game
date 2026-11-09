@@ -22,6 +22,8 @@ const MELODIE = {
   collezioneAltrui: [[392, 0, 0.22, "triangle"]],
   jollyDichiarato: [[600, 0, 0.14, "square"], [450, 0.14, 0.2, "square"]],
   jollyUsato: [[784, 0, 0.1, "sine"], [988, 0.09, 0.1, "sine"], [1319, 0.18, 0.3, "sine"]],
+  // The whistle: two short high tones
+  ammonizione: [[1400, 0, 0.12, "square"], [1400, 0.16, 0.22, "square"]],
   fine: [[523.25, 0, 0.2, "triangle"], [659.25, 0.2, 0.2, "triangle"], [783.99, 0.4, 0.2, "triangle"], [1046.5, 0.6, 0.7, "triangle"]],
 };
 

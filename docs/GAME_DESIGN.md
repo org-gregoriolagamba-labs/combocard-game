@@ -83,6 +83,18 @@ Choosing the card takes time, and a card drawn meanwhile could change what the J
 - The pause is not saved with the game: a restart of the server never leaves a game paused. Events: `jollyInCorso` (a player declared), `jollyAnnullato` (the pause ended without the Jolly being used), `jollyUsato` (it was used).
 - For compatibility the server still accepts a Jolly that was never declared, when nobody else is choosing.
 
+## 🎲 Drawing by turns
+
+The creator chooses who draws when creating the game (`estrazione` in `POST /api/games`): `"tutti"` (every player in turn; the screen proposes it) or `"creatore"` (only the creator, the classic mode; it is what a request without the field gets, so existing clients keep working).
+
+- **The round.** The server shuffles the players and gives each one a turn before anyone has a second one, then shuffles again; the last of a round does not open the next. The creator has no privilege. A player who is not connected, or has a red card, is skipped; if nobody at all is connected the server cannot tell who is away and skips nobody. If the player on turn leaves, the turn goes to another one.
+- **The wait.** The server keeps the 8 seconds between draws (`DRAW_COOLDOWN_SECONDS`): drawing too soon is a 409, drawing out of turn a 403. In the classic mode the wait stays in the client only, as before.
+- **The time limit.** The player on turn has `DRAW_TURN_SECONDS` (60 by default). Everybody sees who draws and a countdown. When it runs out the card is **drawn by itself** and the player gets a **yellow card**; the second time a **red card**, and he no longer draws until the end of the game (he goes on playing). If nobody can draw any more, the server draws by itself after the wait.
+- **The jolly.** The time limit stops while a player chooses the card for the jolly and goes on from where it stopped (also if the choice runs out of time).
+- **State.** `game.turno` (`playerId`, `attesaFino`, `scadenza`, `sospesoDa`), the round (`codaEstrattori`, `ultimoEstrattore`, kept on the server) and, for each player, `ammonizioni` and `espulso` (public: the others see who is warned) are saved with the game. The timers are not: at startup `riarmaTurni` arms them again for the games in progress.
+- **What the clients get.** `GET /api/games/:id` carries `turno` with the times in milliseconds *left* (`attesaIn`, `scadenzaIn`, `sospeso`), so a clock that is off cannot show an absurd time. Events: `turnoEstrazione` (a new turn) and `ammonizione` (`playerId`, `colore` `gialla` or `rossa`, `ammonizioni`).
+- **Fairness.** The card is always the one the server draws from the shuffled deck: whoever draws only asks for it and cannot influence which one comes out.
+
 ## 🔊 Sounds
 
 - The creator chooses when creating the game (`soundsEnabled` in `POST /api/games`, a boolean; without it the game has sounds). The choice is saved with the game and every player reads it in `GET /api/games/:gameId`. A game made before the field existed has sounds.

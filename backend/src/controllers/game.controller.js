@@ -24,6 +24,16 @@ import {
   deleteGameSafely,
 } from "../services/persistence.service.js";
 import { SEMI_EMOJI, VALORI_NUM, GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
+import {
+  cambiaEstrattore,
+  eseguiEstrazione,
+  iniziaTurni,
+  riprendiTurno,
+  sospendiTurno,
+  usaTurni,
+  verificaAttesa,
+  verificaTurno,
+} from "../services/estrazione.service.js";
 import { playerRoom } from "../sockets/index.js";
 import config from "../config/index.js";
 
@@ -72,7 +82,7 @@ function everyoneCanPay(game, gameState) {
  */
 export const createGame = asyncHandler(async (req, res) => {
   const { playerId } = req.auth;
-  const { requiredCredits, isPrivate, maxPlayers, soundsEnabled } = req.body;
+  const { requiredCredits, isPrivate, maxPlayers, soundsEnabled, estrazione } = req.body;
 
   const player = req.gameState.players[playerId];
   if (!player) {
@@ -97,6 +107,8 @@ export const createGame = asyncHandler(async (req, res) => {
     requiredCredits: credits,
     isPrivate: isPrivate || false,
     soundsEnabled: soundsEnabled ?? true,
+    // Who draws: the creator (classic) or every player in turn
+    estrazione: estrazione ?? "creatore",
     maxPlayers: maxPlayers || GAME_DEFAULTS.MAX_PLAYERS,
     status: GAME_STATUS.WAITING,
     mazzo: [],
@@ -201,6 +213,8 @@ export const joinGame = asyncHandler(async (req, res) => {
     jollyPos: null,
     jollyUsedFor: null,
     regoleLette: Boolean(player.regoleAccettateIl),
+    ammonizioni: 0,
+    espulso: false,
   };
 
   game.players.push(gamePlayer);
@@ -280,6 +294,8 @@ export const startGame = asyncHandler(async (req, res) => {
     combocard_reale: Math.floor(montepremi * config.prizeDistribution.combocard_reale),
   };
 
+  iniziaTurni(game, game.id, { io: req.io, gameState: req.gameState, getStore: () => req.store });
+
   await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 
   emitGameStarted(req.io, game);
@@ -311,6 +327,7 @@ function endJollyHold(game, gameId, io) {
   if (hold) {
     io.to(gameId).emit("jollyAnnullato", { playerId: hold.playerId });
   }
+  riprendiTurno(game, gameId);
 }
 
 /**
@@ -333,7 +350,10 @@ export const drawCard = asyncHandler(async (req, res) => {
     throw new AppError("Deck exhausted", 400);
   }
 
-  if (req.auth.playerId !== game.players[0]?.id) {
+  // By turns the player on turn draws; in the classic mode the creator does
+  if (usaTurni(game)) {
+    verificaTurno(game, req.auth.playerId);
+  } else if (req.auth.playerId !== game.players[0]?.id) {
     throw new AppError("Only the game creator can draw cards", 403);
   }
 
@@ -341,37 +361,15 @@ export const drawCard = asyncHandler(async (req, res) => {
     throw new AppError("A player is choosing the jolly: wait a few seconds", 409);
   }
 
-  const creditMovements = trackCredits(req.gameState, game);
-
-  const cartaEstratta = game.mazzo.pop();
-  game.carteEstratte.push(cartaEstratta);
-
-  // Cover matching cards for all players
-  for (const player of game.players) {
-    for (let r = 0; r < GAME_DEFAULTS.GRID_SIZE; r++) {
-      for (let c = 0; c < GAME_DEFAULTS.GRID_SIZE; c++) {
-        if (!player.coperte[r][c]) {
-          const cartaCartella = player.cartella[r][c];
-          if (
-            cartaCartella.valore === cartaEstratta.valore &&
-            cartaCartella.seme === cartaEstratta.seme
-          ) {
-            player.coperte[r][c] = true;
-            req.io.to(playerRoom(player.id)).emit("cardCovered", {
-              playerId: player.id,
-              row: r,
-              col: c,
-            });
-          }
-        }
-      }
-    }
+  if (usaTurni(game)) {
+    verificaAttesa(game);
   }
 
-  autoClaimCollezioni(game, gameId, req.io, req.gameState);
-  req.io.to(gameId).emit("cardDrawn", { carta: cartaEstratta });
-
-  await saveGameSafely(req.store, game, creditMovements(CREDIT_MOVEMENT.GAME_PAYOUT));
+  const cartaEstratta = await eseguiEstrazione(game, gameId, {
+    io: req.io,
+    gameState: req.gameState,
+    getStore: () => req.store,
+  });
 
   sendSuccess(res, { carta: cartaEstratta });
 });
@@ -495,6 +493,8 @@ export const startJollyChoice = asyncHandler(async (req, res) => {
   };
 
   req.io.to(gameId).emit("jollyInCorso", game.jollyInCorso);
+  // The time limit of the player on turn stops while the card is chosen
+  sospendiTurno(game, gameId, game.jollyInCorso.scadenza);
 
   sendSuccess(res, { success: true, jollyInCorso: game.jollyInCorso });
 });
@@ -601,6 +601,7 @@ export const useJolly = asyncHandler(async (req, res) => {
   // The choice is over: the draws can go on (clients learn it from "jollyUsato")
   if (game.jollyInCorso?.playerId === playerId) {
     game.jollyInCorso = null;
+    riprendiTurno(game, gameId);
   }
   if (!player.coperte[row]) {
     player.coperte[row] = [];
@@ -645,8 +646,13 @@ export const leaveGame = asyncHandler(async (req, res) => {
       endJollyHold(game, gameId, req.io);
     }
 
+    const eraDiTurno = game.turno?.playerId === playerId;
     game.players = game.players.filter((p) => p.id !== playerId);
     player.currentGameId = null;
+    // The turn does not stay with someone who is no longer in the game
+    if (eraDiTurno) {
+      cambiaEstrattore(game, gameId, { io: req.io, gameState: req.gameState, getStore: () => req.store });
+    }
 
     req.io.to(gameId).emit("playerLeft", { playerId, playerName: player.name });
     req.io.in(playerRoom(playerId)).socketsLeave(gameId);
@@ -733,6 +739,8 @@ async function autoStartGame(game, gameId, io, gameState, store) {
     napola: Math.floor(montepremi * config.prizeDistribution.napola),
     combocard_reale: Math.floor(montepremi * config.prizeDistribution.combocard_reale),
   };
+
+  iniziaTurni(game, gameId, { io, gameState, getStore: () => store });
 
   await saveGameSafely(store, game, creditMovements(CREDIT_MOVEMENT.GAME_ENTRY));
 

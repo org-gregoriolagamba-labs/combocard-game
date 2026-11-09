@@ -4,8 +4,8 @@ import '@testing-library/jest-dom';
 import { BarraAzione } from '../../components/game';
 
 const base = {
-  isCreator: true,
-  creatorName: 'Anna',
+  puoEstrarre: true,
+  chiEstrae: 'Anna',
   status: 'playing',
   drawCooldown: 0,
   jollyMode: null,
@@ -48,7 +48,7 @@ describe('BarraAzione', () => {
 
   describe('other players', () => {
     test('see who draws instead of a disabled button', () => {
-      render(<BarraAzione {...base} isCreator={false} />);
+      render(<BarraAzione {...base} puoEstrarre={false} />);
 
       expect(screen.getByText(/Estrae Anna/)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('BarraAzione', () => {
     });
 
     test('another player sees the instruction too', () => {
-      render(<BarraAzione {...base} isCreator={false} jollyMode="tris" />);
+      render(<BarraAzione {...base} puoEstrarre={false} jollyMode="tris" />);
 
       expect(screen.getByText(/Jolly per TRIS/)).toBeInTheDocument();
     });
@@ -190,7 +190,7 @@ describe('BarraAzione', () => {
     });
 
     test('another player is told who is choosing, and still sees who draws', () => {
-      render(<BarraAzione {...base} isCreator={false} pausa={altro} />);
+      render(<BarraAzione {...base} puoEstrarre={false} pausa={altro} />);
 
       expect(screen.getByText(/Bruno sta scegliendo il Jolly/)).toBeInTheDocument();
       expect(screen.getByText(/Estrae Anna/)).toBeInTheDocument();
@@ -254,6 +254,48 @@ describe('BarraAzione', () => {
       render(<BarraAzione {...base} variant="bar" drawCooldown={3} />);
 
       expect(screen.queryByText(/Usa questo tempo/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('drawing by turns', () => {
+    const adesso = Date.now();
+    const turno = (secondi, extra = {}) => ({ scadenza: adesso + secondi * 1000, sospeso: false, restanteMs: secondi * 1000, ...extra });
+
+    test('everybody sees who is drawing and the time left', () => {
+      render(<BarraAzione {...base} puoEstrarre={false} chiEstrae="Marta" turno={turno(54)} />);
+
+      expect(screen.getByText(/Estrae Marta/)).toBeInTheDocument();
+      expect(screen.getByTestId('conto-turno')).toHaveTextContent(/0:5[34]/);
+    });
+
+    test('the player on turn draws, with the time left beside the button', () => {
+      const onDraw = vi.fn();
+      render(<BarraAzione {...base} puoEstrarre chiEstrae="Anna" turno={turno(30)} onDraw={onDraw} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /Estrai Carta/ }));
+
+      expect(onDraw).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('conto-turno')).toHaveTextContent(/0:(29|30)/);
+    });
+
+    test('the time stops while the jolly is chosen', () => {
+      render(<BarraAzione {...base} puoEstrarre={false} chiEstrae="Marta" turno={turno(54, { sospeso: true, restanteMs: 41_000 })} />);
+
+      expect(screen.getByTestId('conto-turno')).toHaveTextContent('0:41');
+    });
+
+    test('a player with a red card is told, and cannot draw', () => {
+      render(<BarraAzione {...base} puoEstrarre={false} espulso chiEstrae="Marta" turno={turno(54)} />);
+
+      expect(screen.getByText(/Cartellino rosso/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      expect(screen.getByText(/Estrae Marta/)).toBeInTheDocument();
+    });
+
+    test('with no turn (the classic mode) there is no countdown', () => {
+      render(<BarraAzione {...base} />);
+
+      expect(screen.queryByTestId('conto-turno')).not.toBeInTheDocument();
     });
   });
 });

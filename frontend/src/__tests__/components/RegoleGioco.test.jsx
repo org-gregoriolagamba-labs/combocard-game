@@ -20,7 +20,7 @@ describe('RegoleGioco', () => {
   test('says how a game goes: who draws, how often, and that the sheet covers by itself', () => {
     render(<RegoleGioco game={game} />);
 
-    expect(screen.getByText(/Estrae solo il creatore/)).toHaveTextContent('8 secondi');
+    expect(screen.getByText(/Estrae una carta alla volta/)).toHaveTextContent('8 secondi');
     expect(screen.getByText(/si copre da sola con un sigillo/)).toBeInTheDocument();
     expect(screen.getByText(/formano il montepremi/)).toBeInTheDocument();
   });
@@ -52,5 +52,13 @@ describe('RegoleGioco', () => {
     const fine = screen.getByText(/La partita finisce quando qualcuno completa la Combocard Reale/);
     expect(fine).toHaveTextContent('si dividono in parti uguali tra tutti i giocatori');
     expect(fine).toHaveTextContent('perdi i crediti d');
+  });
+
+  test('explains the turns, the time limit and the cards of discipline', () => {
+    render(<RegoleGioco game={game} />);
+
+    expect(screen.getByText(/a turno tutti i giocatori/)).toBeInTheDocument();
+    expect(screen.getByText(/cartellino giallo/)).toBeInTheDocument();
+    expect(screen.getByText(/cartellino rosso/)).toBeInTheDocument();
   });
 });
