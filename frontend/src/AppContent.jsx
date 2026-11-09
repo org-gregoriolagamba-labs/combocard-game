@@ -17,7 +17,7 @@ import { addToast, setScreen } from "./store/slices/uiSlice";
 import { HomePage } from "./pages";
 
 // Game screens
-import { HallScreen, LobbyScreen, GameScreen, RegoleScreen, ChangePasswordScreen } from "./components/game";
+import { HallScreen, LobbyScreen, GameScreen, RegoleScreen, ChangePasswordScreen, StoricoScreen } from "./components/game";
 import { AdminScreen } from "./components/admin";
 import { LoadingSpinner } from "./components/common";
 
@@ -77,6 +77,8 @@ function AppContent() {
         return <HomePage />;
       case "hall":
         return <HallScreen />;
+      case "storico":
+        return <StoricoScreen />;
       case "lobby":
         return <LobbyScreen />;
       case "game":

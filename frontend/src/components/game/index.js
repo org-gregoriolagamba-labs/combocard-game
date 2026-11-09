@@ -18,6 +18,7 @@ export { default as RegoleScreen } from './RegoleScreen';
 export { default as ChangePasswordScreen } from './ChangePasswordScreen';
 export { default as Coriandoli } from './Coriandoli';
 export { default as HallScreen } from './HallScreen';
+export { default as StoricoScreen } from './StoricoScreen';
 export { default as LobbyScreen } from './LobbyScreen';
 export { default as PlayersList } from './PlayersList';
 export { default as Seme } from './Seme';

@@ -80,6 +80,15 @@ const pageQuery = {
   limit: Joi.number().integer().min(1).max(100).default(20),
 };
 
+// The history of the own credit movements: the types a player may see, a period, a page
+export const MOVEMENT_TYPES = ["initial", "purchase", "game_entry", "game_payout", "game_refund", "admin_adjustment", "account_closed"];
+export const meMovementsQuerySchema = Joi.object({
+  type: Joi.string().valid(...MOVEMENT_TYPES),
+  from: Joi.date().iso(),
+  to: Joi.date().iso().min(Joi.ref("from")),
+  ...pageQuery,
+});
+
 export const adminListUsersQuerySchema = Joi.object({
   q: Joi.string().trim().max(30).allow(""),
   role: Joi.string().valid(...ACCOUNT_ROLES),

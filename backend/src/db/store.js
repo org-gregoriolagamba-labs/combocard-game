@@ -385,6 +385,9 @@ export function createMemoryStore() {
     },
     // The games of this store are all in the game state, where the service counts them
     gameStats: async () => null,
+    // No history without the database: the movements are not kept
+    listPlayerMovements: async () => null,
+    playerStats: async () => null,
     async createRefreshToken({ tokenHash, familyId, playerId, expiresAt }) {
       refreshTokens.set(tokenHash, {
         familyId, playerId, expiresAt, rotatedAt: null, revokedAt: null,
@@ -1148,6 +1151,104 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
         "SELECT count(*) AS finished, COALESCE(SUM(montepremi), 0) AS prizes FROM games WHERE status = 'finished'",
       );
       return { finished: Number(rows[0].finished), prizesDistributed: Number(rows[0].prizes) };
+    },
+
+    /**
+     * The credit movements of one player, latest first. Only what the player may know: the type, the
+     * amount, the balance after, the date and the game (its id and the name of its creator); the reason
+     * of an admin's adjustment stays in the audit log.
+     * @param {string} playerId - The player
+     * @param {Object} options - { limit, offset, type, from, to }
+     * @returns {Promise<Object>} { items: [{ id, tipo, importo, saldoDopo, data, partita }], total }
+     */
+    async listPlayerMovements(playerId, { limit = 20, offset = 0, type = null, from = null, to = null } = {}) {
+      const where = `t.player_id = $1 AND ($2::text IS NULL OR t.type = $2)
+                     AND ($3::timestamptz IS NULL OR t.created_at >= $3) AND ($4::timestamptz IS NULL OR t.created_at <= $4)`;
+      const params = [playerId, type, from, to];
+      const [{ rows }, { rows: count }] = await Promise.all([
+        pool.query(
+          `SELECT t.id, t.type AS tipo, t.amount AS importo, t.balance_after AS "saldoDopo", t.created_at AS data,
+                  t.game_id AS "gameId", g.state->'players'->0->>'name' AS creatore
+           FROM credit_transactions t LEFT JOIN games g ON g.id = t.game_id
+           WHERE ${where}
+           ORDER BY t.created_at DESC, t.id DESC LIMIT $5 OFFSET $6`,
+          [...params, limit, offset],
+        ),
+        pool.query(`SELECT count(*) AS total FROM credit_transactions t WHERE ${where}`, params),
+      ]);
+
+      return {
+        items: rows.map((row) => ({
+          id: Number(row.id),
+          tipo: row.tipo,
+          importo: Number(row.importo),
+          saldoDopo: Number(row.saldoDopo),
+          data: row.data,
+          partita: row.gameId ? { id: row.gameId, creatore: row.creatore ?? null } : null,
+        })),
+        total: Number(count[0].total),
+      };
+    },
+
+    /**
+     * The statistics of one player, from the credit movements and the state of the games. A game that an
+     * admin cancelled (and refunded) was not played: it counts for nothing.
+     * @param {string} playerId - The player
+     * @returns {Promise<Object>} partiteGiocate, partiteConCollezione, partiteVinte (the Combocard Reale),
+     *   collezioniVinte per type, creditiSpesi, creditiVinti, saldoNetto, incassoMassimo
+     */
+    async playerStats(playerId) {
+      // The games the player paid the fee of and that were not refunded
+      const giocate = `SELECT t.game_id FROM credit_transactions t
+                       WHERE t.player_id = $1 AND t.type = 'game_entry' AND t.game_id IS NOT NULL
+                         AND NOT EXISTS (SELECT 1 FROM credit_transactions r
+                                         WHERE r.player_id = t.player_id AND r.game_id = t.game_id AND r.type = 'game_refund')`;
+      const [soldi, partite] = await Promise.all([
+        pool.query(
+          `SELECT COALESCE(SUM(-t.amount) FILTER (WHERE t.type = 'game_entry'), 0) AS spesi,
+                  COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'game_payout'), 0) AS vinti,
+                  COALESCE(MAX(t.amount) FILTER (WHERE t.type = 'game_payout'), 0) AS massimo,
+                  count(*) FILTER (WHERE t.type = 'game_entry') AS giocate
+           FROM credit_transactions t
+           WHERE t.player_id = $1 AND t.game_id IN (${giocate})`,
+          [playerId],
+        ),
+        pool.query(
+          `SELECT c.valore AS tipo, count(*) AS n
+           FROM games g
+           CROSS JOIN LATERAL jsonb_array_elements(g.state->'players') p
+           CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p->'collezioni', '[]'::jsonb)) AS c(valore)
+           WHERE p->>'id' = $1 AND g.id IN (${giocate})
+           GROUP BY c.valore`,
+          [playerId],
+        ),
+      ]);
+      const conCollezione = await pool.query(
+        `SELECT count(*) AS n, count(*) FILTER (WHERE p->'collezioni' ? 'combocard_reale') AS vinte
+         FROM games g CROSS JOIN LATERAL jsonb_array_elements(g.state->'players') p
+         WHERE p->>'id' = $1 AND g.id IN (${giocate}) AND jsonb_array_length(COALESCE(p->'collezioni', '[]'::jsonb)) > 0`,
+        [playerId],
+      );
+
+      const collezioniVinte = { tris: 0, sequenza: 0, scopa: 0, napola: 0, combocard_reale: 0 };
+      for (const { tipo, n } of partite.rows) {
+        if (tipo in collezioniVinte) {
+          collezioniVinte[tipo] = Number(n);
+        }
+      }
+      const spesi = Number(soldi.rows[0].spesi);
+      const vinti = Number(soldi.rows[0].vinti);
+
+      return {
+        partiteGiocate: Number(soldi.rows[0].giocate),
+        partiteConCollezione: Number(conCollezione.rows[0].n),
+        partiteVinte: Number(conCollezione.rows[0].vinte),
+        collezioniVinte,
+        creditiSpesi: spesi,
+        creditiVinti: vinti,
+        saldoNetto: vinti - spesi,
+        incassoMassimo: Number(soldi.rows[0].massimo),
+      };
     },
 
     /**

@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, ShieldCheck } from "lucide-react";
+import { History, Plus, ShieldCheck } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
@@ -235,6 +235,13 @@ function HallScreen() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <button
+              onClick={() => dispatch(setScreen("storico"))}
+              className="flex min-h-[44px] max-w-full items-center gap-2 rounded-lg px-3 text-sm font-bold text-testo underline decoration-2 underline-offset-4 hover:text-oro"
+            >
+              <History size={18} aria-hidden="true" />
+              Storico e statistiche
+            </button>
             {/* Only an admin sees the way in: the server refuses everybody else anyway */}
             {role === "admin" ? (
               <button
@@ -244,9 +251,7 @@ function HallScreen() {
                 <ShieldCheck size={18} aria-hidden="true" />
                 Amministrazione
               </button>
-            ) : (
-              <span />
-            )}
+            ) : null}
             <button
               onClick={handleEsci}
               className="min-h-[44px] [overflow-wrap:anywhere] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"

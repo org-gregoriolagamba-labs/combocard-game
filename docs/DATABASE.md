@@ -51,6 +51,14 @@ GROUP BY p.id, p.credits
 HAVING p.credits <> COALESCE(SUM(t.amount), 0);
 ```
 
+## Storico e statistiche del giocatore
+
+Ogni giocatore legge i propri dati da `GET /api/me/movements` (movimenti, dal più recente, con `page`, `limit`, `type`, `from`, `to`) e `GET /api/me/stats`. Il giocatore è sempre quello del token: nel percorso non c'è un id e un id nella richiesta viene ignorato.
+
+- **Movimenti.** Vengono da `credit_transactions`: tipo, importo, saldo dopo, data e partita (id e nome di chi l'ha creata, da `games.state`). Il motivo di una rettifica dell'admin non viene mai restituito: resta in `audit_log`.
+- **Statistiche.** Si calcolano con query sul database, senza contatori da tenere allineati: partite giocate (quote d'ingresso pagate), partite con almeno una collezione e Combocard Reale vinte e collezioni per tipo (da `games.state`), crediti spesi e vinti, bilancio e incasso più alto in una partita. Una partita annullata da un admin e rimborsata (`game_refund`) non conta come giocata e la sua quota non conta come spesa; gli acquisti e le rettifiche non sono né spese né vincite.
+- **Senza database** i movimenti non si conservano: le due risposte sono `{ disponibile: false }` e la schermata lo dice, invece di mostrare una lista che sembra completa e non lo è.
+
 ## Migrazioni
 
 I file in `backend/db/migrations` vengono applicati in ordine di nome all'avvio del server, oppure con `npm --prefix backend run db:migrate`. Per cambiare lo schema aggiungi un nuovo file numerato: non modificare quelli già applicati.
