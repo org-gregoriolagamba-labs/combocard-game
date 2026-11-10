@@ -5,7 +5,8 @@
  */
 
 import { randomInt, randomUUID } from "crypto";
-import { SEMI, SEMI_EMOJI, VALORI, VALORI_NUM, GAME_DEFAULTS } from "../config/constants.js";
+import { SEMI, SEMI_EMOJI, VALORI, VALORI_NUM, GAME_DEFAULTS, COLLECTION_TYPES } from "../config/constants.js";
+import { verificaCollezione } from "../services/game.service.js";
 
 /**
  * Generate a complete deck of cards
@@ -26,11 +27,40 @@ export function generaMazzo() {
   return mazzo;
 }
 
+// How many random grids are tried before giving up: a grid is refused about 3 times in 100
+const TENTATIVI_CARTELLA = 1000;
+
 /**
- * Generate a shuffled card grid (cartella) for a player
+ * Which collections a grid allows: a collection is possible when it would be complete if every
+ * card of the grid were covered. The rules are the ones of the game (verificaCollezione), the
+ * jolly is not counted.
+ * @param {Array} cartella - 5x5 grid of cards
+ * @returns {Object} Map of collection type to boolean
+ */
+export function collezioniPossibili(cartella) {
+  const tutteCoperte = cartella.map((riga) => riga.map(() => true));
+  return Object.fromEntries(
+    Object.values(COLLECTION_TYPES).map((tipo) => [tipo, verificaCollezione(cartella, tutteCoperte, tipo)]),
+  );
+}
+
+/**
+ * Generate a shuffled card grid (cartella) for a player. Every grid allows every collection
+ * of the game: a random grid that does not (about 3 in 100 have no Combocard Reale) is
+ * discarded and drawn again, so the odds of the cards stay random.
  * @returns {Array} 5x5 grid of cards
  */
 export function generaCartella() {
+  for (let i = 0; i < TENTATIVI_CARTELLA; i++) {
+    const cartella = generaCartellaCasuale();
+    if (Object.values(collezioniPossibili(cartella)).every(Boolean)) {
+      return cartella;
+    }
+  }
+  throw new Error("Impossibile generare una cartella che permetta tutte le collezioni");
+}
+
+function generaCartellaCasuale() {
   const mazzoMescolato = shuffleArray(generaMazzo());
   const carte25 = mazzoMescolato.slice(0, GAME_DEFAULTS.GRID_SIZE * GAME_DEFAULTS.GRID_SIZE);
   
@@ -52,7 +82,7 @@ export function generaCartella() {
 /**
  * Check if a card exists in the player's grid
  * @param {Array} cartella - Player's card grid
- * @param {Object} jollyPos - Position to exclude (jolly position)
+ * @param {Object|null} jollyPos - Position to leave out of the search; the jolly passes null, its own card counts
  * @param {string} valore - Card value to search
  * @param {string} seme - Card suit to search
  * @returns {boolean} True if card exists

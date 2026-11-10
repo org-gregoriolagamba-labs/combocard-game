@@ -4,6 +4,19 @@
  * Calculates progress towards different collection types.
  */
 
+// The most values present in any window of `lunghezza` consecutive values. It is the count the jolly
+// and the server work with: a window with one value missing is one card away, wherever the gap is.
+function migliorFinestra(numeri, lunghezza) {
+  const presenti = new Set(numeri);
+  let best = 0;
+  for (let inizio = 1; inizio + lunghezza - 1 <= 10; inizio++) {
+    let n = 0;
+    for (let v = inizio; v < inizio + lunghezza; v++) if (presenti.has(v)) n++;
+    if (n > best) best = n;
+  }
+  return best;
+}
+
 export function calcolaProgresso(currentPlayer, tipo) {
   if (!currentPlayer) return { count: 0, total: 0, status: "far" };
 
@@ -38,19 +51,7 @@ export function calcolaProgresso(currentPlayer, tipo) {
       : 0;
     count = Math.min(max, total);
   } else if (tipo === "sequenza") {
-    const nums = [...new Set(covered.map((c) => c.valoreNum))].sort(
-      (a, b) => a - b
-    );
-    let best = 0,
-      cur = 0,
-      prev = null;
-    nums.forEach((n) => {
-      if (prev === null || n !== prev + 1) cur = 1;
-      else cur++;
-      prev = n;
-      if (cur > best) best = cur;
-    });
-    count = Math.min(best, total);
+    count = Math.min(migliorFinestra(covered.map((c) => c.valoreNum), total), total);
   } else if (tipo === "scopa") {
     const suits = {};
     covered.forEach((c) => (suits[c.seme] = (suits[c.seme] || 0) + 1));
@@ -85,17 +86,7 @@ export function calcolaProgresso(currentPlayer, tipo) {
 
     let best = 0;
     for (const s in perSeme) {
-      const nums = [...new Set(perSeme[s])].sort((a, b) => a - b);
-      let curBest = 0,
-        cur = 0,
-        prev = null;
-      nums.forEach((n) => {
-        if (prev === null || n !== prev + 1) cur = 1;
-        else cur++;
-        prev = n;
-        if (cur > curBest) curBest = cur;
-      });
-      if (curBest > best) best = curBest;
+      best = Math.max(best, migliorFinestra(perSeme[s], total));
     }
     count = Math.min(best, total);
   }

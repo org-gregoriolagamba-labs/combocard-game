@@ -54,6 +54,8 @@ const config = {
   defaultCredits: parseInt(process.env.DEFAULT_CREDITS, 10) || 0,
   maxCreditsPerPurchase: parseInt(process.env.MAX_CREDITS_PER_PURCHASE, 10) || 10000,
   drawCooldownSeconds: parseInt(process.env.DRAW_COOLDOWN_SECONDS, 10) || 8,
+  // Time the player on turn has to draw (drawing by turns), before the card is drawn by itself and the player is warned
+  drawTurnSeconds: parseInt(process.env.DRAW_TURN_SECONDS, 10) || 60,
   
   // Prize distribution percentages
   prizeDistribution: {

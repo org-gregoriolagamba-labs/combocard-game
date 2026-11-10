@@ -6,12 +6,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, ShieldCheck } from "lucide-react";
+import { History, Plus, ShieldCheck } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
-import { Modal, Button, Input } from "../common";
+import { Modal, Button, Input, Footer } from "../common";
 import Credito from "./Credito";
 import DeleteAccountDialog from "./DeleteAccountDialog";
 
@@ -36,6 +36,9 @@ function HallScreen() {
   );
   const creditiRichiesti = numero(creditiRichiestiTesto);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [soundsEnabled, setSoundsEnabled] = useState(true);
+  // Who draws the cards: every player in turn (default) or only the creator, as in the classic game
+  const [estrazione, setEstrazione] = useState("tutti");
   const [maxPlayersTesto, setMaxPlayersTesto] = useState("6");
   const maxPlayers = numero(maxPlayersTesto);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
@@ -115,10 +118,14 @@ function HallScreen() {
         requiredCredits: creditiRichiesti,
         isPrivate,
         maxPlayers,
+        soundsEnabled,
+        estrazione,
       })).unwrap();
 
       setShowCreaPartita(false);
       setIsPrivate(false);
+      setSoundsEnabled(true);
+      setEstrazione("tutti");
       setMaxPlayersTesto("6");
 
       // Automatically join the created game
@@ -228,6 +235,13 @@ function HallScreen() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <button
+              onClick={() => dispatch(setScreen("storico"))}
+              className="flex min-h-[44px] max-w-full items-center gap-2 rounded-lg px-3 text-sm font-bold text-testo underline decoration-2 underline-offset-4 hover:text-oro"
+            >
+              <History size={18} aria-hidden="true" />
+              Storico e statistiche
+            </button>
             {/* Only an admin sees the way in: the server refuses everybody else anyway */}
             {role === "admin" ? (
               <button
@@ -237,9 +251,7 @@ function HallScreen() {
                 <ShieldCheck size={18} aria-hidden="true" />
                 Amministrazione
               </button>
-            ) : (
-              <span />
-            )}
+            ) : null}
             <button
               onClick={handleEsci}
               className="min-h-[44px] [overflow-wrap:anywhere] rounded-lg px-3 text-sm font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
@@ -298,6 +310,8 @@ function HallScreen() {
             </ul>
           )}
         </section>
+
+        <Footer />
       </div>
 
       {/* Cash Register Modal */}
@@ -394,6 +408,44 @@ function HallScreen() {
               Partita Privata
             </label>
           </div>
+          <fieldset className="space-y-1">
+            <legend className="mb-1 text-testo">Chi estrae le carte</legend>
+            {[
+              ["tutti", "A turno, tutti i giocatori", "A ogni carta il sistema sceglie chi estrae, a giro. Chi non estrae entro il tempo limite riceve un cartellino giallo, e uno rosso la seconda volta."],
+              ["creatore", "Solo il creatore", "Estrae sempre chi ha creato la partita."],
+            ].map(([valore, etichetta, spiegazione]) => (
+              <label key={valore} className="flex min-h-[44px] cursor-pointer items-start gap-2 py-1 text-testo">
+                <input
+                  type="radio"
+                  name="estrazione"
+                  value={valore}
+                  checked={estrazione === valore}
+                  onChange={() => setEstrazione(valore)}
+                  className="mt-1 h-5 w-5"
+                />
+                <span>
+                  {etichetta}
+                  <span className="block text-xs text-testo-2">{spiegazione}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="soundsEnabled"
+              checked={soundsEnabled}
+              onChange={(e) => setSoundsEnabled(e.target.checked)}
+              aria-describedby="soundsEnabled-hint"
+              className="h-5 w-5"
+            />
+            <label htmlFor="soundsEnabled" className="text-testo">
+              Suoni di gioco
+            </label>
+          </div>
+          <p id="soundsEnabled-hint" className="-mt-2 text-xs text-testo-2">
+            Un suono a ogni carta, collezione e Jolly. Ognuno può comunque silenziarli per sé.
+          </p>
           <Button onClick={handleCreaPartita} className="w-full">
             Crea Partita
           </Button>

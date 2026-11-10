@@ -40,10 +40,12 @@ import GuidaPrimaPartita from "./GuidaPrimaPartita";
 import Credito from "./Credito";
 import RivelazioneCarta from "./RivelazioneCarta";
 import StoricoCarte from "./StoricoCarte";
+import PulsanteSuoni from "./PulsanteSuoni";
 import Coriandoli from "./Coriandoli";
 import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
+import { useSegnaliTurno } from "../../hooks/useSegnaliTurno";
 import { SECONDI_PAUSA_JOLLY } from "./ConteggioJolly";
 
 const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
@@ -88,6 +90,28 @@ function GameScreen() {
   const isCreator = game?.players?.[0]?.id === playerId;
   const creatorName = game?.players?.[0]?.name || "";
   const isGameFinished = game?.status === "finished";
+
+  // Drawing by turns: the server says who draws and the times left; the creator has no privilege
+  const tutti = game?.estrazione === "tutti";
+  const turno = tutti ? game?.turno ?? null : null;
+  const espulso = Boolean(game?.players?.find((p) => p.id === playerId)?.espulso);
+  const [ora, setOra] = useState(() => Date.now());
+  const turnoAttivo = Boolean(turno) && !turno.sospeso && game?.status === "playing";
+  useEffect(() => {
+    if (!turnoAttivo) return undefined;
+    const timer = setInterval(() => setOra(Date.now()), 500);
+    return () => clearInterval(timer);
+  }, [turnoAttivo]);
+  const attesaTurno = turno
+    ? Math.max(0, Math.ceil(((turno.sospeso ? turno.attesaIn : turno.ricevutoA + turno.attesaIn - ora)) / 1000))
+    : 0;
+  // The beeps of the last five seconds and the siren: not while the turn is stopped
+  useSegnaliTurno(turnoAttivo ? turno.ricevutoA + turno.scadenzaIn : null);
+  const puoEstrarre = tutti ? Boolean(turno) && turno.playerId === playerId && !espulso : isCreator;
+  const chiEstrae = tutti
+    ? game?.players?.find((p) => p.id === turno?.playerId)?.name ?? "il sistema, in automatico"
+    : creatorName;
+  const attesaEstrazione = tutti ? attesaTurno : drawCooldown;
 
   // The player who is choosing the jolly card now (the server holds the draws meanwhile)
   const pausa = game?.status === "playing" ? game.jollyInCorso ?? null : null;
@@ -184,9 +208,9 @@ function GameScreen() {
   };
 
   const handleEstraiCarta = async () => {
-    if (drawCooldown > 0) {
+    if (attesaEstrazione > 0) {
       dispatch(addToast({
-        message: `Attendi ${drawCooldown} secondi prima di estrarre un'altra carta`,
+        message: `Attendi ${attesaEstrazione} secondi prima di estrarre un'altra carta`,
         type: "warning",
       }));
       return;
@@ -307,10 +331,12 @@ function GameScreen() {
   const azione = (variant) => (
     <BarraAzione
       variant={variant}
-      isCreator={isCreator}
-      creatorName={creatorName}
+      puoEstrarre={puoEstrarre}
+      chiEstrae={chiEstrae}
+      espulso={espulso}
+      turno={turno ? { scadenza: turno.ricevutoA + turno.scadenzaIn, sospeso: turno.sospeso, restanteMs: turno.scadenzaIn } : null}
       status={game?.status}
-      drawCooldown={drawCooldown}
+      drawCooldown={attesaEstrazione}
       jollyMode={isGameFinished ? null : jollyMode}
       jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
       jollyConversione={conversione}
@@ -345,7 +371,7 @@ function GameScreen() {
             ) : (
               <span
                 aria-hidden="true"
-                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-linea"
+                className="flex h-[52px] w-[29px] shrink-0 items-center justify-center rounded-[3px] border-2 border-dashed border-linea-forte"
               />
             )}
             <div className="min-w-0">
@@ -406,8 +432,10 @@ function GameScreen() {
 
         {/* The player's sheet, laid out like a tombola sheet */}
         <section ref={gridRef} className="superficie scroll-mt-20 p-2.5 max-[359px]:p-1.5 lg:sticky lg:top-24 lg:row-span-3 lg:self-start">
-          <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
+          <div className="mb-1 flex items-center justify-between gap-2 px-1">
             <h2 className="titolo text-lg text-testo">La tua cartella</h2>
+            {/* The negative margin keeps the row as high as the title: the button is 44 px and does not push the sheet down */}
+            {game?.soundsEnabled !== false && <PulsanteSuoni className="-my-2" />}
           </div>
 
           {/* Under 320 px the sheet is wider than the screen: it scrolls in its own box, not the page */}

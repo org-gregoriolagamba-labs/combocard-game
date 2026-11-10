@@ -128,6 +128,11 @@ function LobbyScreen() {
             <p className="mt-3 text-sm text-testo">
               Costa {game?.requiredCredits} crediti a testa. {game?.isPrivate ? "Partita privata" : "Partita pubblica"}.
             </p>
+            <p className="mt-1 text-sm text-testo-2 [text-wrap:pretty]">
+              {game?.estrazione === "tutti"
+                ? "Le carte le estraggono a turno tutti i giocatori."
+                : "Le carte le estrae il creatore."}
+            </p>
             {game?.isPrivate && (
               <p className="mt-1 text-sm text-testo-2 [text-wrap:pretty]">
                 Gli amici entrano dalla Hall con «Unisciti a Partita Privata» e questo codice.

@@ -126,6 +126,8 @@ test.describe('Protected routes @critical', () => {
     ['get', '/api/players/any'],
     ['post', '/api/players/any/buy-credits'],
     ['get', '/api/game/lobby'],
+    ['get', '/api/me/movements'],
+    ['get', '/api/me/stats'],
   ]) {
     test(`${method.toUpperCase()} ${path} should require a token`, async ({ request }) => {
       expect((await request[method](`${API_URL}${path}`)).status()).toBe(401);

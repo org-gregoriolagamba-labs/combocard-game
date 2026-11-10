@@ -22,10 +22,11 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
 
 // Import routes
-import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes } from "./routes/index.js";
+import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes, meRoutes } from "./routes/index.js";
 
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
+import { riarmaTurni } from "./services/estrazione.service.js";
 
 // Import persistence
 import { initializePersistence } from "./db/index.js";
@@ -114,6 +115,7 @@ app.use((req, res, next) => {
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/me", meRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/games", gameRoutes);
 
@@ -166,6 +168,9 @@ const startServer = async () => {
     console.error(`❌ Could not initialize the database: ${err.message}`);
     process.exit(1);
   }
+
+  // The games drawn by turns that were in progress get their timers back
+  riarmaTurni(gameState, io, () => store);
 
   server.listen(config.port, () => {
     console.log(`🎴 COMBOCARD Server running in ${config.nodeEnv} mode on port ${config.port}`);

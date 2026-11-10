@@ -40,6 +40,99 @@ const stateFor = (playerId, overrides = {}) => {
 };
 
 describe('GameScreen', () => {
+  describe('drawing by turns', () => {
+    beforeEach(() => window.localStorage.setItem('combocard.guida-letta', '1'));
+    afterAll(() => window.localStorage.clear());
+
+    const withTurn = (playerId, turno, estrazione = 'tutti') => {
+      const base = stateFor(playerId);
+      return {
+        ...base,
+        game: {
+          ...base.game,
+          game: { ...base.game.game, estrazione, turno: turno && { attesaIn: 0, scadenzaIn: 40_000, sospeso: false, ricevutoA: Date.now(), ...turno } },
+        },
+      };
+    };
+
+    test('the player on turn draws, and sees the time left', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('carlo', { playerId: 'carlo' }) });
+
+      expect(screen.getAllByRole('button', { name: /Estrai Carta/ })[0]).toBeEnabled();
+      expect(screen.getAllByTestId('conto-turno')[0]).toHaveTextContent(/0:(39|40)/);
+    });
+
+    test('the creator who is not on turn does not draw: he sees who does', () => {
+      // anna is the first player of the game, so she is the creator
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('anna', { playerId: 'carlo' }) });
+
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Estrae Carlo/)[0]).toBeInTheDocument();
+    });
+
+    test('a player with a red card never gets the button, even on turn', () => {
+      const base = withTurn('carlo', { playerId: 'carlo' });
+      base.game.game.players = base.game.game.players.map((p) => (p.id === 'carlo' ? { ...p, espulso: true, ammonizioni: 2 } : p));
+      renderWithProviders(<GameScreen />, { preloadedState: base });
+
+      expect(screen.queryByRole('button', { name: /Estrai Carta/ })).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Cartellino rosso/)[0]).toBeInTheDocument();
+    });
+
+    test('in the classic mode the creator draws and nobody else does', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('anna', null, 'creatore') });
+
+      expect(screen.getAllByRole('button', { name: /Estrai Carta/ })[0]).toBeEnabled();
+      expect(screen.queryByTestId('conto-turno')).not.toBeInTheDocument();
+    });
+
+    test('the draw waits for the wait the server asked', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withTurn('carlo', { playerId: 'carlo', attesaIn: 5_000 }) });
+
+      expect(screen.getAllByRole('button', { name: /Attendi [45]s/ })[0]).toBeDisabled();
+    });
+  });
+
+  describe('the sound button', () => {
+    beforeEach(() => window.localStorage.clear());
+    afterAll(() => window.localStorage.clear());
+
+    const withSounds = (soundsEnabled) => {
+      const base = stateFor('carlo');
+      return { ...base, game: { ...base.game, game: { ...base.game.game, soundsEnabled } } };
+    };
+
+    test('a game with sounds has a button to turn them off for oneself, and back on', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withSounds(true) });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Disattiva i suoni' }));
+      expect(window.localStorage.getItem('combocard.audio-muto')).toBe('1');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Attiva i suoni' }));
+      expect(window.localStorage.getItem('combocard.audio-muto')).toBeNull();
+    });
+
+    test('a game made before the choice existed has sounds too', () => {
+      const base = stateFor('carlo');
+      renderWithProviders(<GameScreen />, { preloadedState: base });
+
+      expect(screen.getByRole('button', { name: 'Disattiva i suoni' })).toBeInTheDocument();
+    });
+
+    test('a game without sounds has no button', () => {
+      renderWithProviders(<GameScreen />, { preloadedState: withSounds(false) });
+
+      expect(screen.queryByRole('button', { name: /i suoni/ })).not.toBeInTheDocument();
+    });
+
+    test('the button remembers a muted player', () => {
+      window.localStorage.setItem('combocard.audio-muto', '1');
+      renderWithProviders(<GameScreen />, { preloadedState: withSounds(true) });
+
+      expect(screen.getByRole('button', { name: 'Attiva i suoni' })).toBeInTheDocument();
+    });
+  });
+
   describe('the guide for a first game', () => {
     beforeEach(() => window.localStorage.clear());
     afterAll(() => window.localStorage.clear());
@@ -418,10 +511,12 @@ describe('GameScreen', () => {
       expect(screen.getAllByText(/Jolly per TRIS: tocca una carta evidenziata/).length).toBeGreaterThan(0);
     });
 
-    test('before choosing a collection no card can be tapped', () => {
+    test('before choosing a collection a card cannot be chosen for the jolly: a tap opens it big', () => {
       renderWithProviders(<GameScreen />, { preloadedState: stateFor('carlo') });
 
-      expect(firstCard()).toBeDisabled();
+      expect(firstCard()).not.toHaveAttribute('aria-pressed');
+      fireEvent.click(firstCard());
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     test('a covered card cannot be chosen', () => {
@@ -505,7 +600,7 @@ describe('GameScreen', () => {
       fireEvent.click(screen.getAllByRole('button', { name: 'Annulla' })[0]);
 
       expect(store.getState().game.jollyMode).toBeNull();
-      expect(firstCard()).toBeDisabled();
+      expect(firstCard()).not.toHaveAttribute('aria-pressed');
     });
 
     test('activating the mode no longer repeats its instruction in a notice', () => {

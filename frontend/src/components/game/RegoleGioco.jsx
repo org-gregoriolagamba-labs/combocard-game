@@ -61,7 +61,10 @@ function RegoleGioco({ game = null }) {
           </li>
           <li>Ognuno riceve una cartella di 25 carte diverse, prese dal mazzo napoletano da 40.</li>
           <li>
-            Estrae solo il creatore, una carta alla volta e con almeno 8 secondi tra una e l&apos;altra. La carta
+            Estrae una carta alla volta, con almeno 8 secondi tra una e l&apos;altra. Di norma estraggono a turno tutti
+            i giocatori: il sistema sceglie chi, a giro, e il tempo che resta lo vedono tutti. Chi non estrae entro il
+            tempo limite riceve un cartellino giallo e la carta esce da sola; la seconda volta è cartellino rosso e
+            non estrae più, ma continua a giocare. Se il creatore ha scelto di estrarre da solo, estrae lui. La carta
             uscita si rivela a tutti.
           </li>
           <li>
@@ -74,8 +77,8 @@ function RegoleGioco({ game = null }) {
       <Sezione titolo="La cartella">
         <p>
           I valori stanno nelle righe (Asso, Due, Tre, Quattro, Cinque, Sei, Sette, Fante, Cavallo, Re), i semi nelle
-          colonne (Denari, Coppe, Spade, Bastoni). I posti vuoti sono le carte che non hai. La posizione serve solo a
-          leggere meglio: per vincere conta quali carte sono coperte, non dove stanno.
+          colonne (Denari, Coppe, Spade, Bastoni). I posti vuoti sono le carte che non hai: se una di queste esce, il posto mostra un pallino con l&apos;anello. La posizione serve solo a
+          leggere meglio: per vincere conta quali carte sono coperte, non dove stanno. Tocca una carta, della cartella o tra quelle uscite, per ingrandirla; durante il Jolly la ingrandisci tenendola premuta.
         </p>
       </Sezione>
 

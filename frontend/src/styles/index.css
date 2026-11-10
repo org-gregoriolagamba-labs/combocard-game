@@ -85,6 +85,19 @@ input[type="checkbox"] {
   accent-color: #ffcf4a;
 }
 
+/* Forced colours (Windows high contrast): the cards keep a visible edge (an outline, so the size does not change),
+   because the system replaces the colours and the shadows */
+@media (forced-colors: active) {
+  button,
+  [role="dialog"] {
+    outline: 1px solid ButtonText;
+    outline-offset: -1px;
+  }
+  table button:disabled {
+    outline-color: GrayText;
+  }
+}
+
 /* Respect the system setting: no movement */
 @media (prefers-reduced-motion: reduce) {
   *,

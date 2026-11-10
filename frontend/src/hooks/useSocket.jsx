@@ -13,6 +13,7 @@ import {
   setCurrentPlayer,
   setUltimaCartaEstratta,
   setJollyInCorso,
+  setTurno,
   clearJollyInCorso,
   updatePlayerCards,
   updatePlayerGettoni,
@@ -21,6 +22,7 @@ import {
 import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
 import { updateCredits, clearPlayer } from "../store/slices/playerSlice";
 import { setAccessToken } from "../services/api";
+import { suona, setPartitaConSuoni } from "../services/soundService";
 
 /**
  * Hook to manage socket connections and game events
@@ -48,6 +50,12 @@ export function useSocket() {
       console.error("Error refreshing game state:", error);
     }
   }, [currentGameId, playerId, dispatch]);
+
+  // The game the player is in has sounds or not (the creator's choice); a game with no such field has them
+  const soundsEnabled = game?.soundsEnabled;
+  useEffect(() => {
+    setPartitaConSuoni(soundsEnabled);
+  }, [soundsEnabled]);
 
   // The server accepts only authenticated connections: connect after the login,
   // disconnect after the logout. Not with a temporary password: the server refuses it, and every
@@ -117,6 +125,12 @@ export function useSocket() {
     const handleCardDrawn = ({ carta }) => {
       if (!carta) return;
       dispatch(setUltimaCartaEstratta(carta));
+      suona("estratta", { seme: carta.seme });
+      // The card is in the own sheet: a second chime, just after the tone of the draw
+      const mioFoglio = game?.players?.find((p) => p.id === playerId)?.cartella ?? [];
+      if (mioFoglio.some((riga) => riga.some((c) => c.valore === carta.valore && c.seme === carta.seme))) {
+        suona("miaCarta", { ritardo: 0.2 });
+      }
       refreshGameState();
     };
 
@@ -142,6 +156,10 @@ export function useSocket() {
           : `${vincitore.name} ha vinto ${nome}: ${ammontare} crediti`;
       }
 
+      // The combocard reale ends the game, and the sound of the end says it
+      if (tipo !== "combocard_reale") {
+        suona(iHaveWon ? "collezioneMia" : "collezioneAltrui");
+      }
       dispatch(addToast({ message, type: iHaveWon ? "win" : "success", duration: iHaveWon ? 6000 : 4000 }));
       if (iHaveWon) {
         dispatch(setVittoriaRecente({ tipo }));
@@ -169,6 +187,7 @@ export function useSocket() {
     // A player declares the jolly: the draws are paused until the card is chosen
     const handleJollyInCorso = (hold) => {
       if (hold?.scadenza) {
+        suona("jollyDichiarato");
         dispatch(setJollyInCorso(hold));
       }
     };
@@ -181,8 +200,35 @@ export function useSocket() {
       }
     };
 
+    // A new turn of the draws: who draws and the times left
+    const handleTurnoEstrazione = (turno) => {
+      if (turno) {
+        dispatch(setTurno(turno));
+      }
+    };
+
+    // A player did not draw in time: yellow card, red the second time
+    const handleAmmonizione = ({ playerId: ammonitoId, name, colore }) => {
+      suona("ammonizione");
+      const rossa = colore === "rossa";
+      const mio = ammonitoId === playerId;
+      let message;
+      if (mio) {
+        message = rossa
+          ? "Non hai estratto in tempo: cartellino rosso. Non estrai più in questa partita"
+          : "Non hai estratto in tempo: cartellino giallo. Al prossimo ritardo sarà rosso";
+      } else {
+        message = rossa
+          ? `${name} non ha estratto in tempo: cartellino rosso, non estrae più`
+          : `${name} non ha estratto in tempo: cartellino giallo`;
+      }
+      dispatch(addToast({ message, type: "warning", duration: mio ? 8000 : 5000 }));
+      refreshGameState();
+    };
+
     // Jolly used
     const handleJollyUsato = ({ playerId: jollyPlayerId, tipo }) => {
+      suona("jollyUsato");
       dispatch(clearJollyInCorso(jollyPlayerId));
       if (jollyPlayerId !== playerId) {
         dispatch(addToast({
@@ -202,6 +248,7 @@ export function useSocket() {
         message = "Partita terminata";
       }
       
+      suona("fine");
       dispatch(addToast({ message, type: "success", duration: 10000 }));
       refreshGameState();
     };
@@ -254,6 +301,8 @@ export function useSocket() {
     socket.on("jollyInCorso", handleJollyInCorso);
     socket.on("jollyAnnullato", handleJollyAnnullato);
     socket.on("jollyUsato", handleJollyUsato);
+    socket.on("turnoEstrazione", handleTurnoEstrazione);
+    socket.on("ammonizione", handleAmmonizione);
     socket.on("gameFinished", handleGameFinished);
     socket.on("gameCancelled", handleGameCancelled);
     socket.on("sessionEnded", handleSessionEnded);
@@ -271,6 +320,8 @@ export function useSocket() {
       socket.off("jollyInCorso", handleJollyInCorso);
       socket.off("jollyAnnullato", handleJollyAnnullato);
       socket.off("jollyUsato", handleJollyUsato);
+      socket.off("turnoEstrazione", handleTurnoEstrazione);
+      socket.off("ammonizione", handleAmmonizione);
       socket.off("gameFinished", handleGameFinished);
       socket.off("gameCancelled", handleGameCancelled);
       socket.off("sessionEnded", handleSessionEnded);

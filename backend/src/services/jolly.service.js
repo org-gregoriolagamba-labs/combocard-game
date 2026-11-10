@@ -39,7 +39,7 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
 
     for (const valore in counts) {
       if (counts[valore] >= 2) {
-        if (!cartaEsisteInCartella(cartella, jollyPos, valore, jollyCard.seme)) {
+        if (!cartaEsisteInCartella(cartella, null, valore, jollyCard.seme)) {
           return { valore: valore, seme: jollyCard.seme };
         }
       }
@@ -64,7 +64,7 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
           (k) => VALORI_NUM[k] === missingNum,
         );
 
-        if (!cartaEsisteInCartella(cartella, jollyPos, missingValore, jollyCard.seme)) {
+        if (!cartaEsisteInCartella(cartella, null, missingValore, jollyCard.seme)) {
           return { valore: missingValore, seme: jollyCard.seme };
         }
       }
@@ -77,14 +77,14 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
     // Case: two pairs, need to complete one to tris
     if (counts.length >= 2 && counts[0][1] === 2 && counts[1][1] >= 2) {
       const valoreTarget = counts[0][0];
-      if (!cartaEsisteInCartella(cartella, jollyPos, valoreTarget, jollyCard.seme)) {
+      if (!cartaEsisteInCartella(cartella, null, valoreTarget, jollyCard.seme)) {
         return { valore: valoreTarget, seme: jollyCard.seme };
       }
     }
     // Case: tris + single, need to make a pair
     if (counts.length >= 2 && counts[0][1] >= 3 && counts[1][1] === 1) {
       const valoreTarget = counts[1][0];
-      if (!cartaEsisteInCartella(cartella, jollyPos, valoreTarget, jollyCard.seme)) {
+      if (!cartaEsisteInCartella(cartella, null, valoreTarget, jollyCard.seme)) {
         return { valore: valoreTarget, seme: jollyCard.seme };
       }
     }
@@ -105,7 +105,7 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
     }
 
     if (bestSeme && maxCount >= 4) {
-      if (!cartaEsisteInCartella(cartella, jollyPos, jollyCard.valore, bestSeme)) {
+      if (!cartaEsisteInCartella(cartella, null, jollyCard.valore, bestSeme)) {
         return { valore: jollyCard.valore, seme: bestSeme };
       }
     }
@@ -140,7 +140,7 @@ export function trovaMiglioreConversioneJolly(cartella, coperte, jollyPos, tipo)
             (k) => VALORI_NUM[k] === missingNum,
           );
 
-          if (!cartaEsisteInCartella(cartella, jollyPos, missingValore, seme)) {
+          if (!cartaEsisteInCartella(cartella, null, missingValore, seme)) {
             return { valore: missingValore, seme: seme };
           }
         }

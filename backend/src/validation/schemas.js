@@ -54,6 +54,10 @@ export const createGameSchema = Joi.object({
   requiredCredits: integer.min(0),
   isPrivate: Joi.boolean().strict(),
   maxPlayers: integer.min(GAME_DEFAULTS.MIN_PLAYERS).max(GAME_DEFAULTS.MAX_PLAYERS),
+  // Whether the game has sounds; the creator chooses, and without a choice it has them
+  soundsEnabled: Joi.boolean().strict(),
+  // Who draws: the creator (classic, the default) or every player in turn
+  estrazione: Joi.string().valid("creatore", "tutti"),
 });
 
 export const claimCollectionSchema = Joi.object({
@@ -75,6 +79,15 @@ const pageQuery = {
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
 };
+
+// The history of the own credit movements: the types a player may see, a period, a page
+export const MOVEMENT_TYPES = ["initial", "purchase", "game_entry", "game_payout", "game_refund", "admin_adjustment", "account_closed"];
+export const meMovementsQuerySchema = Joi.object({
+  type: Joi.string().valid(...MOVEMENT_TYPES),
+  from: Joi.date().iso(),
+  to: Joi.date().iso().min(Joi.ref("from")),
+  ...pageQuery,
+});
 
 export const adminListUsersQuerySchema = Joi.object({
   q: Joi.string().trim().max(30).allow(""),

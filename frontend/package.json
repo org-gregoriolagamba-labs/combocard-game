@@ -1,6 +1,6 @@
 {
   "name": "combocard-frontend",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Frontend for ComboCard Game - Italian Card Game",
   "private": true,
   "dependencies": {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Cartella } from '../../components/game';
 import { calcolaProgresso } from '../../utils';
@@ -62,6 +62,36 @@ describe('Cartella', () => {
     });
   });
 
+  describe('a card drawn that is not in the sheet', () => {
+    const uscita = { valore: 'Re', seme: 'Coppe' };
+
+    test('is named for screen readers: drawn, and not in your sheet', () => {
+      render(<Cartella cartella={griglia} coperte={[[false]]} estratte={[uscita]} />);
+
+      expect(screen.getByText('Re di Coppe: uscita, non è nella tua cartella')).toBeInTheDocument();
+    });
+
+    test('has a visible mark of its own, not only a colour', () => {
+      render(<Cartella cartella={griglia} coperte={[[false]]} estratte={[uscita]} />);
+
+      expect(screen.getByTestId('uscita-senza-te')).toBeInTheDocument();
+      expect(screen.getAllByTestId('uscita-senza-te')).toHaveLength(1);
+    });
+
+    test('an empty place whose card has not come out has neither the mark nor the name', () => {
+      render(<Cartella cartella={griglia} coperte={[[false]]} />);
+
+      expect(screen.queryByTestId('uscita-senza-te')).not.toBeInTheDocument();
+      expect(screen.queryByText(/non è nella tua cartella/)).not.toBeInTheDocument();
+    });
+
+    test('a card of the sheet that came out gets no such mark', () => {
+      render(<Cartella cartella={griglia} coperte={[[true]]} estratte={[carta]} />);
+
+      expect(screen.queryByTestId('uscita-senza-te')).not.toBeInTheDocument();
+    });
+  });
+
   describe('each card is a button with its name', () => {
     test('named by value and suit', () => {
       render(<Cartella cartella={griglia} coperte={[[false]]} />);
@@ -76,8 +106,59 @@ describe('Cartella', () => {
       expect(screen.queryByText(/Estratta/)).not.toBeInTheDocument();
     });
 
-    test('outside the jolly mode no card can be activated', () => {
-      render(<Cartella cartella={griglia} coperte={[[false]]} />);
+    test('outside the jolly mode a card opens big, and never calls the jolly handler', () => {
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} onCardClick={onCardClick} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+
+      expect(screen.getByRole('dialog', { name: 'Asso di Spade' })).toBeInTheDocument();
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+
+    test('the big card says whether it is covered, still to come, or the jolly', () => {
+      const due = [[carta, { ...carta, valore: 'Re', valoreNum: 10 }]];
+      render(<Cartella cartella={due} coperte={[[false, true]]} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+      expect(screen.getByRole('dialog')).toHaveTextContent('Non ancora uscita');
+      fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Re di Spade, coperta' }));
+      expect(screen.getByRole('dialog')).toHaveTextContent('Coperta');
+    });
+
+    test('in jolly mode a short tap still chooses the card, and does not open it', () => {
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" onCardClick={onCardClick} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+
+      expect(onCardClick).toHaveBeenCalledWith(0, 0);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test('in jolly mode a long press opens the card big, and the tap that ends it does not choose it', () => {
+      vi.useFakeTimers();
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" onCardClick={onCardClick} />);
+      const bottone = screen.getByRole('button', { name: 'Asso di Spade' });
+
+      fireEvent.pointerDown(bottone);
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      fireEvent.pointerUp(bottone);
+      fireEvent.click(bottone);
+      vi.useRealTimers();
+
+      expect(screen.getByRole('dialog', { name: 'Asso di Spade' })).toBeInTheDocument();
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+
+    test('in jolly mode a card that cannot be chosen stays disabled', () => {
+      const due = [[carta, { ...carta, valore: 'Re', valoreNum: 10 }]];
+      render(<Cartella cartella={due} coperte={[[false, false]]} jollyMode="tris" possibili={[{ row: 0, col: 1 }]} />);
 
       expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
     });
@@ -100,10 +181,14 @@ describe('Cartella', () => {
       expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
     });
 
-    test('once the jolly is used no card can be activated', () => {
-      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" jollyUsato />);
+    test('once the jolly is used no card can be chosen: a tap opens it big', () => {
+      const onCardClick = vi.fn();
+      render(<Cartella cartella={griglia} coperte={[[false]]} jollyMode="tris" jollyUsato onCardClick={onCardClick} />);
 
-      expect(screen.getByRole('button', { name: 'Asso di Spade' })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Asso di Spade' }));
+
+      expect(onCardClick).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     test('the chosen card is marked as pressed', () => {
@@ -138,6 +223,45 @@ describe('Cartella', () => {
 
       expect(screen.getByRole('columnheader', { name: /Spade/ })).toHaveTextContent('3/5');
       expect(screen.getByRole('columnheader', { name: /Coppe/ })).not.toHaveTextContent('/5');
+    });
+  });
+
+  describe('the counts of rows and columns stop at the goal and go away once the figure is won', () => {
+    const sei = ['Spade', 'Coppe', 'Denari', 'Bastoni'].map((seme) => ({ valore: 'Sei', seme, valoreNum: 6 }));
+    const sei_coppe = ['Asso', 'Due', 'Tre', 'Quattro', 'Cinque', 'Sei'].map((valore, i) => ({ valore, seme: 'Coppe', valoreNum: i + 1 }));
+
+    test('six covered cards of one suit show 5/5, never 6/5', () => {
+      render(<Cartella cartella={[sei_coppe]} coperte={[sei_coppe.map(() => true)]} />);
+
+      const colonna = screen.getByRole('columnheader', { name: /Coppe/ });
+      expect(colonna).toHaveTextContent('5/5');
+      expect(colonna).not.toHaveTextContent('6/5');
+    });
+
+    test('once the scopa is won the columns show no count', () => {
+      render(<Cartella cartella={[sei_coppe]} coperte={[sei_coppe.map(() => true)]} vinte={['scopa']} />);
+
+      expect(screen.getByRole('columnheader', { name: /Coppe/ })).not.toHaveTextContent('/5');
+    });
+
+    test('four covered cards of one value show 3/3, never 4/3', () => {
+      render(<Cartella cartella={[sei]} coperte={[[true, true, true, true]]} />);
+
+      const riga = screen.getByRole('rowheader', { name: /Sei/ });
+      expect(riga).toHaveTextContent('3/3');
+      expect(riga).not.toHaveTextContent('4/3');
+    });
+
+    test('once the tris is won the rows show no count', () => {
+      render(<Cartella cartella={[sei]} coperte={[[true, true, true, true]]} vinte={['tris']} />);
+
+      expect(screen.getByRole('rowheader', { name: /Sei/ })).not.toHaveTextContent('/3');
+    });
+
+    test('a count of a figure not yet won is still shown', () => {
+      render(<Cartella cartella={[sei]} coperte={[[true, true, false, false]]} vinte={['scopa']} />);
+
+      expect(screen.getByRole('rowheader', { name: /Sei/ })).toHaveTextContent('2/3');
     });
   });
 
