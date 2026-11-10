@@ -152,7 +152,7 @@ Alcune aree del codice possono richiedere approvazione specifica (da parte dei C
 Una release porta `develop` su `main`. **La revisione della documentazione è un passo del processo, e va fatta prima del bump di versione**: i documenti devono dire la verità sulla versione che esce.
 
 1. **Issue della release** («Release X.Y.Z», modello *Release*) e branch `feature/release-X.Y.Z` collegato, da `develop`.
-2. **Revisione della documentazione.** Rileggi i documenti contro il codice di `develop`, con la lista qui sotto, e correggi ciò che è rimasto indietro. Le correzioni sono commit del branch della release.
+2. **Revisione della documentazione.** Lancia la skill `controllo-documentazione-release` (`.claude/skills/`): uno script confronta i documenti con il codice, poi si rilegge ciò che la macchina non vede. Segui la lista qui sotto e correggi ciò che è rimasto indietro. Le correzioni sono commit del branch della release.
 3. **Bump di versione** nei quattro pacchetti, con i lock aggiornati:
     ```bash
     for d in . backend frontend e2e; do npm --prefix "$d" version X.Y.Z --no-git-tag-version; done
@@ -178,7 +178,7 @@ Per ogni documento, controlla nel codice e non a memoria:
 | `TEST_SUITE.md` | numeri dei test, struttura, comandi | `npm test`, `npm run test:e2e`, `backend/__tests__/`, `e2e/tests/` |
 | `CONTRIBUTING.md` | il processo descritto è quello che si segue davvero | `.github/workflows/` |
 
-Controlli rapidi:
+Controlli rapidi (lo script `node .claude/skills/controllo-documentazione-release/scripts/check-docs.mjs` li fa tutti, e altri):
 
 - **Rotte:** ogni rotta registrata compare nel README (e viceversa).
 - **Variabili d'ambiente:** ogni variabile letta da `config/index.js` è in `.env.example`, e `DEPLOYMENT.md` non ne cita che non esistono.
