@@ -147,6 +147,48 @@ Alcune aree del codice possono richiedere approvazione specifica (da parte dei C
 
 ---
 
+## 📦 Pubblicare una release
+
+Una release porta `develop` su `main`. **La revisione della documentazione è un passo del processo, e va fatta prima del bump di versione**: i documenti devono dire la verità sulla versione che esce.
+
+1. **Issue della release** («Release X.Y.Z», modello *Release*) e branch `feature/release-X.Y.Z` collegato, da `develop`.
+2. **Revisione della documentazione.** Rileggi i documenti contro il codice di `develop`, con la lista qui sotto, e correggi ciò che è rimasto indietro. Le correzioni sono commit del branch della release.
+3. **Bump di versione** nei quattro pacchetti, con i lock aggiornati:
+    ```bash
+    for d in . backend frontend e2e; do npm --prefix "$d" version X.Y.Z --no-git-tag-version; done
+    ```
+4. **PR del bump** verso `develop` (`Part of #<issue della release>`), poi **PR `develop` → `main`** con le note di rilascio (novità, correzioni, database, configurazione, cosa sapere per chi aggiorna, verifiche, limiti noti) e `Closes` per ogni issue della release. Per questa PR usa il modello `release.md` (`?template=release.md`).
+5. **Merge** delle due PR, una alla volta, quando la CI è verde.
+6. **Tag e release su GitHub** sul commit di `main`, con l'identificativo completo (non quello corto):
+    ```bash
+    gh release create vX.Y.Z --target <sha-completo-di-main> --title "vX.Y.Z" --notes-file <note.md>
+    ```
+
+### Revisione della documentazione
+
+Per ogni documento, controlla nel codice e non a memoria:
+
+| Documento | Che cosa controllare | Dove |
+|-----------|----------------------|------|
+| `README.md` | funzioni e regole di gioco (premi, jolly, estrazione); elenco di rotte e di eventi socket; tecnologie e versioni; elenco dei documenti | `backend/src/routes/`, `grep -rhn "emit(" backend/src`, `backend/src/config/index.js`, `package.json` |
+| `docs/GAME_DESIGN.md` | regole e flusso di gioco; struttura delle cartelle; elenco «da fare» | codice di `backend/src/services/` e `frontend/src/` |
+| `docs/DEPLOYMENT.md` | variabili d'ambiente, passi di aggiornamento, nuove migrazioni | `backend/.env.example`, `backend/src/config/index.js`, `backend/db/migrations/` |
+| `docs/AUTH.md` | rotte di autenticazione e di amministrazione, durata dei token | `backend/src/routes/`, `backend/src/config/index.js` |
+| `docs/DATABASE.md` | tabelle, colonne, tipi di movimento, nuove migrazioni | `backend/db/migrations/`, `backend/src/db/store.js` |
+| `TEST_SUITE.md` | numeri dei test, struttura, comandi | `npm test`, `npm run test:e2e`, `backend/__tests__/`, `e2e/tests/` |
+| `CONTRIBUTING.md` | il processo descritto è quello che si segue davvero | `.github/workflows/` |
+
+Controlli rapidi:
+
+- **Rotte:** ogni rotta registrata compare nel README (e viceversa).
+- **Variabili d'ambiente:** ogni variabile letta da `config/index.js` è in `.env.example`, e `DEPLOYMENT.md` non ne cita che non esistono.
+- **Numeri:** quelli di `TEST_SUITE.md` coincidono con l'ultima esecuzione.
+- **Refusi:** rileggi le parti cambiate in questa versione.
+
+Se non riesci a rileggere un documento per intero, scrivilo nella PR della release («Da sapere»): meglio un limite dichiarato che una verifica data per fatta.
+
+---
+
 ## 🚨 Hotfix
 
 Un hotfix è una correzione critica che deve essere rilasciata immediatamente.
