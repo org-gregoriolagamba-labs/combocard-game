@@ -3,7 +3,7 @@
 ## 🎮 Game Overview
 
 ComboCard is a multiplayer Italian card game where players compete to complete card collections and win prizes from a shared pot.
-Key gameplay features include private games, configurable max players with auto-start, Jolly conversion, draw cooldown, and end-of-game prize splitting.
+Key gameplay features include private games, configurable max players with auto-start, Jolly conversion, drawing by turns, draw cooldown, sounds, and end-of-game prize splitting. Each player can also see their history of movements and personal statistics.
 
 ## 🃏 Italian Deck
 
@@ -122,7 +122,7 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 
 ### 2. Hall (Game List)
 - View available public games waiting for players
-- Create a new game (choose required credits, max players, and public/private)
+- Create a new game (choose required credits, max players, public/private, who draws the cards and whether the sounds are on)
 - Join a public game or use a **private code** to join a private game. The code is the id of the game: a random UUID (36 characters) made with a secure source (`crypto.randomUUID`), so it cannot be guessed. The lobby shows it with a "Copia codice" button, and the field to join accepts a pasted code. The deck and the grids are shuffled with `crypto.randomInt`, never `Math.random`. A player is in **one game at a time** (the entry fee is checked when joining and charged at the start, so with two games the same credits would be promised twice): joining or creating a game while in another one, still waiting or in progress, is refused until the player leaves it or it finishes. A game accepts new players **only while it is waiting**: once it has started, the entry fees are charged and the prizes fixed, so nobody can join late (and a player who leaves a game in progress cannot come back). Someone already in the game who repeats the request gets the same answer, so a retry after the automatic start is harmless. The entry fee is charged only if every player still has it: otherwise the start is refused (the creator is told) or, for a full game that starts by itself, postponed, and nobody is charged. A balance never goes below zero
 - Take credits with **Prendi crediti** (preset cuts + reset, max purchase 10,000)
 
@@ -133,7 +133,7 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 
 ### 4. Game
 - Each player gets a sheet of 25 random, different cards (a 5x5 grid on the server, shown as a tombola sheet, see above)
-- One shared deck is drawn from by the game creator
+- One shared deck is drawn from by the creator or, if the creator chose so, by every player in turn (see "Drawing by turns")
 - When a card is drawn, all players who have it in their grid get it "covered"
 - **Draw cooldown**: 8 seconds between draws
 - Players race to complete collections
@@ -157,9 +157,10 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 backend/src/
 ├── config/              # Environment & game constants
 ├── controllers/         # HTTP request handlers
+├── db/                  # Stores (memory and PostgreSQL), migrations, admin script
 ├── middleware/          # Express middleware (auth, validation, logging)
 ├── routes/              # API route definitions
-├── services/            # Business logic (game, jolly, player)
+├── services/            # Business logic (game, jolly, turns, player, account, admin)
 ├── sockets/             # Socket.IO real-time handlers
 ├── utils/               # Utilities (errors, responses, cards)
 └── server.js            # Entry point
@@ -172,7 +173,7 @@ frontend/src/
 │   ├── common/         # Reusable UI (Button, Modal, Toast)
 │   └── game/           # Game screens (Hall, Lobby, Game)
 ├── config/             # API & app configuration
-├── hooks/              # Custom hooks (useSocket, useToast)
+├── hooks/              # Custom hooks (useSocket, useToast, useSegnaliTurno)
 ├── pages/              # Page components
 ├── services/           # API abstraction layer
 ├── store/              
@@ -184,10 +185,12 @@ frontend/src/
 
 ## 🔧 Future Enhancements
 
-- [ ] Add database for persistence (MongoDB/PostgreSQL)
-- [ ] Implement user authentication (JWT)
+Already done: persistence on PostgreSQL, accounts with sessions, player history and statistics.
+
 - [ ] Add in-game chat
-- [ ] Player statistics and history
 - [ ] Global leaderboards
+- [ ] Password recovery
+- [ ] Private rooms created and managed by the users
+- [ ] Game parameters (time limit, wait, shares) changeable by an admin
 - [ ] Tournament mode
 - [ ] Mobile app (React Native)

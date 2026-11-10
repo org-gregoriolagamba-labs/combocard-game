@@ -9,19 +9,24 @@ ComboCard is a multiplayer card game using the Italian deck (40 cards with suits
 ### Collections
 | Collection | Description | Prize |
 |------------|-------------|-------|
-| **Tris** 🎯 | 3 cards of same value | 20% of pot |
-| **Sequenza** 📊 | 4 consecutive cards | 20% of pot |
-| **Scopa** 🎴 | 5 cards of same suit | 25% of pot |
+| **Tris** 🎯 | 3 cards of same value | 10% of pot |
+| **Sequenza** 📊 | 4 consecutive cards | 15% of pot |
+| **Scopa** 🎴 | 5 cards of same suit | 20% of pot |
 | **Napola** 💎 | Tris + Pair (full house) | 25% of pot |
-| **Combocard Reale** 👑 | 4 consecutive same suit | 100% - WIN! |
+| **Combocard Reale** 👑 | 4 consecutive same suit | 30% of pot, ends the game |
+
+The shares are the defaults and can be changed with the `PRIZE_*` variables (see `backend/.env.example`).
 
 ### Jolly System
-Each player has one Jolly card that can be converted to any card needed to complete a collection. Use it strategically!
+Each player has one Jolly card that can be converted to any card needed to complete a collection, as long as that card is not already in the player's sheet. While a player chooses, the draws are paused. Use it strategically!
 
 ### Additional Gameplay Features
 - **Private games** with join-by-code support
 - **Max players** per game (2–10) with **auto-start** when the table is full
+- **Drawing by turns**: the creator chooses who draws, every player in turn (default in the app) or only the creator. The player on turn has 60 seconds, with a countdown for everybody and beeps in the last five seconds; if the time runs out the card is drawn automatically and the player gets a yellow card, then a red card (no more draws until the end of the game)
 - **Draw cooldown**: 8-second delay between card draws
+- **Sounds**: the creator can switch the game sounds on or off, and each player can mute them
+- **Zoom** of the cards of the sheet and of the drawn ones, and an **history and personal statistics** page for each player
 - **Remaining prize distribution**: undistributed prizes are split evenly at game end
 - **Cash register** with preset cuts and reset
 - **Real-time player list** and live token updates
@@ -77,7 +82,7 @@ combocard-game/
 ### Frontend
 - **Framework**: React 19
 - **State Management**: Redux Toolkit
-- **Routing**: React Router v6
+- **Routing**: screens switched by the app state (no router library)
 - **Styling**: Tailwind CSS 3
 - **Icons**: Lucide React
 - **Real-time**: Socket.IO Client
@@ -97,7 +102,7 @@ combocard-game/
 git clone <repository-url>
 cd combocard-game
 
-# Install all dependencies (root, backend, frontend)
+# Install all dependencies (root, backend, frontend, e2e)
 npm run install:all
 ```
 
@@ -131,6 +136,8 @@ npm start
 | POST | `/api/auth/login` | Start a session |
 | POST | `/api/auth/refresh` | Get a new access token from the refresh cookie |
 | POST | `/api/auth/logout` | End the session on this device |
+| POST | `/api/auth/password` | Change your password (needed after an admin reset it) |
+| DELETE | `/api/auth/account` | Delete your own account (asks for the password) |
 
 All the routes below require `Authorization: Bearer <access token>`. The acting player always comes from the token. See [docs/AUTH.md](docs/AUTH.md).
 
@@ -149,17 +156,27 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 | GET | `/api/games/:gameId` | Get a game you created or joined |
 | POST | `/api/games/:gameId/join` | Join a game |
 | POST | `/api/games/:gameId/start` | Start the game (creator only) |
-| POST | `/api/games/:gameId/draw` | Draw a card (creator only) |
+| POST | `/api/games/:gameId/draw` | Draw a card (the creator, or the player on turn when the game is played by turns) |
 | POST | `/api/games/:gameId/claim` | Claim a collection |
 | POST | `/api/games/:gameId/jolly/start` | Declare the jolly for a collection: draws are paused for up to 30 seconds while the player chooses the card |
 | POST | `/api/games/:gameId/jolly/cancel` | Give the jolly choice up (only the player who is choosing) |
 | POST | `/api/games/:gameId/jolly` | Use the jolly card (ends the pause) |
 | POST | `/api/games/:gameId/leave` | Leave a game |
 
+### Personal Routes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/me/movements` | Your own history of credit movements (`page`, `limit`, `type`, `from`, `to`) |
+| GET | `/api/me/stats` | Your own statistics (needs the database) |
+
+### Admin Routes
+Under `/api/admin`, for accounts with the admin role only: users (list, edit, adjust credits, suspend, close sessions, reset password, delete), games (list, cancel), status, statistics and the audit log. See [docs/AUTH.md](docs/AUTH.md).
+
 ### Health Routes
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/health` | Health check |
+| GET | `/api/health/detailed` | Health check with details |
 
 ## 🔌 Socket Events
 
@@ -172,12 +189,17 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 - `playerLeft`: Player left
 - `gameStarted`: Game started, sent to each player with their own view of the game
 - `cardDrawn`: Card was drawn
+- `turnoEstrazione`: A new turn to draw has started
+- `ammonizione`: A player got a yellow or red card for not drawing in time
 - `cardCovered`: Card was covered on the grid of the player who receives it
 - `collezioneVinta`: Collection won
 - `gettoniAggiornati`: Player tokens updated
 - `premiRimanentiDivisi`: Remaining prizes split
-- `jollyUsato`: Jolly used
+- `jollyInCorso` / `jollyAnnullato` / `jollyUsato`: Jolly being chosen / given up / used
+- `regoleConfermate`: A player confirmed the rules
 - `gameFinished`: Game ended
+- `gameCancelled`: Game cancelled by an admin
+- `sessionEnded`: The session of the player was closed
 
 ## 🧪 Testing
 
@@ -201,6 +223,7 @@ TEST_DATABASE_URL=postgresql://user:password@localhost:5432/combocard_test npm r
 ## 🔧 Environment Variables
 
 ### Backend (.env)
+The complete list, with comments, is in `backend/.env.example` (database, `JWT_SECRET`, session lifetimes, rate limits, credits, draw cooldown and turn time, prize shares). The most common ones:
 ```bash
 PORT=3001
 NODE_ENV=development
@@ -250,6 +273,10 @@ npm run lint:fix
 
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Game Design](docs/GAME_DESIGN.md)
+- [Authentication and admin area](docs/AUTH.md)
+- [Database](docs/DATABASE.md)
+- [Test suite](TEST_SUITE.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## 📄 License
 
