@@ -618,9 +618,6 @@ VITE_BACKEND_URL=http://localhost:3001
 # Test URLs
 E2E_BASE_URL=http://localhost:3000
 E2E_API_URL=http://localhost:3001
-
-# Test User
-E2E_TEST_USER_NAME=TestPlayer
 ```
 
 ---
