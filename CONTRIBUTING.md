@@ -61,6 +61,7 @@ Ogni attività ha la sua issue, e ogni issue ha il suo branch, **collegato** all
   Per un hotfix usa `--base main` e un nome `hotfix/*`.
 - **Un branch per issue**: non riusare lo stesso branch per attività diverse.
 - **Nella PR** scrivi `Closes #<numero-issue>`: la issue si chiude da sola al merge. Se l'attività è parte di una issue più ampia, aggiungi anche `Part of #<numero>`.
+- **Modelli**: aprendo una issue da GitHub scegli il modello (bug, nuova funzione, attività tecnica): compila da solo il tipo, l'etichetta e l'assegnatario. Le PR partono da `.github/pull_request_template.md`; per bugfix, feature e hotfix ci sono anche i modelli in `.github/PULL_REQUEST_TEMPLATE/`, da scegliere con `?template=bugfix.md` (o `feature.md`, `hotfix.md`) nell'indirizzo di apertura della PR. Alla PR l'azione `PR metadata` assegna l'autore, aggiunge l'etichetta (`feature/` → `enhancement`, `bugfix/` → `bug`) e avvisa, senza bloccare, se manca `Closes #N` o `Part of #N`. I revisori vengono da `.github/CODEOWNERS`.
 - **Eccezione**: le PR create in automatico (la sincronizzazione `main` → `develop` dopo un hotfix, gli aggiornamenti di Dependabot) non hanno bisogno di una issue.
 
 ---

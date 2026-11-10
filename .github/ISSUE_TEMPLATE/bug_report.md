@@ -1,4 +1,11 @@
-# Bug Report 🐛
+---
+name: Segnalazione di un bug
+about: Qualcosa non funziona come dovrebbe
+title: ""
+labels: bug
+type: Bug
+assignees: gregoriolagamba
+---
 
 ## Descrizione
 Descrivi il bug riscontrato in modo chiaro.
@@ -16,8 +23,8 @@ Spiega cosa è successo invece.
 
 ## Ambiente
 - Versione del software:
-- Browser / OS:
+- Browser / OS (telefono o computer):
 - Altri dettagli rilevanti:
 
 ## Allegati
-Screenshot, log, o altri file utili
+Screenshot, log, o altri file utili.

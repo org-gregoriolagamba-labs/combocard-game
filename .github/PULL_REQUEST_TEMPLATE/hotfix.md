@@ -1,5 +1,8 @@
 # Pull Request - Hotfix 🩹
 
+## Issue collegata
+Closes #  <!-- o `Part of #numero` -->
+
 ## Descrizione
 Inserisci una descrizione concisa dell’hotfix applicato:
 
