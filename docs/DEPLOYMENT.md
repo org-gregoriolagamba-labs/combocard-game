@@ -589,9 +589,16 @@ DATABASE_POOL_MAX=10
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=3000
 
-# Logging
-LOG_LEVEL=info
+# Game (the values in backend/.env.example are the defaults)
+# Seconds between two draws
+DRAW_COOLDOWN_SECONDS=8
+# Seconds a player has to draw when the game is played by turns; then the card is drawn
+# by itself and the player gets a yellow card (the second time, a red one)
+DRAW_TURN_SECONDS=60
+# Share of the pot for each collection: PRIZE_TRIS, PRIZE_SEQUENZA, PRIZE_SCOPA, PRIZE_NAPOLA, PRIZE_COMBOCARD_REALE
 ```
+
+Run **one instance** of the server: the games in progress and the timers of the turns live in its memory (the database keeps the state, and after a restart the timers are armed again for the games in progress), so two instances would not share them.
 
 ### Frontend (`frontend/.env`)
 
@@ -611,9 +618,6 @@ VITE_BACKEND_URL=http://localhost:3001
 # Test URLs
 E2E_BASE_URL=http://localhost:3000
 E2E_API_URL=http://localhost:3001
-
-# Test User
-E2E_TEST_USER_NAME=TestPlayer
 ```
 
 ---
