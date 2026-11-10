@@ -73,10 +73,24 @@ This project uses ESM (`"type": "module"`). The backend `npm test` script alread
 
 ## API Endpoints
 
+All the routes except `/api/auth` and `/api/health` need `Authorization: Bearer <access token>`.
+
+### Auth
+- `POST /api/auth/register` - Create an account and start a session
+- `POST /api/auth/login` - Start a session
+- `POST /api/auth/refresh` - New access token from the refresh cookie
+- `POST /api/auth/logout` - End the session on this device
+- `POST /api/auth/password` - Change the password
+- `DELETE /api/auth/account` - Delete your own account
+
 ### Players
-- `POST /api/players/register` - Register a new player
-- `GET /api/players/:id` - Get player details
-- `POST /api/players/:id/buy-credits` - Buy credits
+- `GET /api/players/:playerId` - Get your own player
+- `POST /api/players/:playerId/accept-rules` - Confirm that you read the rules
+- `POST /api/players/:playerId/buy-credits` - Buy credits
+
+### Personal history
+- `GET /api/me/movements` - Your history of credit movements
+- `GET /api/me/stats` - Your statistics
 
 ### Games
 - `GET /api/games/lobby` - Get available games
@@ -86,11 +100,17 @@ This project uses ESM (`"type": "module"`). The backend `npm test` script alread
 - `POST /api/games/:id/start` - Start the game
 - `POST /api/games/:id/draw` - Draw a card
 - `POST /api/games/:id/claim` - Claim a collection
+- `POST /api/games/:id/jolly/start` - Declare the Jolly (the draws pause while the player chooses)
+- `POST /api/games/:id/jolly/cancel` - Give the Jolly choice up
 - `POST /api/games/:id/jolly` - Use Jolly card
 - `POST /api/games/:id/leave` - Leave the game
 
 ### Health
 - `GET /api/health` - Health check
+- `GET /api/health/detailed` - Health check with details
+
+### Admin
+Under `/api/admin`, for admin accounts only: see [../docs/AUTH.md](../docs/AUTH.md).
 
 ## Socket Events
 
@@ -103,12 +123,17 @@ This project uses ESM (`"type": "module"`). The backend `npm test` script alread
 - `playerLeft` - Player left game
 - `gameStarted` - Game started
 - `cardDrawn` - Card was drawn
+- `turnoEstrazione` - A new turn to draw
+- `ammonizione` - Yellow or red card for a player who did not draw in time
 - `cardCovered` - Card covered on a player grid
 - `collezioneVinta` - Collection won
 - `gettoniAggiornati` - Tokens updated
 - `premiRimanentiDivisi` - Remaining prizes split
-- `jollyUsato` - Jolly used
+- `jollyInCorso` / `jollyAnnullato` / `jollyUsato` - Jolly being chosen / given up / used
+- `regoleConfermate` - A player confirmed the rules
 - `gameFinished` - Game ended
+- `gameCancelled` - Game cancelled by an admin
+- `sessionEnded` - The session of the player was closed
 
 ## Environment Variables
 
