@@ -8,7 +8,7 @@
 export const CONTATTI = {
   autore: "Gregorio La Gamba",
   linkedin: "https://www.linkedin.com/in/gregoriolagamba/",
-  repository: "https://github.com/org-gregoriolagamba-labs/combocard-game",
+  repository: "https://github.com/org-gregoriolagamba-projects/combocard-game",
   email: null,
 };
 

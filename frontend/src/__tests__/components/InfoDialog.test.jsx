@@ -22,7 +22,7 @@ const contatti = vi.hoisted(() => ({
   CONTATTI: {
     autore: 'Gregorio La Gamba',
     linkedin: 'https://www.linkedin.com/in/gregoriolagamba/',
-    repository: 'https://github.com/org-gregoriolagamba-labs/combocard-game',
+    repository: 'https://github.com/org-gregoriolagamba-projects/combocard-game',
     email: null,
   },
 }));
@@ -67,7 +67,7 @@ describe('the "Info e contatti" dialog', () => {
     const linkedin = screen.getByRole('link', { name: /LinkedIn/ });
     const repo = screen.getByRole('link', { name: /GitHub/ });
     expect(linkedin).toHaveAttribute('href', 'https://www.linkedin.com/in/gregoriolagamba/');
-    expect(repo).toHaveAttribute('href', 'https://github.com/org-gregoriolagamba-labs/combocard-game');
+    expect(repo).toHaveAttribute('href', 'https://github.com/org-gregoriolagamba-projects/combocard-game');
     [linkedin, repo].forEach((link) => {
       expect(link).toHaveAttribute('target', '_blank');
       expect(link.getAttribute('rel')).toMatch(/noopener/);
