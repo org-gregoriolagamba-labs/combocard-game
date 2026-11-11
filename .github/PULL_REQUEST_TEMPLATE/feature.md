@@ -1,5 +1,8 @@
 # Pull Request - Feature ✨
 
+## Issue collegata
+Closes #  <!-- o `Part of #numero` -->
+
 ## Descrizione
 Inserisci una breve descrizione della feature implementata:
 

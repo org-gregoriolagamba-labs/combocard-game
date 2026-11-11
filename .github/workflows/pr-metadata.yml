@@ -1,0 +1,51 @@
+name: PR metadata
+
+# Dà alla PR l'assegnatario e l'etichetta che il nome del branch già dice, e avvisa se manca il
+# collegamento a una issue. Non blocca nulla: i revisori sono quelli di .github/CODEOWNERS.
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  metadata:
+    # Dependabot ha un token in sola lettura: le sue PR non hanno bisogno né di etichetta né di issue
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign the author and label by branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          case "$BRANCH" in
+            feature/*) LABEL=enhancement ;;
+            bugfix/*)  LABEL=bug ;;
+            *)         LABEL="" ;;
+          esac
+          if [ "${AUTHOR%\[bot\]}" = "$AUTHOR" ]; then
+            gh api -X POST "repos/$REPO/issues/$PR/assignees" -f "assignees[]=$AUTHOR" > /dev/null \
+              || echo "::warning::Could not assign $AUTHOR"
+          fi
+          if [ -n "$LABEL" ]; then
+            gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=$LABEL" > /dev/null \
+              || echo "::warning::Could not add the label $LABEL"
+          fi
+
+      - name: Warn when no issue is linked
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          case "$BRANCH" in
+            feature/*|bugfix/*|hotfix/*)
+              if ! printf '%s' "$BODY" | grep -Eiq '(closes|fixes|resolves|part of) +#[0-9]+'; then
+                echo "::warning::The description has no 'Closes #N' or 'Part of #N': every activity has its issue (see CONTRIBUTING.md)"
+              fi ;;
+          esac

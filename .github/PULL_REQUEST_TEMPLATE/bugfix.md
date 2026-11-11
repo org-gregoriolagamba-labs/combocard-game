@@ -1,5 +1,8 @@
 # Pull Request - Bugfix 🐛
 
+## Issue collegata
+Closes #  <!-- o `Part of #numero` -->
+
 ## Descrizione del bug
 Descrivi il bug corretto e il comportamento osservato.
 
